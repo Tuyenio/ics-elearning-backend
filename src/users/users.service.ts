@@ -143,7 +143,12 @@ export class UsersService {
         email: user.email,
         status: user.status,
         emailVerified: user.emailVerified,
-      }
+      },
     };
   }
+
+  async updatePassword(id: string, hashedPassword: string): Promise<void> {
+    await this.usersRepository.update(id, { password: hashedPassword });
+  }
 }
+
