@@ -16,6 +16,9 @@ import { PaymentsModule } from './payments/payments.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { NotesModule } from './notes/notes.module';
 import { WishlistsModule } from './wishlists/wishlists.module';
+import { ExamsModule } from './exams/exams.module';
+import { Exam } from './exams/entities/exam.entity';
+import { ExamAttempt } from './exams/entities/exam-attempt.entity';
 import { User } from './users/entities/user.entity';
 import { Category } from './categories/entities/category.entity';
 import { Course } from './courses/entities/course.entity';
@@ -25,6 +28,7 @@ import { LessonProgress } from './lesson-progress/entities/lesson-progress.entit
 import { Quiz } from './quizzes/entities/quiz.entity';
 import { QuizAttempt } from './quizzes/entities/quiz-attempt.entity';
 import { Certificate } from './certificates/entities/certificate.entity';
+import { CertificateTemplate } from './certificates/entities/certificate-template.entity';
 import { Payment } from './payments/entities/payment.entity';
 import { Review } from './reviews/entities/review.entity';
 import { Note } from './notes/entities/note.entity';
@@ -48,6 +52,7 @@ import { Wishlist } from './wishlists/entities/wishlist.entity';
         Quiz,
         QuizAttempt,
         Certificate,
+        CertificateTemplate,
         Payment,
         Review,
         Note,
@@ -74,6 +79,7 @@ import { Wishlist } from './wishlists/entities/wishlist.entity';
     ReviewsModule,
     NotesModule,
     WishlistsModule,
+    ExamsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
