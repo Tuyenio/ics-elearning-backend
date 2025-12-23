@@ -55,10 +55,10 @@ export class Payment {
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   discountAmount: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   finalAmount: number;
 
-  @Column({ default: 'USD' })
+  @Column({ default: 'VND' })
   currency: string;
 
   @Column({
@@ -68,14 +68,14 @@ export class Payment {
   })
   status: PaymentStatus;
 
-  @Column({
-    type: 'enum',
-    enum: PaymentMethod,
-  })
-  paymentMethod: PaymentMethod;
+  @Column({ default: 'bank_transfer' })
+  paymentMethod: string;
 
   @Column({ nullable: true })
-  paymentGatewayId: string; // ID from payment gateway (Stripe, PayPal, etc.)
+  paymentGatewayId: string; // ID from payment gateway (VNPay, Momo, etc.)
+
+  @Column({ nullable: true })
+  gatewayTransactionId: string; // Transaction ID returned by payment gateway
 
   @Column({ type: 'simple-json', nullable: true })
   metadata: any; // Additional payment data

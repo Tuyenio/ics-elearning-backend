@@ -35,6 +35,13 @@ export class EnrollmentsController {
     return this.enrollmentsService.findByStudent(user.id);
   }
 
+  @Get('my-courses')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.STUDENT)
+  findMyCourses(@GetUser() user: User) {
+    return this.enrollmentsService.findByStudent(user.id);
+  }
+
   @Get(':id')
   @UseGuards(JwtAuthGuard)
   findOne(@Param('id') id: string, @GetUser() user: User) {

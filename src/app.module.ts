@@ -17,6 +17,7 @@ import { ReviewsModule } from './reviews/reviews.module';
 import { NotesModule } from './notes/notes.module';
 import { WishlistsModule } from './wishlists/wishlists.module';
 import { ExamsModule } from './exams/exams.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { Exam } from './exams/entities/exam.entity';
 import { ExamAttempt } from './exams/entities/exam-attempt.entity';
 import { User } from './users/entities/user.entity';
@@ -33,6 +34,10 @@ import { Payment } from './payments/entities/payment.entity';
 import { Review } from './reviews/entities/review.entity';
 import { Note } from './notes/entities/note.entity';
 import { Wishlist } from './wishlists/entities/wishlist.entity';
+import { Notification } from './notifications/entities/notification.entity';
+import { TwoFactorAuth } from './auth/entities/two-factor-auth.entity';
+import { UserSession } from './auth/entities/user-session.entity';
+import { ActivityLog } from './common/entities/activity-log.entity';
 
 @Module({
   imports: [
@@ -57,6 +62,12 @@ import { Wishlist } from './wishlists/entities/wishlist.entity';
         Review,
         Note,
         Wishlist,
+        Exam,
+        ExamAttempt,
+        Notification,
+        TwoFactorAuth,
+        UserSession,
+        ActivityLog,
       ],
       synchronize: true,
       ssl: true,
@@ -80,6 +91,7 @@ import { Wishlist } from './wishlists/entities/wishlist.entity';
     NotesModule,
     WishlistsModule,
     ExamsModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

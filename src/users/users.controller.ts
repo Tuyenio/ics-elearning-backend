@@ -10,6 +10,7 @@ import {
   Request,
   ClassSerializerInterceptor,
   UseInterceptors,
+  Query,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -17,9 +18,9 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { UserRole } from './entities/user.entity';
+import { UserRole, UserStatus } from './entities/user.entity';
 
-@Controller('users')
+@Controller('api/users')
 @UseInterceptors(ClassSerializerInterceptor)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
@@ -34,14 +35,37 @@ export class UsersController {
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  findAll() {
-    return this.usersService.findAll();
+  findAll(
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
+    @Query('search') search?: string,
+    @Query('role') role?: UserRole,
+    @Query('status') status?: UserStatus,
+    @Query('sortBy') sortBy = 'createdAt',
+    @Query('sortOrder') sortOrder: 'ASC' | 'DESC' = 'DESC',
+  ) {
+    return this.usersService.findAllWithPagination(
+      +page,
+      +limit,
+      search,
+      role,
+      status,
+      sortBy,
+      sortOrder,
+    );
+  }
+
+  @Get('stats')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  getStats() {
+    return this.usersService.getStats();
   }
 
   @Get('profile')
   @UseGuards(JwtAuthGuard)
   getProfile(@Request() req) {
-    return this.usersService.findOne(req.user.id);
+    return this.usersService.findOne(req.user.sub);
   }
 
   @Get(':id')
@@ -53,7 +77,7 @@ export class UsersController {
   @Patch('profile')
   @UseGuards(JwtAuthGuard)
   updateProfile(@Request() req, @Body() updateUserDto: UpdateUserDto) {
-    return this.usersService.update(req.user.id, updateUserDto);
+    return this.usersService.update(req.user.sub, updateUserDto);
   }
 
   @Patch(':id')
@@ -61,6 +85,30 @@ export class UsersController {
   @Roles(UserRole.ADMIN)
   update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
     return this.usersService.update(id, updateUserDto);
+  }
+
+  @Patch(':id/status')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  updateStatus(@Param('id') id: string, @Body('status') status: UserStatus) {
+    return this.usersService.updateStatus(id, status);
+  }
+
+  @Patch(':id/role')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  updateRole(@Param('id') id: string, @Body('role') role: UserRole) {
+    return this.usersService.updateRole(id, role);
+  }
+
+  @Post('bulk-action')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  bulkAction(
+    @Body('ids') ids: string[],
+    @Body('action') action: 'activate' | 'deactivate' | 'delete',
+  ) {
+    return this.usersService.bulkAction(ids, action);
   }
 
   @Delete(':id')

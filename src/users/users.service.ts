@@ -1,7 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { User, UserStatus } from './entities/user.entity';
+import { Repository, Like, In } from 'typeorm';
+import { User, UserStatus, UserRole } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import * as bcrypt from 'bcryptjs';
@@ -22,6 +22,82 @@ export class UsersService {
     return await this.usersRepository.find();
   }
 
+  async findAllWithPagination(
+    page = 1,
+    limit = 10,
+    search?: string,
+    role?: UserRole,
+    status?: UserStatus,
+    sortBy = 'createdAt',
+    sortOrder: 'ASC' | 'DESC' = 'DESC',
+  ): Promise<{
+    data: User[];
+    total: number;
+    page: number;
+    totalPages: number;
+    stats: { total: number; active: number; inactive: number; teachers: number; students: number };
+  }> {
+    const queryBuilder = this.usersRepository.createQueryBuilder('user');
+
+    // Search
+    if (search) {
+      queryBuilder.where(
+        '(user.name ILIKE :search OR user.email ILIKE :search OR user.phone ILIKE :search)',
+        { search: `%${search}%` },
+      );
+    }
+
+    // Filter by role
+    if (role) {
+      queryBuilder.andWhere('user.role = :role', { role });
+    }
+
+    // Filter by status
+    if (status) {
+      queryBuilder.andWhere('user.status = :status', { status });
+    }
+
+    // Sorting
+    queryBuilder.orderBy(`user.${sortBy}`, sortOrder);
+
+    // Pagination
+    const skip = (page - 1) * limit;
+    queryBuilder.skip(skip).take(limit);
+
+    const [data, total] = await queryBuilder.getManyAndCount();
+
+    // Get stats
+    const stats = await this.getStats();
+
+    return {
+      data,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+      stats,
+    };
+  }
+
+  async getStats(): Promise<{
+    total: number;
+    active: number;
+    inactive: number;
+    teachers: number;
+    students: number;
+    admins: number;
+  }> {
+    const [total, active, inactive, teachers, students, admins] = await Promise.all([
+      this.usersRepository.count(),
+      this.usersRepository.count({ where: { status: UserStatus.ACTIVE } }),
+      this.usersRepository.count({ where: { status: UserStatus.INACTIVE } }),
+      this.usersRepository.count({ where: { role: UserRole.TEACHER } }),
+      this.usersRepository.count({ where: { role: UserRole.STUDENT } }),
+      this.usersRepository.count({ where: { role: UserRole.ADMIN } }),
+    ]);
+
+    return { total, active, inactive, teachers, students, admins };
+  }
+
   async findOne(id: string): Promise<User> {
     const user = await this.usersRepository.findOne({ where: { id } });
     if (!user) {
@@ -37,6 +113,55 @@ export class UsersService {
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
     await this.usersRepository.update(id, updateUserDto);
     return await this.findOne(id);
+  }
+
+  async updateStatus(id: string, status: UserStatus): Promise<User> {
+    await this.usersRepository.update(id, { status });
+    return await this.findOne(id);
+  }
+
+  async updateRole(id: string, role: UserRole): Promise<User> {
+    await this.usersRepository.update(id, { role });
+    return await this.findOne(id);
+  }
+
+  async bulkAction(
+    ids: string[],
+    action: 'activate' | 'deactivate' | 'delete',
+  ): Promise<{ success: boolean; affected: number }> {
+    if (!ids || ids.length === 0) {
+      throw new BadRequestException('No user IDs provided');
+    }
+
+    let affected = 0;
+
+    switch (action) {
+      case 'activate':
+        const activateResult = await this.usersRepository.update(
+          { id: In(ids) },
+          { status: UserStatus.ACTIVE },
+        );
+        affected = activateResult.affected || 0;
+        break;
+
+      case 'deactivate':
+        const deactivateResult = await this.usersRepository.update(
+          { id: In(ids) },
+          { status: UserStatus.INACTIVE },
+        );
+        affected = deactivateResult.affected || 0;
+        break;
+
+      case 'delete':
+        const deleteResult = await this.usersRepository.delete({ id: In(ids) });
+        affected = deleteResult.affected || 0;
+        break;
+
+      default:
+        throw new BadRequestException('Invalid action');
+    }
+
+    return { success: true, affected };
   }
 
   async remove(id: string): Promise<void> {

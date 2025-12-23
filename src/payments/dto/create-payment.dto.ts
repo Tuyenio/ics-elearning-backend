@@ -1,5 +1,4 @@
-import { IsString, IsNotEmpty, IsNumber, IsEnum, IsOptional, Min } from 'class-validator';
-import { PaymentMethod } from '../entities/payment.entity';
+import { IsString, IsNotEmpty, IsNumber, IsOptional, Min } from 'class-validator';
 
 export class CreatePaymentDto {
   @IsString()
@@ -18,16 +17,20 @@ export class CreatePaymentDto {
 
   @IsNumber()
   @Min(0)
-  @IsNotEmpty()
-  finalAmount: number;
+  @IsOptional()
+  finalAmount?: number;
 
   @IsString()
   @IsOptional()
   currency?: string;
 
-  @IsEnum(PaymentMethod)
-  @IsNotEmpty()
-  paymentMethod: PaymentMethod;
+  @IsString()
+  @IsOptional()
+  paymentMethod?: string;
+
+  @IsString()
+  @IsOptional()
+  transactionId?: string;
 
   @IsString()
   @IsOptional()

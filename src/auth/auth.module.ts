@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { UsersModule } from '../users/users.module';
@@ -8,9 +9,14 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { LocalStrategy } from './strategies/local.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { TwoFactorAuthService } from './two-factor-auth.service';
+import { TwoFactorAuthController } from './two-factor-auth.controller';
+import { TwoFactorAuth } from './entities/two-factor-auth.entity';
+import { User } from '../users/entities/user.entity';
 
 @Module({
   imports: [
+    TypeOrmModule.forFeature([TwoFactorAuth, User]),
     UsersModule,
     CommonModule,
     PassportModule,
@@ -22,9 +28,10 @@ import { JwtStrategy } from './strategies/jwt.strategy';
       }),
       inject: [ConfigService],
     }),
+    ConfigModule,
   ],
-  controllers: [AuthController],
-  providers: [AuthService, LocalStrategy, JwtStrategy],
-  exports: [AuthService],
+  controllers: [AuthController, TwoFactorAuthController],
+  providers: [AuthService, LocalStrategy, JwtStrategy, TwoFactorAuthService],
+  exports: [AuthService, TwoFactorAuthService],
 })
 export class AuthModule {}

@@ -1,4 +1,18 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Patch } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  UseGuards,
+  Patch,
+  Query,
+  Req,
+  Res,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
+import { Request, Response } from 'express';
 import { PaymentsService } from './payments.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -6,10 +20,31 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import { UserRole, User } from '../users/entities/user.entity';
+import { VNPayService, VNPayReturnData } from './vnpay.service';
+import { MomoService, MomoCallbackData } from './momo.service';
+
+// DTOs for payment requests
+class CreateVNPayPaymentDto {
+  courseId: string;
+  amount: number;
+  orderInfo?: string;
+  bankCode?: string;
+  locale?: 'vn' | 'en';
+}
+
+class CreateMomoPaymentDto {
+  courseId: string;
+  amount: number;
+  orderInfo?: string;
+}
 
 @Controller('payments')
 export class PaymentsController {
-  constructor(private readonly paymentsService: PaymentsService) {}
+  constructor(
+    private readonly paymentsService: PaymentsService,
+    private readonly vnpayService: VNPayService,
+    private readonly momoService: MomoService,
+  ) {}
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -45,5 +80,182 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard)
   findByTransactionId(@Param('transactionId') transactionId: string) {
     return this.paymentsService.findByTransactionId(transactionId);
+  }
+
+  // ================== VNPay Integration ==================
+
+  /**
+   * Create VNPay payment URL
+   */
+  @Post('vnpay/create')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.STUDENT)
+  async createVNPayPayment(
+    @Body() body: CreateVNPayPaymentDto,
+    @GetUser() user: User,
+    @Req() req: Request,
+  ) {
+    const orderId = `VNPAY_${user.id}_${Date.now()}`;
+    const ipAddr = req.ip || req.headers['x-forwarded-for']?.toString() || '127.0.0.1';
+
+    const paymentUrl = this.vnpayService.createPaymentUrl({
+      orderId,
+      amount: body.amount,
+      orderInfo: body.orderInfo || `Thanh toán khóa học #${body.courseId}`,
+      bankCode: body.bankCode,
+      locale: body.locale,
+      ipAddr,
+    });
+
+    // Create pending payment record
+    await this.paymentsService.create(
+      {
+        courseId: body.courseId,
+        amount: body.amount,
+        paymentMethod: 'vnpay',
+        transactionId: orderId,
+      },
+      user,
+    );
+
+    return {
+      success: true,
+      paymentUrl,
+      orderId,
+    };
+  }
+
+  /**
+   * VNPay return URL handler
+   */
+  @Get('vnpay/return')
+  async vnpayReturn(@Query() query: VNPayReturnData, @Res() res: Response) {
+    const result = this.vnpayService.verifyReturnUrl(query);
+
+    if (result.success && result.data) {
+      // Update payment status
+      await this.paymentsService.processPaymentByTransactionId(
+        result.data.orderId,
+        true,
+        result.data.transactionNo,
+      );
+
+      // Redirect to success page
+      return res.redirect(
+        `/enrollment/success?orderId=${result.data.orderId}&status=success`,
+      );
+    }
+
+    // Redirect to failure page
+    return res.redirect(
+      `/enrollment/success?orderId=${query.vnp_TxnRef}&status=failed&message=${encodeURIComponent(result.message)}`,
+    );
+  }
+
+  /**
+   * VNPay IPN (Instant Payment Notification) handler
+   */
+  @Get('vnpay/ipn')
+  @HttpCode(HttpStatus.OK)
+  async vnpayIpn(@Query() query: VNPayReturnData) {
+    const result = this.vnpayService.verifyReturnUrl(query);
+
+    if (result.success && result.data) {
+      await this.paymentsService.processPaymentByTransactionId(
+        result.data.orderId,
+        true,
+        result.data.transactionNo,
+      );
+      return { RspCode: '00', Message: 'Confirm Success' };
+    }
+
+    return { RspCode: result.code, Message: result.message };
+  }
+
+  /**
+   * Get VNPay supported banks
+   */
+  @Get('vnpay/banks')
+  getVNPayBanks() {
+    return this.vnpayService.getSupportedBanks();
+  }
+
+  // ================== Momo Integration ==================
+
+  /**
+   * Create Momo payment
+   */
+  @Post('momo/create')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.STUDENT)
+  async createMomoPayment(
+    @Body() body: CreateMomoPaymentDto,
+    @GetUser() user: User,
+  ) {
+    const orderId = this.momoService.generateOrderId('MOMO');
+    const requestId = this.momoService.generateRequestId();
+
+    const result = await this.momoService.createPayment({
+      orderId,
+      requestId,
+      amount: body.amount,
+      orderInfo: body.orderInfo || `Thanh toán khóa học #${body.courseId}`,
+    });
+
+    // Create pending payment record
+    await this.paymentsService.create(
+      {
+        courseId: body.courseId,
+        amount: body.amount,
+        paymentMethod: 'momo',
+        transactionId: orderId,
+      },
+      user,
+    );
+
+    return {
+      success: true,
+      payUrl: result.payUrl,
+      deeplink: result.deeplink,
+      qrCodeUrl: result.qrCodeUrl,
+      orderId,
+    };
+  }
+
+  /**
+   * Momo IPN handler
+   */
+  @Post('momo/ipn')
+  @HttpCode(HttpStatus.OK)
+  async momoIpn(@Body() body: MomoCallbackData) {
+    const result = this.momoService.verifyCallback(body);
+
+    if (result.success && result.data) {
+      await this.paymentsService.processPaymentByTransactionId(
+        result.data.orderId,
+        true,
+        result.data.transId.toString(),
+      );
+    }
+
+    return { status: result.success ? 0 : -1 };
+  }
+
+  /**
+   * Momo return URL handler
+   */
+  @Get('momo/return')
+  async momoReturn(@Query() query: any, @Res() res: Response) {
+    const resultCode = parseInt(query.resultCode);
+
+    if (resultCode === 0) {
+      return res.redirect(
+        `/enrollment/success?orderId=${query.orderId}&status=success`,
+      );
+    }
+
+    return res.redirect(
+      `/enrollment/success?orderId=${query.orderId}&status=failed&message=${encodeURIComponent(query.message || 'Payment failed')}`,
+    );
   }
 }
