@@ -1,8 +1,8 @@
 import { DataSource } from 'typeorm';
-import { User } from './users/entities/user.entity';
-import { Course } from './courses/entities/course.entity';
-import { Enrollment } from './enrollments/entities/enrollment.entity';
-import { Review } from './reviews/entities/review.entity';
+import { User } from '../users/entities/user.entity';
+import { Course } from '../courses/entities/course.entity';
+import { Enrollment } from '../enrollments/entities/enrollment.entity';
+import { Review } from '../reviews/entities/review.entity';
 
 const dataSource = new DataSource({
   type: 'postgres',

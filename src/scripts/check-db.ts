@@ -1,15 +1,15 @@
 import { DataSource } from 'typeorm';
-import { User } from './users/entities/user.entity';
-import { Category } from './categories/entities/category.entity';
-import { Course } from './courses/entities/course.entity';
-import { Lesson } from './lessons/entities/lesson.entity';
-import { Enrollment, EnrollmentStatus } from './enrollments/entities/enrollment.entity';
-import { LessonProgress } from './lesson-progress/entities/lesson-progress.entity';
-import { Certificate } from './certificates/entities/certificate.entity';
-import { Payment } from './payments/entities/payment.entity';
-import { Review } from './reviews/entities/review.entity';
-import { Note } from './notes/entities/note.entity';
-import { Wishlist } from './wishlists/entities/wishlist.entity';
+import { User } from '../users/entities/user.entity';
+import { Category } from '../categories/entities/category.entity';
+import { Course } from '../courses/entities/course.entity';
+import { Lesson } from '../lessons/entities/lesson.entity';
+import { Enrollment, EnrollmentStatus } from '../enrollments/entities/enrollment.entity';
+import { LessonProgress } from '../lesson-progress/entities/lesson-progress.entity';
+import { Certificate } from '../certificates/entities/certificate.entity';
+import { Payment } from '../payments/entities/payment.entity';
+import { Review } from '../reviews/entities/review.entity';
+import { Note } from '../notes/entities/note.entity';
+import { Wishlist } from '../wishlists/entities/wishlist.entity';
 
 const dataSource = new DataSource({
   type: 'postgres',

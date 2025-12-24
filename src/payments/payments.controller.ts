@@ -12,7 +12,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { Request, Response } from 'express';
+import type { Request, Response } from 'express';
 import { PaymentsService } from './payments.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -20,8 +20,10 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import { UserRole, User } from '../users/entities/user.entity';
-import { VNPayService, VNPayReturnData } from './vnpay.service';
-import { MomoService, MomoCallbackData } from './momo.service';
+import { VNPayService } from './vnpay.service';
+import type { VNPayReturnData } from './vnpay.service';
+import { MomoService } from './momo.service';
+import type { MomoCallbackData } from './momo.service';
 
 // DTOs for payment requests
 class CreateVNPayPaymentDto {
