@@ -111,17 +111,17 @@ export class UsersService {
   }
 
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
-    await this.usersRepository.update(id, updateUserDto);
+    await this.usersRepository.update({ id }, updateUserDto);
     return await this.findOne(id);
   }
 
   async updateStatus(id: string, status: UserStatus): Promise<User> {
-    await this.usersRepository.update(id, { status });
+    await this.usersRepository.update({ id }, { status });
     return await this.findOne(id);
   }
 
   async updateRole(id: string, role: UserRole): Promise<User> {
-    await this.usersRepository.update(id, { role });
+    await this.usersRepository.update({ id }, { role });
     return await this.findOne(id);
   }
 
@@ -172,7 +172,7 @@ export class UsersService {
   }
 
   async updateEmailVerificationToken(id: string, token: string): Promise<void> {
-    await this.usersRepository.update(id, { emailVerificationToken: token });
+    await this.usersRepository.update({ id }, { emailVerificationToken: token });
   }
 
   async verifyEmail(token: string): Promise<User | null> {
@@ -181,7 +181,7 @@ export class UsersService {
     });
 
     if (user) {
-      await this.usersRepository.update(user.id, {
+      await this.usersRepository.update({ id: user.id }, {
         emailVerified: true,
         emailVerifiedAt: new Date(),
         emailVerificationToken: undefined,
@@ -200,7 +200,7 @@ export class UsersService {
   ): Promise<User | null> {
     const user = await this.findByEmail(email);
     if (user) {
-      await this.usersRepository.update(user.id, {
+      await this.usersRepository.update({ id: user.id }, {
         passwordResetToken: token,
         passwordResetExpires: expires,
       });
@@ -273,7 +273,7 @@ export class UsersService {
   }
 
   async updatePassword(id: string, hashedPassword: string): Promise<void> {
-    await this.usersRepository.update(id, { password: hashedPassword });
+    await this.usersRepository.update({ id }, { password: hashedPassword });
   }
 }
 

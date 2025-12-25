@@ -13,7 +13,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         entities: [__dirname + '/../**/*.entity{.ts,.js}'],
         migrations: [__dirname + '/migrations/*{.ts,.js}'],
         synchronize: configService.get('NODE_ENV') !== 'production',
-        migrationsRun: true, // Auto-run migrations on startup
+        migrationsRun: false, // Disabled because using synchronize in development
         logging: configService.get('NODE_ENV') === 'development',
         ssl: configService.get('DATABASE_SSL') === 'true' ? {
           rejectUnauthorized: false,
