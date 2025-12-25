@@ -27,7 +27,7 @@ export class PaymentsService {
     });
 
     if (!course) {
-      throw new NotFoundException('Course not found');
+      throw new NotFoundException('Khóa học không tìm thấy');
     }
 
     // Check if already enrolled
@@ -39,7 +39,7 @@ export class PaymentsService {
     });
 
     if (existingEnrollment) {
-      throw new ConflictException('Already enrolled in this course');
+      throw new ConflictException('Đã đăng ký khóa học này rồi');
     }
 
     const transactionId = createPaymentDto.transactionId || this.generateTransactionId();
@@ -62,7 +62,7 @@ export class PaymentsService {
     });
 
     if (!payment) {
-      throw new NotFoundException('Payment not found');
+      throw new NotFoundException('Thanh toán không tìm thấy');
     }
 
     if (success) {
@@ -93,8 +93,8 @@ export class PaymentsService {
     });
 
     if (!payment) {
-      this.logger.warn(`Payment not found for transaction: ${transactionId}`);
-      throw new NotFoundException('Payment not found');
+      this.logger.warn(`Thanh toán không tìm thấy cho giao dịch: ${transactionId}`);
+      throw new NotFoundException('Thanh toán không tìm thấy');
     }
 
     // Skip if already processed
@@ -154,7 +154,7 @@ export class PaymentsService {
     });
 
     if (!payment) {
-      throw new NotFoundException('Payment not found');
+      throw new NotFoundException('Thanh toán không tìm thấy');
     }
 
     return payment;
@@ -167,7 +167,7 @@ export class PaymentsService {
     });
 
     if (!payment) {
-      throw new NotFoundException('Payment not found');
+      throw new NotFoundException('Thanh toán không tìm thấy');
     }
 
     return payment;
@@ -341,12 +341,12 @@ export class PaymentsService {
     });
 
     if (!payment) {
-      throw new NotFoundException('Payment not found');
+      throw new NotFoundException('Thanh toán không tìm thấy');
     }
 
     // Verify ownership
     if (payment.studentId !== studentId) {
-      throw new ForbiddenException('You can only view your own invoices');
+      throw new ForbiddenException('Bạn chỉ có thể xem hóa đơn của mình');
     }
 
     return new Promise((resolve, reject) => {

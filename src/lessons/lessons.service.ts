@@ -26,12 +26,12 @@ export class LessonsService {
     });
 
     if (!course) {
-      throw new NotFoundException('Course not found');
+      throw new NotFoundException('Khóa học không tìm thấy');
     }
 
     // Check permissions
     if (user.role !== UserRole.ADMIN && course.teacherId !== user.id) {
-      throw new ForbiddenException('You can only add lessons to your own courses');
+      throw new ForbiddenException('Bạn chỉ có thể thêm bài học cho khóa học của bạn');
     }
 
     // Get the next order number
@@ -63,7 +63,7 @@ export class LessonsService {
     });
 
     if (!lesson) {
-      throw new NotFoundException('Lesson not found');
+      throw new NotFoundException('Bài học không tìm thấy');
     }
 
     return lesson;
@@ -76,12 +76,12 @@ export class LessonsService {
     });
 
     if (!lesson) {
-      throw new NotFoundException('Lesson not found');
+      throw new NotFoundException('Bài học không tìm thấy');
     }
 
     // Check permissions
     if (user.role !== UserRole.ADMIN && lesson.course.teacherId !== user.id) {
-      throw new ForbiddenException('You can only update lessons in your own courses');
+      throw new ForbiddenException('Bạn chỉ có thể cập nhật bài học trong khóa học của bạn');
     }
 
     Object.assign(lesson, updateLessonDto);
@@ -95,12 +95,12 @@ export class LessonsService {
     });
 
     if (!lesson) {
-      throw new NotFoundException('Lesson not found');
+      throw new NotFoundException('Bài học không tìm thấy');
     }
 
     // Check permissions
     if (user.role !== UserRole.ADMIN && lesson.course.teacherId !== user.id) {
-      throw new ForbiddenException('You can only delete lessons from your own courses');
+      throw new ForbiddenException('Bạn chỉ có thể xóa bài học khỏi khóa học của bạn');
     }
 
     await this.lessonRepository.remove(lesson);
@@ -112,12 +112,12 @@ export class LessonsService {
     });
 
     if (!course) {
-      throw new NotFoundException('Course not found');
+      throw new NotFoundException('Khóa học không tìm thấy');
     }
 
     // Check permissions
     if (user.role !== UserRole.ADMIN && course.teacherId !== user.id) {
-      throw new ForbiddenException('You can only reorder lessons in your own courses');
+      throw new ForbiddenException('Bạn chỉ có thể sắp xếp lại bài học trong khóa học của bạn');
     }
 
     const lessons = await this.lessonRepository.findBy({

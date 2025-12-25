@@ -30,7 +30,7 @@ export class CoursesService {
     });
 
     if (existingCourse) {
-      throw new ConflictException('Course with this slug already exists');
+      throw new ConflictException('Khóa học với slug này đã tồn tại');
     }
 
     const course = this.courseRepository.create({
@@ -96,7 +96,7 @@ export class CoursesService {
     });
 
     if (!course) {
-      throw new NotFoundException('Course not found');
+      throw new NotFoundException('Khóa học không tìm thấy');
     }
 
     return course;
@@ -109,7 +109,7 @@ export class CoursesService {
     });
 
     if (!course) {
-      throw new NotFoundException('Course not found');
+      throw new NotFoundException('Khóa học không tìm thấy');
     }
 
     return course;
@@ -124,7 +124,7 @@ export class CoursesService {
 
     // Check permissions
     if (user.role !== UserRole.ADMIN && course.teacherId !== user.id) {
-      throw new ForbiddenException('You can only update your own courses');
+      throw new ForbiddenException('Bạn chỉ có thể cập nhật khóa học của bạn');
     }
 
     if (updateCourseDto.slug && updateCourseDto.slug !== course.slug) {
@@ -133,7 +133,7 @@ export class CoursesService {
       });
 
       if (existingCourse && existingCourse.id !== id) {
-        throw new ConflictException('Course with this slug already exists');
+        throw new ConflictException('Khóa học với slug này đã tồn tại');
       }
     }
 
@@ -146,7 +146,7 @@ export class CoursesService {
 
     // Check permissions
     if (user.role !== UserRole.ADMIN && course.teacherId !== user.id) {
-      throw new ForbiddenException('You can only delete your own courses');
+      throw new ForbiddenException('Bạn chỉ có thể xóa khóa học của bạn');
     }
 
     await this.courseRepository.remove(course);
@@ -204,7 +204,7 @@ export class CoursesService {
     const course = await this.findOne(id);
 
     if (course.teacherId !== user.id && user.role !== UserRole.ADMIN) {
-      throw new ForbiddenException('You can only submit your own courses');
+      throw new ForbiddenException('Bạn chỉ có thể gửi khóa học của bạn');
     }
 
     course.status = 'pending' as any;
@@ -312,19 +312,19 @@ export class CoursesService {
 
   private formatLevel(level: string): string {
     const levels = {
-      beginner: 'Beginner',
-      intermediate: 'Intermediate',
-      advanced: 'Advanced',
-      'all-levels': 'All Levels',
+      beginner: 'Cơ bản',
+      intermediate: 'Trung bình',
+      advanced: 'Nâng cao',
+      'all-levels': 'Tất cả cấp độ',
     };
     return levels[level] || level;
   }
 
   private formatLanguage(language: string): string {
     const languages = {
-      en: 'English',
-      vi: 'Vietnamese',
-      'vi-en': 'Vietnamese & English',
+      en: 'Tiếng Anh',
+      vi: 'Tiếng Việt',
+      'vi-en': 'Tiếng Việt & Tiếng Anh',
     };
     return languages[language] || language;
   }

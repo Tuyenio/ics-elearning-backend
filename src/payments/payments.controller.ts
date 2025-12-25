@@ -238,7 +238,7 @@ export class PaymentsController {
         true,
         result.data.transactionNo,
       );
-      return { RspCode: '00', Message: 'Confirm Success' };
+      return { RspCode: '00', Message: 'Xác nhận thành công' };
     }
 
     return { RspCode: result.code, Message: result.message };

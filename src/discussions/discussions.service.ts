@@ -43,7 +43,7 @@ export class DiscussionsService {
     });
 
     if (!discussion) {
-      throw new NotFoundException(`Discussion with ID ${id} not found`);
+      throw new NotFoundException(`Cuộc thảo luận với ID ${id} không tìm thấy`);
     }
 
     return discussion;
@@ -58,7 +58,7 @@ export class DiscussionsService {
   async remove(id: string) {
     const discussion = await this.findOne(id);
     await this.discussionRepo.remove(discussion);
-    return { message: 'Discussion deleted successfully' };
+    return { message: 'Đã xoá cuộc thảo luận thành công' };
   }
 
   async createReply(parentId: string, createDiscussionDto: CreateDiscussionDto, userId: string) {

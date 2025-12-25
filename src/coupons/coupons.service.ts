@@ -28,7 +28,7 @@ export class CouponsService {
     });
 
     if (existing) {
-      throw new ConflictException('Coupon code already exists');
+      throw new ConflictException('Mã coupon đã tồn tại');
     }
 
     // Validate course if courseId provided
@@ -38,12 +38,12 @@ export class CouponsService {
       });
 
       if (!course) {
-        throw new NotFoundException('Course not found');
+        throw new NotFoundException('Khóa học không tìm thấy');
       }
 
       // Only teacher can create coupon for their own courses
       if (user.role === UserRole.TEACHER && course.teacherId !== user.id) {
-        throw new BadRequestException('You can only create coupons for your own courses');
+        throw new BadRequestException('Bạn chỉ có thể tạo coupon cho khóa học của bạn');
       }
     }
 
@@ -76,12 +76,12 @@ export class CouponsService {
     });
 
     if (!coupon) {
-      throw new NotFoundException('Coupon not found');
+      throw new NotFoundException('Coupon không tìm thấy');
     }
 
     // Teachers can only see their own coupons
     if (user.role === UserRole.TEACHER && coupon.createdBy !== user.id) {
-      throw new BadRequestException('Access denied');
+      throw new BadRequestException('Truy cập bị từ chối');
     }
 
     return coupon;
@@ -96,11 +96,11 @@ export class CouponsService {
       });
 
       if (!course) {
-        throw new NotFoundException('Course not found');
+        throw new NotFoundException('Khóa học không tìm thấy');
       }
 
       if (user.role === UserRole.TEACHER && course.teacherId !== user.id) {
-        throw new BadRequestException('You can only assign coupons to your own courses');
+        throw new BadRequestException('Bạn chỉ có thể gán coupon cho khóa học của bạn');
       }
     }
 
@@ -125,31 +125,31 @@ export class CouponsService {
     });
 
     if (!coupon) {
-      return { valid: false, message: 'Coupon not found' };
+      return { valid: false, message: 'Mã giảm giá không tìm thấy' };
     }
 
     // Check status
     if (coupon.status !== CouponStatus.ACTIVE) {
-      return { valid: false, message: 'Coupon is not active' };
+      return { valid: false, message: 'Mã giảm giá chưa kích hoạt' };
     }
 
     // Check dates
     const now = new Date();
     if (coupon.validFrom && new Date(coupon.validFrom) > now) {
-      return { valid: false, message: 'Coupon is not yet valid' };
+      return { valid: false, message: 'Mã giảm giá chưa có hiệu lực' };
     }
     if (coupon.validUntil && new Date(coupon.validUntil) < now) {
-      return { valid: false, message: 'Coupon has expired' };
+      return { valid: false, message: 'Mã giảm giá đã hết hạn' };
     }
 
     // Check usage limit
     if (coupon.usageLimit && coupon.usedCount >= coupon.usageLimit) {
-      return { valid: false, message: 'Coupon usage limit reached' };
+      return { valid: false, message: 'Đã đạt giới hạn sở lần sử dụng mã giảm giá' };
     }
 
     // Check course restriction
     if (coupon.courseId && coupon.courseId !== courseId) {
-      return { valid: false, message: 'Coupon not valid for this course' };
+      return { valid: false, message: 'Mã giảm giá không hợp lệ cho khóa học này' };
     }
 
     // Get course to calculate discount
@@ -158,7 +158,7 @@ export class CouponsService {
     });
 
     if (!course) {
-      return { valid: false, message: 'Course not found' };
+      return { valid: false, message: 'Khóa học không tìm thấy' };
     }
 
     const coursePrice = course.discountPrice || course.price || 0;
@@ -167,7 +167,7 @@ export class CouponsService {
     if (coupon.minPurchase && coursePrice < coupon.minPurchase) {
       return {
         valid: false,
-        message: `Minimum purchase amount is ${coupon.minPurchase}`,
+        message: `Số tiền mua hàng tối thiểu là ${coupon.minPurchase}`,
       };
     }
 
@@ -191,7 +191,7 @@ export class CouponsService {
       valid: true,
       coupon,
       discount,
-      message: 'Coupon is valid',
+      message: 'Mã giảm giá hợp lệ',
     };
   }
 

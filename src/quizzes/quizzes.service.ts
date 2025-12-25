@@ -30,12 +30,12 @@ export class QuizzesService {
     });
 
     if (!course) {
-      throw new NotFoundException('Course not found');
+      throw new NotFoundException('Khóa học không tìm thấy');
     }
 
     // Check permissions
     if (user.role !== UserRole.ADMIN && course.teacherId !== user.id) {
-      throw new ForbiddenException('You can only create quizzes for your own courses');
+      throw new ForbiddenException('Bạn chỉ có thể tạo bài kiểm tra cho khóa học của bạn');
     }
 
     const quiz = this.quizRepository.create(createQuizDto);
@@ -56,7 +56,7 @@ export class QuizzesService {
     });
 
     if (!quiz) {
-      throw new NotFoundException('Quiz not found');
+      throw new NotFoundException('Bài kiểm tra không tìm thấy');
     }
 
     return quiz;
@@ -69,12 +69,12 @@ export class QuizzesService {
     });
 
     if (!quiz) {
-      throw new NotFoundException('Quiz not found');
+      throw new NotFoundException('Bài kiểm tra không tìm thấy');
     }
 
     // Check permissions
     if (user.role !== UserRole.ADMIN && quiz.course.teacherId !== user.id) {
-      throw new ForbiddenException('You can only update quizzes for your own courses');
+      throw new ForbiddenException('Bạn chỉ có thể cập nhật bài kiểm tra cho khóa học của bạn');
     }
 
     Object.assign(quiz, updateQuizDto);
@@ -88,12 +88,12 @@ export class QuizzesService {
     });
 
     if (!quiz) {
-      throw new NotFoundException('Quiz not found');
+      throw new NotFoundException('Bài kiểm tra không tìm thấy');
     }
 
     // Check permissions
     if (user.role !== UserRole.ADMIN && quiz.course.teacherId !== user.id) {
-      throw new ForbiddenException('You can only delete quizzes for your own courses');
+      throw new ForbiddenException('Bạn chỉ có thể xóa bài kiểm tra cho khóa học của bạn');
     }
 
     await this.quizRepository.remove(quiz);
@@ -112,7 +112,7 @@ export class QuizzesService {
     });
 
     if (previousAttempts >= quiz.maxAttempts) {
-      throw new BadRequestException('Maximum attempts reached');
+      throw new BadRequestException('Đã hết số lần thử');
     }
 
     const attempt = this.attemptRepository.create({
@@ -136,15 +136,15 @@ export class QuizzesService {
     });
 
     if (!attempt) {
-      throw new NotFoundException('Quiz attempt not found');
+      throw new NotFoundException('Bài làm không tìm thấy');
     }
 
     if (attempt.studentId !== student.id) {
-      throw new ForbiddenException('Access denied');
+      throw new ForbiddenException('Truy cập bị từ chối');
     }
 
     if (attempt.status !== AttemptStatus.IN_PROGRESS) {
-      throw new BadRequestException('Quiz attempt already completed');
+      throw new BadRequestException('Bài làm đã hoàn thành rồi');
     }
 
     // Calculate score
@@ -183,11 +183,11 @@ export class QuizzesService {
     });
 
     if (!attempt) {
-      throw new NotFoundException('Quiz attempt not found');
+      throw new NotFoundException('Bài làm không tìm thấy');
     }
 
     if (attempt.studentId !== student.id) {
-      throw new ForbiddenException('Access denied');
+      throw new ForbiddenException('Truy cập bị từ chối');
     }
 
     return attempt;

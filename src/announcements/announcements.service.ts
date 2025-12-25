@@ -24,12 +24,12 @@ export class AnnouncementsService {
       });
 
       if (!course) {
-        throw new NotFoundException('Course not found');
+        throw new NotFoundException('Khóa học không tìm thấy');
       }
 
       // Only course teacher or admin can create announcements for a course
       if (user.role === UserRole.TEACHER && course.teacherId !== user.id) {
-        throw new ForbiddenException('You can only create announcements for your own courses');
+        throw new ForbiddenException('Bạn chỉ có thể tạo thông báo cho các khóa học của bạn');
       }
     }
 
@@ -65,7 +65,7 @@ export class AnnouncementsService {
     });
 
     if (!announcement) {
-      throw new NotFoundException('Announcement not found');
+      throw new NotFoundException('Thông báo không tìm thấy');
     }
 
     return announcement;
@@ -76,7 +76,7 @@ export class AnnouncementsService {
 
     // Only author or admin can update
     if (user.role !== UserRole.ADMIN && announcement.authorId !== user.id) {
-      throw new ForbiddenException('You can only update your own announcements');
+      throw new ForbiddenException('Bạn chỉ có thể cập nhật thông báo của bạn');
     }
 
     Object.assign(announcement, updateAnnouncementDto);
@@ -88,7 +88,7 @@ export class AnnouncementsService {
 
     // Only author or admin can delete
     if (user.role !== UserRole.ADMIN && announcement.authorId !== user.id) {
-      throw new ForbiddenException('You can only delete your own announcements');
+      throw new ForbiddenException('Bạn chỉ có thể xoá thông báo của bạn');
     }
 
     await this.announcementRepository.remove(announcement);

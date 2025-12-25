@@ -72,7 +72,7 @@ export class AuthController {
   async logout() {
     // Since we're using stateless JWT, logout is handled on the client side
     // by removing the token. But we can add token blacklisting later if needed
-    return { message: 'Logged out successfully' };
+    return { message: 'Đã đăng xuất thành công' };
   }
 
   @UseGuards(JwtAuthGuard)

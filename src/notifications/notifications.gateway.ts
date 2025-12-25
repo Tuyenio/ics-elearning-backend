@@ -106,7 +106,7 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
       client.join(`user:${userId}`);
       return { status: 'subscribed', userId };
     }
-    return { status: 'error', message: 'Not authenticated' };
+    return { status: 'error', message: 'Chưa xác thực' };
   }
 
   @SubscribeMessage('ping')

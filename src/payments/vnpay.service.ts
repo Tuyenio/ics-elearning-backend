@@ -130,7 +130,7 @@ export class VNPayService {
       return {
         success: false,
         code: '97',
-        message: 'Invalid signature',
+        message: 'Chữ ký không hợp lệ',
       };
     }
 
@@ -170,7 +170,7 @@ export class VNPayService {
     const result = this.verifyReturnUrl(vnpParams);
     
     if (!result.success && result.code === '97') {
-      return { rspCode: '97', message: 'Invalid signature' };
+      return { rspCode: '97', message: 'Chữ ký không hợp lệ' };
     }
 
     // Here you would typically:
@@ -180,7 +180,7 @@ export class VNPayService {
     // 4. Update order status
 
     if (result.success) {
-      return { rspCode: '00', message: 'Confirm Success' };
+      return { rspCode: '00', message: 'Xác nhận thành công' };
     }
 
     return { rspCode: result.code, message: result.message };
@@ -222,7 +222,7 @@ export class VNPayService {
       return await response.json();
     } catch (error) {
       this.logger.error(`Error querying transaction ${orderId}:`, error);
-      throw new BadRequestException('Failed to query transaction');
+      throw new BadRequestException('Không thể truy vấn giao dịch');
     }
   }
 
@@ -272,7 +272,7 @@ export class VNPayService {
       return await response.json();
     } catch (error) {
       this.logger.error(`Error refunding transaction ${orderId}:`, error);
-      throw new BadRequestException('Failed to refund transaction');
+      throw new BadRequestException('Không thể hoàn tiền giao dịch');
     }
   }
 

@@ -35,7 +35,7 @@ export class UploadService {
         if (!allowedExtensions.includes(ext)) {
           return callback(
             new BadRequestException(
-              `Invalid file type. Allowed types: ${allowedExtensions.join(', ')}`
+              `Loại tập tin không hợp lệ. Các loại cho phép: ${allowedExtensions.join(', ')}`
             ),
             false
           );
@@ -77,7 +77,7 @@ export class UploadService {
 
   validateFile(file: Express.Multer.File): void {
     if (!file) {
-      throw new BadRequestException('No file uploaded');
+      throw new BadRequestException('Chưa tải lên tập tin');
     }
   }
 }

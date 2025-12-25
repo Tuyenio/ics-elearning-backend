@@ -52,11 +52,11 @@ export class NotesService {
     });
 
     if (!note) {
-      throw new NotFoundException('Note not found');
+      throw new NotFoundException('Ghi chú không tìm thấy');
     }
 
     if (note.studentId !== userId) {
-      throw new ForbiddenException('Access denied');
+      throw new ForbiddenException('Truy cập bị từ chối');
     }
 
     return note;

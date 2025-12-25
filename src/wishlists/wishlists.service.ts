@@ -20,7 +20,7 @@ export class WishlistsService {
     });
 
     if (!course) {
-      throw new NotFoundException('Course not found');
+      throw new NotFoundException('Khóa học không tìm thấy');
     }
 
     // Check if already in wishlist
@@ -32,7 +32,7 @@ export class WishlistsService {
     });
 
     if (existingWishlist) {
-      throw new ConflictException('Course already in wishlist');
+      throw new ConflictException('Khóa học đã có trong danh sách yêu thích');
     }
 
     const wishlist = this.wishlistRepository.create({
@@ -52,7 +52,7 @@ export class WishlistsService {
     });
 
     if (!wishlist) {
-      throw new NotFoundException('Course not found in wishlist');
+      throw new NotFoundException('Khóa học không tìm thấy trong danh sách yêu thích');
     }
 
     await this.wishlistRepository.remove(wishlist);

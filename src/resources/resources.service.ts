@@ -48,7 +48,7 @@ export class ResourcesService {
     });
 
     if (!resource) {
-      throw new NotFoundException(`Resource with ID ${id} not found`);
+      throw new NotFoundException(`Tài nguyên với ID ${id} không tìm thấy`);
     }
 
     return resource;
@@ -63,7 +63,7 @@ export class ResourcesService {
   async remove(id: string) {
     const resource = await this.findOne(id);
     await this.resourceRepo.remove(resource);
-    return { message: 'Resource deleted successfully' };
+    return { message: 'Đã xoá tài nguyên thành công' };
   }
 
   async incrementDownload(id: string) {

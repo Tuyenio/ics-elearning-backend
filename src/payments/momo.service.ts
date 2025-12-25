@@ -175,7 +175,7 @@ export class MomoService {
       return {
         success: false,
         code: -1,
-        message: 'Invalid signature',
+        message: 'Chữ ký không hợp lệ',
       };
     }
 
@@ -184,7 +184,7 @@ export class MomoService {
       return {
         success: true,
         code: resultCode,
-        message: 'Payment successful',
+        message: 'Thanh toán thành công',
         data: {
           orderId,
           requestId,
@@ -234,7 +234,7 @@ export class MomoService {
       return await response.json();
     } catch (error) {
       this.logger.error(`Error querying Momo transaction ${orderId}:`, error);
-      throw new BadRequestException('Failed to query transaction');
+      throw new BadRequestException('Không thể truy vấn giao dịch');
     }
   }
 
@@ -278,7 +278,7 @@ export class MomoService {
       return await response.json();
     } catch (error) {
       this.logger.error(`Error refunding Momo transaction ${transId}:`, error);
-      throw new BadRequestException('Failed to refund transaction');
+      throw new BadRequestException('Không thể hoàn tiền giao dịch');
     }
   }
 
@@ -320,7 +320,7 @@ export class MomoService {
       return await response.json();
     } catch (error) {
       this.logger.error(`Error confirming Momo transaction ${orderId}:`, error);
-      throw new BadRequestException('Failed to confirm transaction');
+      throw new BadRequestException('Không thể xác nhận giao dịch');
     }
   }
 

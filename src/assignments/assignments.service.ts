@@ -43,7 +43,7 @@ export class AssignmentsService {
     });
 
     if (!assignment) {
-      throw new NotFoundException(`Assignment with ID ${id} not found`);
+      throw new NotFoundException(`Bài tập với ID ${id} không tìm thấy`);
     }
 
     return assignment;
@@ -58,7 +58,7 @@ export class AssignmentsService {
   async remove(id: string) {
     const assignment = await this.findOne(id);
     await this.assignmentRepo.remove(assignment);
-    return { message: 'Assignment deleted successfully' };
+    return { message: 'Đã xoá bài tập thành công' };
   }
 
   // Submission methods
@@ -71,7 +71,7 @@ export class AssignmentsService {
     });
 
     if (existing && existing.status !== SubmissionStatus.NOT_SUBMITTED) {
-      throw new BadRequestException('Assignment already submitted');
+      throw new BadRequestException('Bài tập đã được nộp rồi');
     }
 
     // Check due date
@@ -79,7 +79,7 @@ export class AssignmentsService {
     const isLate = assignment.dueDate && now > assignment.dueDate;
     
     if (isLate && !assignment.allowLateSubmission) {
-      throw new BadRequestException('Assignment submission deadline has passed');
+      throw new BadRequestException('Hạn nộp bài tập đã hết');
     }
 
     const submission = this.submissionRepo.create({
@@ -116,11 +116,11 @@ export class AssignmentsService {
     });
 
     if (!submission) {
-      throw new NotFoundException('Submission not found');
+      throw new NotFoundException('Bài nộp không tìm thấy');
     }
 
     if (score > submission.assignment.maxScore) {
-      throw new BadRequestException(`Score cannot exceed maximum score of ${submission.assignment.maxScore}`);
+      throw new BadRequestException(`Điểm số không thể vượt quá điểm tối đa ${submission.assignment.maxScore}`);
     }
 
     submission.score = score;

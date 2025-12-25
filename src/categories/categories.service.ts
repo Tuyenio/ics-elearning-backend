@@ -20,7 +20,7 @@ export class CategoriesService {
     });
 
     if (existingCategory) {
-      throw new ConflictException('Category with this name or slug already exists');
+      throw new ConflictException('Danh mục với tên hoặc slug này đã tồn tại');
     }
 
     const category = this.categoryRepository.create({
@@ -80,7 +80,7 @@ export class CategoriesService {
       });
 
       if (existingCategory && existingCategory.id !== id) {
-        throw new ConflictException('Category with this name already exists');
+        throw new ConflictException('Danh mục với tên này đã tồn tại');
       }
     }
 
@@ -90,7 +90,7 @@ export class CategoriesService {
       });
 
       if (existingCategory && existingCategory.id !== id) {
-        throw new ConflictException('Category with this slug already exists');
+        throw new ConflictException('Danh mục với slug này đã tồn tại');
       }
     }
 

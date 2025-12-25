@@ -32,7 +32,7 @@ export class ReviewsService {
     });
 
     if (!course) {
-      throw new NotFoundException('Course not found');
+      throw new NotFoundException('Khóa học không tìm thấy');
     }
 
     // Check if student is enrolled
@@ -44,7 +44,7 @@ export class ReviewsService {
     });
 
     if (!enrollment) {
-      throw new ForbiddenException('You must be enrolled in the course to review it');
+      throw new ForbiddenException('Bạn phải đăng ký khóa học để có thể đánh giá');
     }
 
     // Check if already reviewed
@@ -56,7 +56,7 @@ export class ReviewsService {
     });
 
     if (existingReview) {
-      throw new ConflictException('You have already reviewed this course');
+      throw new ConflictException('Bạn đã đánh giá khóa học này rồi');
     }
 
     const review = this.reviewRepository.create({
@@ -96,7 +96,7 @@ export class ReviewsService {
     });
 
     if (!review) {
-      throw new NotFoundException('Review not found');
+      throw new NotFoundException('Đánh giá không tìm thấy');
     }
 
     return review;
@@ -106,7 +106,7 @@ export class ReviewsService {
     const review = await this.findOne(id);
 
     if (review.studentId !== user.id) {
-      throw new ForbiddenException('You can only update your own reviews');
+      throw new ForbiddenException('Bạn chỉ có thể cập nhật đánh giá của mình');
     }
 
     Object.assign(review, updateReviewDto);
@@ -122,7 +122,7 @@ export class ReviewsService {
     const review = await this.findOne(id);
 
     if (review.studentId !== user.id) {
-      throw new ForbiddenException('You can only delete your own reviews');
+      throw new ForbiddenException('Bạn chỉ có thể xóa đánh giá của mình');
     }
 
     const courseId = review.courseId;
@@ -151,12 +151,12 @@ export class ReviewsService {
     });
 
     if (!review) {
-      throw new NotFoundException('Review not found');
+      throw new NotFoundException('Đánh giá không tìm thấy');
     }
 
     // Verify that the teacher owns the course
     if (review.course.teacherId !== teacherId) {
-      throw new ForbiddenException('You can only reply to reviews on your own courses');
+      throw new ForbiddenException('Bạn chỉ có thể phản hồi đánh giá của các khóa học của bạn');
     }
 
     review.teacherReply = reply;

@@ -740,7 +740,7 @@ export async function seedDatabase(dataSource: DataSource) {
       content: i === 0 
         ? 'Chào các bạn! Mình rất vui được đồng hành cùng các bạn trong khóa học này. Hãy tích cực tham gia thảo luận và làm bài tập nhé!'
         : i === 1
-        ? 'Mình vừa cập nhật thêm 3 bài học mới về advanced topics. Các bạn check out nhé!'
+        ? 'Mình vừa cập nhật thêm 3 bài học mới về các chủ đề nâng cao. Các bạn check out nhé!'
         : 'Deadline nộp bài tập cuối khóa là ngày 31/12. Các bạn hoàn thành đúng hạn để nhận certificate nhé!',
       courseId: courses[i % courses.length].id,
       authorId: teacher.id,
@@ -901,17 +901,17 @@ function getLessonTitle(index: number, courseTitle: string): string {
     'Best practices và patterns',
     'Xây dựng dự án thực tế - Phần 1',
     'Xây dựng dự án thực tế - Phần 2',
-    'Testing và Debugging',
-    'Optimization techniques',
-    'Security và Performance',
-    'Advanced topics',
-    'Real-world case study',
-    'Common pitfalls và cách tránh',
-    'Tips & Tricks từ chuyên gia',
-    'Integration với các tools khác',
-    'Deploy lên production',
-    'Monitoring và maintenance',
-    'Final project và tổng kết',
+    'Kiểm thử và Gỡ lỗi',
+    'Kỹ thuật tối ưu hóa',
+    'Bảo mật và Hiệu năng',
+    'Các chủ đề nâng cao',
+    'Tình huống thực tế',
+    'Các lỗi thường gặp và cách tránh',
+    'Mẹo & Thủ thuật từ chuyên gia',
+    'Tích hợp với các công cụ khác',
+    'Triển khai lên production',
+    'Giám sát và bảo trì',
+    'Dự án cuối cùng và tổng kết',
   ];
   return titles[index % titles.length];
 }

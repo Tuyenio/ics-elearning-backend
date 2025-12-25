@@ -31,7 +31,7 @@ export class UploadController {
     const url = this.uploadService.generateFileUrl(file.filename, 'image');
     
     return {
-      message: 'Image uploaded successfully',
+      message: 'Đã tải lên hình ảnh thành công',
       url,
       filename: file.filename,
       size: file.size,
@@ -52,7 +52,7 @@ export class UploadController {
     const url = this.uploadService.generateFileUrl(file.filename, 'video');
     
     return {
-      message: 'Video uploaded successfully',
+      message: 'Đã tải lên video thành công',
       url,
       filename: file.filename,
       size: file.size,
@@ -73,7 +73,7 @@ export class UploadController {
     const url = this.uploadService.generateFileUrl(file.filename, 'document');
     
     return {
-      message: 'Document uploaded successfully',
+      message: 'Đã tải lên tài liệu thành công',
       url,
       filename: file.filename,
       size: file.size,

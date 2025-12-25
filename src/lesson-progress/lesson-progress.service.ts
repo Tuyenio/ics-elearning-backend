@@ -29,11 +29,11 @@ export class LessonProgressService {
     });
 
     if (!enrollment) {
-      throw new NotFoundException('Enrollment not found');
+      throw new NotFoundException('Đăng ký không tìm thấy');
     }
 
     if (enrollment.studentId !== user.id) {
-      throw new ForbiddenException('Access denied');
+      throw new ForbiddenException('Truy cập bị từ chối');
     }
 
     let progress = await this.progressRepository.findOne({
@@ -72,11 +72,11 @@ export class LessonProgressService {
     });
 
     if (!enrollment) {
-      throw new NotFoundException('Enrollment not found');
+      throw new NotFoundException('Đăng ký không tìm thấy');
     }
 
     if (enrollment.studentId !== user.id) {
-      throw new ForbiddenException('Access denied');
+      throw new ForbiddenException('Truy cập bị từ chối');
     }
 
     const progress = await this.progressRepository.findOne({
@@ -88,7 +88,7 @@ export class LessonProgressService {
     });
 
     if (!progress) {
-      throw new NotFoundException('Progress not found');
+      throw new NotFoundException('Tiến độ không tìm thấy');
     }
 
     return progress;
@@ -101,11 +101,11 @@ export class LessonProgressService {
     });
 
     if (!enrollment) {
-      throw new NotFoundException('Enrollment not found');
+      throw new NotFoundException('Đăng ký không tìm thấy');
     }
 
     if (enrollment.studentId !== user.id) {
-      throw new ForbiddenException('Access denied');
+      throw new ForbiddenException('Truy cập bị từ chối');
     }
 
     return this.progressRepository.find({

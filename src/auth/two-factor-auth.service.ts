@@ -246,7 +246,7 @@ export class TwoFactorAuthService {
     });
 
     if (!twoFactorAuth) {
-      throw new NotFoundException('2FA not found');
+      throw new NotFoundException('Xác thực hai yếu tố không tìm thấy');
     }
 
     const backupCodes = this.generateBackupCodes();

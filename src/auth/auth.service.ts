@@ -63,7 +63,7 @@ export class AuthService {
     // Check if user already exists
     const existingUser = await this.usersService.findByEmail(createUserDto.email);
     if (existingUser) {
-      throw new ConflictException('Email already exists');
+      throw new ConflictException('Email đã tồn tại');
     }
 
     // Create user
@@ -143,7 +143,7 @@ export class AuthService {
   ) {
     const user = await this.usersService.findOne(userId);
     if (!user) {
-      throw new UnauthorizedException('User not found');
+      throw new UnauthorizedException('Người dùng không tìm thấy');
     }
 
     // Verify current password

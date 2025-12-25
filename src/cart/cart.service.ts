@@ -24,7 +24,7 @@ export class CartService {
     });
 
     if (!course) {
-      throw new NotFoundException('Course not found');
+      throw new NotFoundException('Khóa học không tìm thấy');
     }
 
     // Check if already in cart
@@ -36,7 +36,7 @@ export class CartService {
     });
 
     if (existingItem) {
-      throw new BadRequestException('Course already in cart');
+      throw new BadRequestException('Khóa học đã có trong giỏ hàng');
     }
 
     // Add to cart
@@ -63,7 +63,7 @@ export class CartService {
     });
 
     if (!cartItem) {
-      throw new NotFoundException('Cart item not found');
+      throw new NotFoundException('Mục giỏ hàng không tìm thấy');
     }
 
     await this.cartRepository.remove(cartItem);

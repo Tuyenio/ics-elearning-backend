@@ -101,7 +101,7 @@ export class UsersService {
   async findOne(id: string): Promise<User> {
     const user = await this.usersRepository.findOne({ where: { id } });
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Người dùng không tìm thấy');
     }
     return user;
   }
@@ -130,7 +130,7 @@ export class UsersService {
     action: 'activate' | 'deactivate' | 'delete',
   ): Promise<{ success: boolean; affected: number }> {
     if (!ids || ids.length === 0) {
-      throw new BadRequestException('No user IDs provided');
+      throw new BadRequestException('Chưa cấp ID người dùng');
     }
 
     let affected = 0;
@@ -158,7 +158,7 @@ export class UsersService {
         break;
 
       default:
-        throw new BadRequestException('Invalid action');
+        throw new BadRequestException('Hành động không hợp lệ');
     }
 
     return { success: true, affected };
@@ -167,7 +167,7 @@ export class UsersService {
   async remove(id: string): Promise<void> {
     const result = await this.usersRepository.delete(id);
     if (result.affected === 0) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Người dùng không tìm thấy');
     }
   }
 
@@ -231,7 +231,7 @@ export class UsersService {
   async debugUserByEmail(email: string) {
     const user = await this.usersRepository.findOne({ where: { email } });
     if (!user) {
-      return { found: false, message: 'User not found' };
+      return { found: false, message: 'Người dùng không tìm thấy' };
     }
 
     return {
@@ -253,7 +253,7 @@ export class UsersService {
   async activateUserByEmail(email: string) {
     const user = await this.usersRepository.findOne({ where: { email } });
     if (!user) {
-      return { success: false, message: 'User not found' };
+      return { success: false, message: 'Người dùng không tìm thấy' };
     }
 
     user.status = UserStatus.ACTIVE;
@@ -263,7 +263,7 @@ export class UsersService {
 
     return {
       success: true,
-      message: 'User activated successfully',
+      message: 'Người dùng được kích hoạt thành công',
       user: {
         email: user.email,
         status: user.status,

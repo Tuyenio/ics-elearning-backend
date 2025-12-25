@@ -33,7 +33,7 @@ export class EnrollmentsService {
     });
 
     if (!course) {
-      throw new NotFoundException('Course not found');
+      throw new NotFoundException('Khóa học không tìm thấy');
     }
 
     // Check if already enrolled
@@ -45,7 +45,7 @@ export class EnrollmentsService {
     });
 
     if (existingEnrollment) {
-      throw new ConflictException('Already enrolled in this course');
+      throw new ConflictException('Đã đăng ký khóa học này rồi');
     }
 
     const enrollment = this.enrollmentRepository.create({
@@ -90,12 +90,12 @@ export class EnrollmentsService {
     });
 
     if (!enrollment) {
-      throw new NotFoundException('Enrollment not found');
+      throw new NotFoundException('Đăng ký không tìm thấy');
     }
 
     // Students can only view their own enrollments
     if (enrollment.studentId !== userId) {
-      throw new ForbiddenException('Access denied');
+      throw new ForbiddenException('Truy cập bị từ chối');
     }
 
     return enrollment;
@@ -140,7 +140,7 @@ export class EnrollmentsService {
     });
 
     if (!enrollment) {
-      throw new NotFoundException('Enrollment not found');
+      throw new NotFoundException('Đăng ký không tìm thấy');
     }
 
     Object.assign(enrollment, updateEnrollmentDto);
@@ -153,7 +153,7 @@ export class EnrollmentsService {
     });
 
     if (!enrollment) {
-      throw new NotFoundException('Enrollment not found');
+      throw new NotFoundException('Đăng ký khoá học không tìm thấy');
     }
 
     await this.enrollmentRepository.remove(enrollment);

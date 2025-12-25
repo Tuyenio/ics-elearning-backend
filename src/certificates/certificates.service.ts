@@ -21,11 +21,11 @@ export class CertificatesService {
     });
 
     if (!enrollment) {
-      throw new NotFoundException('Enrollment not found');
+      throw new NotFoundException('Đăng ký không tìm thấy');
     }
 
     if (enrollment.status !== EnrollmentStatus.COMPLETED) {
-      throw new ConflictException('Course must be completed to generate certificate');
+      throw new ConflictException('Khóa học phải được hoàn thành để tạo chứng chỉ');
     }
 
     // Check if certificate already exists
@@ -70,7 +70,7 @@ export class CertificatesService {
     });
 
     if (!certificate) {
-      throw new NotFoundException('Certificate not found');
+      throw new NotFoundException('Chứng chỉ không tìm thấy');
     }
 
     return certificate;
@@ -83,7 +83,7 @@ export class CertificatesService {
     });
 
     if (!certificate) {
-      throw new NotFoundException('Certificate not found');
+      throw new NotFoundException('Chứng chỉ không tìm thấy');
     }
 
     return certificate;
@@ -122,7 +122,7 @@ export class CertificatesService {
     const certificate = await this.findOne(certificateId);
     
     if (certificate.studentId !== userId) {
-      throw new ForbiddenException('You can only share your own certificates');
+      throw new ForbiddenException('Bạn chỉ có thể chia sẻ chứng chỉ của mình');
     }
 
     if (!certificate.shareId) {
@@ -143,7 +143,7 @@ export class CertificatesService {
     });
 
     if (!certificate) {
-      throw new NotFoundException('Shared certificate not found');
+      throw new NotFoundException('Chứng chỉ được chia sẻ không tìm thấy');
     }
 
     return certificate;
