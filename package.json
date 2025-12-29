@@ -26,7 +26,10 @@
     "migration:create": "npm run typeorm -- migration:create",
     "migration:run": "npm run typeorm -- migration:run -d src/database/database.config.ts",
     "migration:revert": "npm run typeorm -- migration:revert -d src/database/database.config.ts",
-    "migration:show": "npm run typeorm -- migration:show -d src/database/database.config.ts"
+    "migration:show": "npm run typeorm -- migration:show -d src/database/database.config.ts",
+    "db:drop": "ts-node -r tsconfig-paths/register src/scripts/drop-database.ts",
+    "db:setup": "ts-node -r tsconfig-paths/register src/scripts/setup-database.ts",
+    "db:reset": "npm run db:drop && npm run db:setup"
   },
   "dependencies": {
     "@nestjs/cache-manager": "^3.1.0",
