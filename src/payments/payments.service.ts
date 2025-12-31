@@ -6,6 +6,8 @@ import { CreatePaymentDto } from './dto/create-payment.dto';
 import { User } from '../users/entities/user.entity';
 import { Course } from '../courses/entities/course.entity';
 import { Enrollment } from '../enrollments/entities/enrollment.entity';
+import { Lesson } from '../lessons/entities/lesson.entity';
+import { LessonProgress } from '../lesson-progress/entities/lesson-progress.entity';
 import PDFDocument from 'pdfkit';
 
 @Injectable()
@@ -19,6 +21,10 @@ export class PaymentsService {
     private readonly courseRepository: Repository<Course>,
     @InjectRepository(Enrollment)
     private readonly enrollmentRepository: Repository<Enrollment>,
+    @InjectRepository(Lesson)
+    private readonly lessonRepository: Repository<Lesson>,
+    @InjectRepository(LessonProgress)
+    private readonly lessonProgressRepository: Repository<LessonProgress>,
   ) {}
 
   async create(createPaymentDto: CreatePaymentDto, student: User): Promise<Payment> {
@@ -134,8 +140,25 @@ export class PaymentsService {
         studentId: payment.studentId,
         courseId: payment.courseId,
       });
-      await this.enrollmentRepository.save(enrollment);
-      this.logger.log(`Created enrollment for student ${payment.studentId} in course ${payment.courseId}`);
+      const savedEnrollment = await this.enrollmentRepository.save(enrollment);
+      
+      // Create lesson progress entries for all lessons in the course
+      const lessons = await this.lessonRepository.find({
+        where: { courseId: payment.courseId },
+      });
+
+      const progressEntries = lessons.map((lesson) =>
+        this.lessonProgressRepository.create({
+          enrollmentId: savedEnrollment.id,
+          lessonId: lesson.id,
+        }),
+      );
+
+      if (progressEntries.length > 0) {
+        await this.lessonProgressRepository.save(progressEntries);
+      }
+      
+      this.logger.log(`Created enrollment for student ${payment.studentId} in course ${payment.courseId} with ${lessons.length} lessons`);
     }
   }
 

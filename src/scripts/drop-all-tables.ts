@@ -1,4 +1,5 @@
 import { DataSource } from 'typeorm';
+import { exit } from 'process';
 
 const AppDataSource = new DataSource({
   type: 'postgres',
@@ -38,8 +39,9 @@ async function dropAllTables() {
       try {
         await queryRunner.query(`DROP TABLE IF EXISTS "${tableName}" CASCADE`);
         console.log(`   ✓ Đã xóa: ${tableName}`);
-      } catch (error) {
-        console.log(`   ✗ Lỗi khi xóa ${tableName}:`, error.message);
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.log(`   ✗ Lỗi khi xóa ${tableName}:`, errorMessage);
       }
     }
 
@@ -51,7 +53,7 @@ async function dropAllTables() {
 
   } catch (error) {
     console.error('❌ Lỗi:', error);
-    process.exit(1);
+    exit(1);
   }
 }
 

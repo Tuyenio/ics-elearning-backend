@@ -9,6 +9,7 @@ import { join } from 'path';
 import configuration from './config/configuration';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { DatabaseSeederService } from './database/database-seeder.service';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { CategoriesModule } from './categories/categories.module';
@@ -80,8 +81,8 @@ import { UploadModule } from './upload/upload.module';
         url: configService.get('DATABASE_URL'),
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
         migrations: [__dirname + '/database/migrations/*{.ts,.js}'],
-        synchronize: configService.get('NODE_ENV') !== 'production',
-        migrationsRun: true,
+        synchronize: configService.get('NODE_ENV') === 'development', // Auto-sync in development
+        migrationsRun: false, // Disable auto-run migrations (use scripts instead)
         logging: configService.get('NODE_ENV') === 'development',
         ssl: configService.get('DATABASE_SSL') === 'true' ? {
           rejectUnauthorized: false,
@@ -123,6 +124,7 @@ import { UploadModule } from './upload/upload.module';
   controllers: [AppController],
   providers: [
     AppService,
+    DatabaseSeederService,
     // Apply rate limiting globally
     {
       provide: APP_GUARD,

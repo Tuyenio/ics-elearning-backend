@@ -9,7 +9,9 @@ export const dataSourceOptions: DataSourceOptions = {
   url: process.env.DATABASE_URL,
   entities: ['dist/**/*.entity.js'],
   migrations: ['dist/database/migrations/*.js'],
+  migrationsTableName: 'migrations',
   synchronize: false, // Important: disable synchronize in production, use migrations instead
+  migrationsRun: false, // Set to true to auto-run migrations on startup (handled in app.module.ts)
   logging: process.env.NODE_ENV === 'development',
   ssl: process.env.DATABASE_SSL === 'true' ? {
     rejectUnauthorized: false,

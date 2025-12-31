@@ -13,6 +13,7 @@ import { User } from '../users/entities/user.entity';
 import { Course } from '../courses/entities/course.entity';
 import { Lesson } from '../lessons/entities/lesson.entity';
 import { LessonProgress } from '../lesson-progress/entities/lesson-progress.entity';
+import { CoursesService } from '../courses/courses.service';
 
 @Injectable()
 export class EnrollmentsService {
@@ -25,6 +26,7 @@ export class EnrollmentsService {
     private readonly lessonRepository: Repository<Lesson>,
     @InjectRepository(LessonProgress)
     private readonly lessonProgressRepository: Repository<LessonProgress>,
+    private readonly coursesService: CoursesService,
   ) {}
 
   async create(createEnrollmentDto: CreateEnrollmentDto, student: User): Promise<Enrollment> {
@@ -71,6 +73,9 @@ export class EnrollmentsService {
     if (progressEntries.length > 0) {
       await this.lessonProgressRepository.save(progressEntries);
     }
+
+    // Increment enrollment count for the course
+    await this.coursesService.incrementEnrollmentCount(course.id);
 
     return savedEnrollment;
   }

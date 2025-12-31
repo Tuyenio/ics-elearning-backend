@@ -22,6 +22,9 @@ async function setupDatabase() {
     await dataSource.synchronize();
     console.log('✅ Schema created successfully!');
 
+    // Note: Migrations are not run as we use synchronize() for development
+    // If you want to use migrations, remove synchronize() and use runMigrations() instead
+
     console.log('🌱 Running seed data...');
     await seedDatabase(dataSource);
     console.log('✅ Seed data inserted successfully!');
