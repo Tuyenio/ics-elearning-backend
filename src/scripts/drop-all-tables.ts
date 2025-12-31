@@ -1,5 +1,5 @@
 import { DataSource } from 'typeorm';
-import { exit } from 'process';
+ import { exit } from 'process';
 
 const AppDataSource = new DataSource({
   type: 'postgres',
