@@ -42,25 +42,56 @@ export class CoursesService {
     return this.courseRepository.save(course);
   }
 
-  async findAll(search?: string, categoryId?: string): Promise<Course[]> {
+  async findAll(options?: {
+    search?: string;
+    categoryId?: string;
+    level?: string;
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    sortOrder?: 'ASC' | 'DESC';
+  }): Promise<{ data: Course[]; total: number; page: number; limit: number; totalPages: number }> {
+    const page = options?.page || 1;
+    const limit = options?.limit || 20;
+    const skip = (page - 1) * limit;
+
     const queryBuilder = this.courseRepository
       .createQueryBuilder('course')
       .leftJoinAndSelect('course.teacher', 'teacher')
       .leftJoinAndSelect('course.category', 'category')
       .where('course.status = :status', { status: CourseStatus.PUBLISHED });
 
-    if (search) {
+    if (options?.search) {
       queryBuilder.andWhere(
         '(course.title ILIKE :search OR course.description ILIKE :search OR course.tags::text ILIKE :search)',
-        { search: `%${search}%` },
+        { search: `%${options.search}%` },
       );
     }
 
-    if (categoryId) {
-      queryBuilder.andWhere('course.categoryId = :categoryId', { categoryId });
+    if (options?.categoryId) {
+      queryBuilder.andWhere('course.categoryId = :categoryId', { categoryId: options.categoryId });
     }
 
-    return queryBuilder.orderBy('course.createdAt', 'DESC').getMany();
+    if (options?.level) {
+      queryBuilder.andWhere('course.level = :level', { level: options.level });
+    }
+
+    const sortBy = options?.sortBy || 'createdAt';
+    const sortOrder = options?.sortOrder || 'DESC';
+    queryBuilder.orderBy(`course.${sortBy}`, sortOrder);
+
+    const [data, total] = await queryBuilder
+      .skip(skip)
+      .take(limit)
+      .getManyAndCount();
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async findFeatured(): Promise<Course[]> {

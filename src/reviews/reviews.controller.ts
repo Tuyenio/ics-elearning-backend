@@ -8,7 +8,9 @@ import {
   Delete,
   UseGuards,
   Req,
+  Query,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { ReviewsService } from './reviews.service';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { UpdateReviewDto } from './dto/update-review.dto';
@@ -19,6 +21,8 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import { UserRole, User } from '../users/entities/user.entity';
 
+@ApiTags('reviews')
+@ApiBearerAuth()
 @Controller('reviews')
 export class ReviewsController {
   constructor(private readonly reviewsService: ReviewsService) {}
@@ -26,13 +30,23 @@ export class ReviewsController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.STUDENT)
+  @ApiOperation({ summary: 'Tạo đánh giá khóa học' })
   create(@Body() createReviewDto: CreateReviewDto, @GetUser() user: User) {
     return this.reviewsService.create(createReviewDto, user);
   }
 
   @Get('course/:courseId')
-  findByCourse(@Param('courseId') courseId: string) {
-    return this.reviewsService.findByCourse(courseId);
+  findByCourse(
+    @Param('courseId') courseId: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('sortBy') sortBy?: string,
+  ) {
+    return this.reviewsService.findByCourse(courseId, {
+      page: page ? parseInt(page) : 1,
+      limit: limit ? parseInt(limit) : 20,
+      sortBy: sortBy || 'createdAt',
+    });
   }
 
   @Get('my-reviews')

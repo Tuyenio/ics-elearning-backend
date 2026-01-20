@@ -12,6 +12,7 @@ import {
   UseInterceptors,
   Query,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -20,6 +21,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole, UserStatus } from './entities/user.entity';
 
+@ApiTags('users')
 @Controller('users')
 @UseInterceptors(ClassSerializerInterceptor)
 export class UsersController {
@@ -118,13 +120,7 @@ export class UsersController {
     return this.usersService.remove(id);
   }
 
-  @Get('debug/:email')
-  async debugUser(@Param('email') email: string) {
-    return this.usersService.debugUserByEmail(email);
-  }
-
-  @Post('activate/:email')
-  async activateUser(@Param('email') email: string) {
-    return this.usersService.activateUserByEmail(email);
-  }
+  // DEBUG ENDPOINTS REMOVED FOR SECURITY
+  // These endpoints were removed as they expose sensitive user data and operations
+  // without proper authentication/authorization
 }

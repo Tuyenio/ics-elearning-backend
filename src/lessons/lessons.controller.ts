@@ -7,7 +7,9 @@ import {
   Param,
   Delete,
   UseGuards,
+  Query,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { LessonsService } from './lessons.service';
 import { CreateLessonDto } from './dto/create-lesson.dto';
 import { UpdateLessonDto } from './dto/update-lesson.dto';
@@ -17,6 +19,8 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import { UserRole, User } from '../users/entities/user.entity';
 
+@ApiTags('lessons')
+@ApiBearerAuth()
 @Controller('lessons')
 export class LessonsController {
   constructor(private readonly lessonsService: LessonsService) {}
@@ -24,13 +28,21 @@ export class LessonsController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Tạo bài học mới (Teacher/Admin)' })
   create(@Body() createLessonDto: CreateLessonDto, @GetUser() user: User) {
     return this.lessonsService.create(createLessonDto, user);
   }
 
   @Get('course/:courseId')
-  findByCourse(@Param('courseId') courseId: string) {
-    return this.lessonsService.findByCourse(courseId);
+  findByCourse(
+    @Param('courseId') courseId: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.lessonsService.findByCourse(courseId, {
+      page: page ? parseInt(page) : 1,
+      limit: limit ? parseInt(limit) : 50,
+    });
   }
 
   @Get(':id')

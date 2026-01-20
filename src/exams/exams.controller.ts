@@ -10,6 +10,9 @@ import {
   Request,
 } from '@nestjs/common';
 import { ExamsService } from './exams.service';
+import { CreateExamDto } from './dto/create-exam.dto';
+import { UpdateExamDto } from './dto/update-exam.dto';
+import { SubmitExamDto } from './dto/submit-exam.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -25,7 +28,7 @@ export class ExamsController {
   @Post()
   @UseGuards(RolesGuard)
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
-  create(@Body() createExamDto: any, @Request() req) {
+  create(@Body() createExamDto: CreateExamDto, @Request() req) {
     return this.examsService.create(createExamDto, req.user.id);
   }
 
@@ -39,7 +42,7 @@ export class ExamsController {
   @Patch(':id')
   @UseGuards(RolesGuard)
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
-  update(@Param('id') id: string, @Body() updateExamDto: any, @Request() req) {
+  update(@Param('id') id: string, @Body() updateExamDto: UpdateExamDto, @Request() req) {
     return this.examsService.update(id, updateExamDto, req.user.id);
   }
 
@@ -111,8 +114,8 @@ export class ExamsController {
   @Post('submit')
   @UseGuards(RolesGuard)
   @Roles(UserRole.STUDENT)
-  submitExam(@Body() body: any, @Request() req) {
-    return this.examsService.submitExam(body.attemptId, req.user.id, body.answers);
+  submitExam(@Body() submitExamDto: SubmitExamDto, @Request() req) {
+    return this.examsService.submitExam(submitExamDto.attemptId, req.user.id, submitExamDto.answers);
   }
 
   @Get('my-attempts')

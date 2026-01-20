@@ -96,12 +96,34 @@ export class EnrollmentsService {
     return savedEnrollment;
   }
 
-  async findByStudent(studentId: string): Promise<Enrollment[]> {
-    return this.enrollmentRepository.find({
-      where: { studentId },
+  async findByStudent(
+    studentId: string,
+    options?: { page?: number; limit?: number; status?: string },
+  ): Promise<{ data: Enrollment[]; total: number; page: number; limit: number; totalPages: number }> {
+    const page = options?.page || 1;
+    const limit = options?.limit || 20;
+    const skip = (page - 1) * limit;
+
+    const where: any = { studentId };
+    if (options?.status) {
+      where.status = options.status;
+    }
+
+    const [data, total] = await this.enrollmentRepository.findAndCount({
+      where,
       relations: ['course', 'course.teacher', 'course.category'],
       order: { createdAt: 'DESC' },
+      skip,
+      take: limit,
     });
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async findOne(id: string, userId: string): Promise<Enrollment> {

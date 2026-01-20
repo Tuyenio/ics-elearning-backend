@@ -49,11 +49,28 @@ export class LessonsService {
     return this.lessonRepository.save(lesson);
   }
 
-  async findByCourse(courseId: string): Promise<Lesson[]> {
-    return this.lessonRepository.find({
+  async findByCourse(
+    courseId: string,
+    options?: { page?: number; limit?: number },
+  ): Promise<{ data: Lesson[]; total: number; page: number; limit: number; totalPages: number }> {
+    const page = options?.page || 1;
+    const limit = options?.limit || 50;
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await this.lessonRepository.findAndCount({
       where: { courseId },
       order: { order: 'ASC' },
+      skip,
+      take: limit,
     });
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async findOne(id: string): Promise<Lesson> {
@@ -106,7 +123,7 @@ export class LessonsService {
     await this.lessonRepository.remove(lesson);
   }
 
-  async reorder(courseId: string, lessonIds: string[], user: User): Promise<Lesson[]> {
+  async reorder(courseId: string, lessonIds: string[], user: User): Promise<{ data: Lesson[]; total: number; page: number; limit: number; totalPages: number }> {
     const course = await this.courseRepository.findOne({
       where: { id: courseId },
     });

@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
@@ -63,6 +64,48 @@ async function bootstrap() {
 
   // API prefix
   app.setGlobalPrefix('api');
+
+  // Swagger documentation
+  if (nodeEnv !== 'production') {
+    const config = new DocumentBuilder()
+      .setTitle('ICS E-Learning Platform API')
+      .setDescription('Backend API for ICS E-Learning Platform - Comprehensive online learning system')
+      .setVersion('1.0')
+      .addTag('auth', 'Authentication endpoints')
+      .addTag('users', 'User management')
+      .addTag('courses', 'Course management')
+      .addTag('lessons', 'Lesson management')
+      .addTag('enrollments', 'Enrollment operations')
+      .addTag('payments', 'Payment processing')
+      .addTag('reviews', 'Course reviews')
+      .addTag('exams', 'Exam management')
+      .addTag('certificates', 'Certificate generation')
+      .addTag('categories', 'Category management')
+      .addBearerAuth(
+        {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          name: 'JWT',
+          description: 'Enter JWT token',
+          in: 'header',
+        },
+        'JWT-auth',
+      )
+      .build();
+
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/docs', app, document, {
+      swaggerOptions: {
+        persistAuthorization: true,
+        docExpansion: 'none',
+        filter: true,
+        showRequestDuration: true,
+      },
+    });
+
+    logger.log(`📖 Swagger docs available at: http://localhost:${port}/api/docs`);
+  }
 
   await app.listen(port);
   

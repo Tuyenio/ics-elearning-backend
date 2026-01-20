@@ -9,6 +9,8 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { LoginDto } from './dto/login.dto';
@@ -20,11 +22,16 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { GetUser } from './decorators/get-user.decorator';
 import { User } from '../users/entities/user.entity';
 
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
+  @Throttle({ short: { limit: 3, ttl: 60000 } }) // 3 requests per minute
+  @ApiOperation({ summary: 'Đăng ký tài khoản mới' })
+  @ApiResponse({ status: 201, description: 'Đăng ký thành công' })
+  @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
   async register(@Body() createUserDto: CreateUserDto) {
     return this.authService.register(createUserDto);
   }
@@ -32,6 +39,10 @@ export class AuthController {
   @UseGuards(LocalAuthGuard)
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ short: { limit: 5, ttl: 60000 } }) // 5 login attempts per minute
+  @ApiOperation({ summary: 'Đăng nhập hệ thống' })
+  @ApiResponse({ status: 200, description: 'Đăng nhập thành công' })
+  @ApiResponse({ status: 401, description: 'Sai email hoặc mật khẩu' })
   async login(@Request() req, @Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
   }
@@ -43,12 +54,14 @@ export class AuthController {
 
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ short: { limit: 3, ttl: 300000 } }) // 3 requests per 5 minutes
   async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
     return this.authService.forgotPassword(forgotPasswordDto.email);
   }
 
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ short: { limit: 3, ttl: 60000 } }) // 3 attempts per minute
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
     return this.authService.resetPassword(resetPasswordDto.token, resetPasswordDto.password);
   }

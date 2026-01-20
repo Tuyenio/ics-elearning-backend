@@ -12,6 +12,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { PaymentsService } from './payments.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
@@ -52,6 +53,7 @@ export class PaymentsController {
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.STUDENT)
+  @Throttle({ short: { limit: 10, ttl: 300000 } }) // 10 payments per 5 minutes
   create(@Body() createPaymentDto: CreatePaymentDto, @GetUser() user: User) {
     return this.paymentsService.create(createPaymentDto, user);
   }
@@ -163,6 +165,7 @@ export class PaymentsController {
   @Post('vnpay/create')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.STUDENT)
+  @Throttle({ short: { limit: 5, ttl: 300000 } }) // 5 VNPay payments per 5 minutes
   async createVNPayPayment(
     @Body() body: CreateVNPayPaymentDto,
     @GetUser() user: User,
@@ -261,6 +264,7 @@ export class PaymentsController {
   @Post('momo/create')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.STUDENT)
+  @Throttle({ short: { limit: 5, ttl: 300000 } }) // 5 Momo payments per 5 minutes
   async createMomoPayment(
     @Body() body: CreateMomoPaymentDto,
     @GetUser() user: User,

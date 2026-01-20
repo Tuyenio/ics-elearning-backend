@@ -10,6 +10,7 @@ import {
   Query,
   UseInterceptors,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 import { CoursesService } from './courses.service';
 import { CreateCourseDto } from './dto/create-course.dto';
@@ -20,6 +21,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import { UserRole, User } from '../users/entities/user.entity';
 
+@ApiTags('courses')
 @Controller('courses')
 export class CoursesController {
   constructor(private readonly coursesService: CoursesService) {}
@@ -32,8 +34,24 @@ export class CoursesController {
   }
 
   @Get()
-  findAll(@Query('search') search?: string, @Query('categoryId') categoryId?: string) {
-    return this.coursesService.findAll(search, categoryId);
+  findAll(
+    @Query('search') search?: string,
+    @Query('categoryId') categoryId?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('level') level?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('sortOrder') sortOrder?: 'ASC' | 'DESC',
+  ) {
+    return this.coursesService.findAll({
+      search,
+      categoryId,
+      level,
+      page: page ? parseInt(page) : 1,
+      limit: limit ? parseInt(limit) : 20,
+      sortBy: sortBy || 'createdAt',
+      sortOrder: sortOrder || 'DESC',
+    });
   }
 
   @Get('filters')

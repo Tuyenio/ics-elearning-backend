@@ -73,12 +73,30 @@ export class ReviewsService {
     return savedReview;
   }
 
-  async findByCourse(courseId: string): Promise<Review[]> {
-    return this.reviewRepository.find({
+  async findByCourse(
+    courseId: string,
+    options?: { page?: number; limit?: number; sortBy?: string },
+  ): Promise<{ data: Review[]; total: number; page: number; limit: number; totalPages: number }> {
+    const page = options?.page || 1;
+    const limit = options?.limit || 20;
+    const skip = (page - 1) * limit;
+    const sortBy = options?.sortBy || 'createdAt';
+
+    const [data, total] = await this.reviewRepository.findAndCount({
       where: { courseId, isPublished: true },
       relations: ['student'],
-      order: { createdAt: 'DESC' },
+      order: { [sortBy]: 'DESC' },
+      skip,
+      take: limit,
     });
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async findByStudent(studentId: string): Promise<Review[]> {
