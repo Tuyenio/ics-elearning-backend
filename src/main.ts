@@ -2,6 +2,8 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import session from 'express-session';
+import passport from 'passport';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
@@ -43,6 +45,25 @@ async function bootstrap() {
     exposedHeaders: ['Content-Range', 'X-Content-Range'],
     maxAge: 86400, // 24 hours
   });
+
+  // Session middleware for Passport OAuth
+  app.use(
+    session({
+      secret: 'your-secret-key-change-in-production',
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        secure: nodeEnv === 'production', // Use secure in production
+        httpOnly: true,
+        sameSite: 'lax',
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      },
+    }),
+  );
+
+  // Passport middleware for OAuth
+  app.use(passport.initialize());
+  app.use(passport.session());
 
   // Global filters
   app.useGlobalFilters(new GlobalExceptionFilter());

@@ -163,5 +163,9 @@ export class AuthService {
 
     return { message: 'Password changed successfully' };
   }
+
+  generateToken(payload: any) {
+    return this.jwtService.sign(payload);
+  }
 }
 

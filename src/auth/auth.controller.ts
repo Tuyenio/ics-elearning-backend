@@ -8,7 +8,9 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
@@ -19,13 +21,18 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { GetUser } from './decorators/get-user.decorator';
 import { User } from '../users/entities/user.entity';
+import { ConfigService } from '@nestjs/config';
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @Post('register')
   @Throttle({ short: { limit: 3, ttl: 60000 } }) // 3 requests per minute
@@ -100,6 +107,32 @@ export class AuthController {
       changePasswordDto.currentPassword,
       changePasswordDto.newPassword,
     );
+  }
+
+  @Get('google')
+  @UseGuards(GoogleAuthGuard)
+  @ApiOperation({ summary: 'Google OAuth login' })
+  async googleAuth(@Request() req) {
+    // Redirect to Google will be handled by Passport
+  }
+
+  @Get('google/callback')
+  @UseGuards(GoogleAuthGuard)
+  @ApiOperation({ summary: 'Google OAuth callback' })
+  async googleAuthRedirect(@Request() req, @Res() res: Response) {
+    const user = req.user;
+    const payload = {
+      email: user.email,
+      sub: user.id,
+      role: user.role,
+    };
+
+    const access_token = this.authService.generateToken(payload);
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
+    
+    // Chuyển hướng về frontend với token
+    const redirectUrl = `${frontendUrl}/auth/google/callback?token=${access_token}&user=${encodeURIComponent(JSON.stringify(user))}`;
+    res.redirect(redirectUrl);
   }
 }
 
