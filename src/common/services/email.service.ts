@@ -33,7 +33,7 @@ export class EmailService {
       html: `
         <div style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: Arial, sans-serif;">
           <div style="text-align: center; margin-bottom: 30px;">
-            <img src="${this.configService.get('FRONTEND_URL')}/logo.png" alt="ICS Learning" style="height: 60px;">
+            <img src="${this.configService.get('FRONTEND_URL')}/image/logo-ics.jpg" alt="ICS Cyber Security" style="height: 60px; border-radius: 50%;">
           </div>
           
           <h1 style="color: #333; text-align: center; margin-bottom: 30px;">Verify Your Email Address</h1>
@@ -88,7 +88,7 @@ export class EmailService {
       html: `
         <div style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: Arial, sans-serif;">
           <div style="text-align: center; margin-bottom: 30px;">
-            <img src="${this.configService.get('FRONTEND_URL')}/logo.png" alt="ICS Learning" style="height: 60px;">
+            <img src="${this.configService.get('FRONTEND_URL')}/image/logo-ics.jpg" alt="ICS Cyber Security" style="height: 60px; border-radius: 50%;">
           </div>
           
           <h1 style="color: #333; text-align: center; margin-bottom: 30px;">Reset Your Password</h1>
@@ -143,7 +143,7 @@ export class EmailService {
       html: `
         <div style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: Arial, sans-serif;">
           <div style="text-align: center; margin-bottom: 30px;">
-            <img src="${this.configService.get('FRONTEND_URL')}/logo.png" alt="ICS Learning" style="height: 60px;">
+            <img src="${this.configService.get('FRONTEND_URL')}/image/logo-ics.jpg" alt="ICS Cyber Security" style="height: 60px; border-radius: 50%;">
           </div>
           
           <h1 style="color: #333; text-align: center; margin-bottom: 30px;">Welcome to ICS Learning!</h1>
