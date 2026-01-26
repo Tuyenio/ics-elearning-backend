@@ -43,7 +43,6 @@ export class AuthController {
     return this.authService.register(createUserDto);
   }
 
-  @UseGuards(LocalAuthGuard)
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @Throttle({ short: { limit: 5, ttl: 60000 } }) // 5 login attempts per minute
@@ -121,18 +120,19 @@ export class AuthController {
   @ApiOperation({ summary: 'Google OAuth callback' })
   async googleAuthRedirect(@Request() req, @Res() res: Response) {
     const user = req.user;
+
     const payload = {
-      email: user.email,
       sub: user.id,
+      email: user.email,
       role: user.role,
     };
 
-    const access_token = this.authService.generateToken(payload);
+    const accessToken = this.authService.generateToken(payload);
     const frontendUrl = this.configService.get<string>('FRONTEND_URL');
-    
-    // Chuyển hướng về frontend với token
-    const redirectUrl = `${frontendUrl}/auth/google/callback?token=${access_token}&user=${encodeURIComponent(JSON.stringify(user))}`;
-    res.redirect(redirectUrl);
+
+    // ❗ CHỈ GỬI TOKEN
+    const redirectUrl = `${frontendUrl}/auth/google/callback?token=${accessToken}`;
+    return res.redirect(redirectUrl);
   }
 }
 

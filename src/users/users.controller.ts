@@ -12,7 +12,7 @@ import {
   UseInterceptors,
   Query,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -119,8 +119,34 @@ export class UsersController {
   remove(@Param('id') id: string) {
     return this.usersService.remove(id);
   }
+}
 
-  // DEBUG ENDPOINTS REMOVED FOR SECURITY
-  // These endpoints were removed as they expose sensitive user data and operations
-  // without proper authentication/authorization
+/* ================= ADMIN USERS ================= */
+
+@ApiTags('admin-users')
+@Controller('admin/users')
+export class AdminUsersController {
+  constructor(private readonly usersService: UsersService) {}
+
+  @Get()
+  getUsers(
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
+    @Query('search') search?: string,
+    @Query('role') role?: UserRole,
+    @Query('status') status?: UserStatus,
+  ) {
+    return this.usersService.findAllWithPagination(
+      +page,
+      +limit,
+      search,
+      role,
+      status,
+    );
+  }
+
+  @Delete(':id')
+  deleteUser(@Param('id') id: string) {
+    return this.usersService.removeAndReturn(id);
+  }
 }

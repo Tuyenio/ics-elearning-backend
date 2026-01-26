@@ -275,5 +275,18 @@ export class UsersService {
   async updatePassword(id: string, hashedPassword: string): Promise<void> {
     await this.usersRepository.update({ id }, { password: hashedPassword });
   }
+  async removeAndReturn(id: string) {
+  const result = await this.usersRepository.delete(id);
+
+  if (result.affected === 0) {
+    throw new NotFoundException('Người dùng không tìm thấy');
+  }
+
+  return {
+    success: true,
+    message: 'Xóa người dùng thành công',
+    id,
+  };
 }
 
+}
