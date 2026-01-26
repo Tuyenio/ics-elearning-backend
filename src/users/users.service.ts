@@ -275,5 +275,9 @@ export class UsersService {
   async updatePassword(id: string, hashedPassword: string): Promise<void> {
     await this.usersRepository.update({ id }, { password: hashedPassword });
   }
+
+  async updateUserAvatar(id: string, avatarUrl: string): Promise<void> {
+    await this.usersRepository.update({ id }, { avatar: avatarUrl });
+  }
 }
 
