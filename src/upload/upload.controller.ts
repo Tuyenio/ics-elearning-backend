@@ -80,4 +80,28 @@ export class UploadController {
       mimetype: file.mimetype,
     };
   }
+
+  @Post('avatar')
+  @UseInterceptors(
+    FileInterceptor('avatar', {
+      dest: './uploads/avatars',
+    })
+  )
+  async uploadAvatar(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('Không có file được tải lên');
+    }
+    
+    this.uploadService.validateFile(file, 'image');
+    
+    const url = this.uploadService.generateFileUrl(file.filename, 'avatar');
+    
+    return {
+      message: 'Đã tải lên ảnh đại diện thành công',
+      url,
+      filename: file.filename,
+      size: file.size,
+      mimetype: file.mimetype,
+    };
+  }
 }

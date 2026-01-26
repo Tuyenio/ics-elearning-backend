@@ -70,14 +70,33 @@ export class UploadService {
     }
   }
 
-  generateFileUrl(filename: string, fileType: 'image' | 'video' | 'document'): string {
+  generateFileUrl(filename: string, fileType: 'image' | 'video' | 'document' | 'avatar'): string {
     const baseUrl = process.env.BASE_URL || 'http://localhost:5001';
+    if (fileType === 'avatar') {
+      return `${baseUrl}/uploads/avatars/${filename}`;
+    }
     return `${baseUrl}/uploads/${fileType}s/${filename}`;
   }
 
-  validateFile(file: Express.Multer.File): void {
+  validateFile(file: Express.Multer.File, fileType: 'image' | 'video' | 'document' = 'image'): void {
     if (!file) {
       throw new BadRequestException('Chưa tải lên tập tin');
+    }
+
+    const ext = extname(file.originalname).toLowerCase();
+    const allowedExtensions = this.getAllowedExtensions(fileType);
+    
+    if (!allowedExtensions.includes(ext)) {
+      throw new BadRequestException(
+        `Loại tập tin không hợp lệ. Các loại cho phép: ${allowedExtensions.join(', ')}`
+      );
+    }
+
+    const maxSize = this.getMaxFileSize(fileType);
+    if (file.size > maxSize) {
+      throw new BadRequestException(
+        `Kích thước tập tin quá lớn. Tối đa: ${maxSize / (1024 * 1024)}MB`
+      );
     }
   }
 }
