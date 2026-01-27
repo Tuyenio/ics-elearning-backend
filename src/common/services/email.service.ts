@@ -195,4 +195,69 @@ export class EmailService {
       throw error;
     }
   }
+
+  async sendAdminCreatedUserEmail(email: string, token: string, tempPassword: string) {
+    const verificationUrl = `${this.configService.get('FRONTEND_URL')}/verify-email?token=${token}`;
+
+    const mailOptions = {
+      from: this.configService.get('SMTP_FROM'),
+      to: email,
+      subject: 'Your ICS Learning Account Has Been Created',
+      html: `
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: Arial, sans-serif;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <img src="${this.configService.get('FRONTEND_URL')}/image/logo-ics.jpg" alt="ICS Cyber Security" style="height: 60px; border-radius: 50%;">
+          </div>
+          
+          <h1 style="color: #333; text-align: center; margin-bottom: 30px;">Your Account Has Been Created</h1>
+          
+          <p style="color: #666; font-size: 16px; line-height: 1.5;">
+            An administrator has created an ICS Learning account for you. To activate your account, please verify your email address and set up your password.
+          </p>
+          
+          <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="color: #333; margin-top: 0;">Your Login Credentials:</h3>
+            <p style="color: #666; margin: 10px 0;"><strong>Email:</strong> ${email}</p>
+            <p style="color: #666; margin: 10px 0;"><strong>Temporary Password:</strong> ${tempPassword}</p>
+          </div>
+          
+          <p style="color: #dc3545; font-size: 14px; line-height: 1.5; background-color: #fff3cd; padding: 10px; border-radius: 5px; border-left: 4px solid #ffc107;">
+            <strong>⚠️ Important:</strong> Please verify your email address first, then you can log in and change your password.
+          </p>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${verificationUrl}" 
+               style="background-color: #007bff; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+              Verify Email & Activate Account
+            </a>
+          </div>
+          
+          <p style="color: #666; font-size: 14px; line-height: 1.5;">
+            If you can't click the button above, copy and paste this link into your browser:
+          </p>
+          <p style="color: #007bff; word-break: break-all; font-size: 14px;">
+            ${verificationUrl}
+          </p>
+          
+          <hr style="border: 1px solid #eee; margin: 30px 0;">
+          
+          <p style="color: #999; font-size: 12px; text-align: center;">
+            This verification link will expire in 24 hours. For security, please change your password after your first login.
+          </p>
+          
+          <p style="color: #999; font-size: 12px; text-align: center;">
+            © ${new Date().getFullYear()} ICS Learning. All rights reserved.
+          </p>
+        </div>
+      `,
+    };
+
+    try {
+      await this.transporter.sendMail(mailOptions);
+      this.logger.log(`Admin-created user email sent to ${email}`);
+    } catch (error) {
+      this.logger.error(`Failed to send admin-created user email to ${email}:`, error);
+      throw error;
+    }
+  }
 }

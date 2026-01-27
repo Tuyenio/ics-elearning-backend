@@ -121,6 +121,19 @@ export class AuthController {
   @ApiOperation({ summary: 'Google OAuth callback' })
   async googleAuthRedirect(@Request() req, @Res() res: Response) {
     const user = req.user;
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
+    
+    // Kiểm tra status và emailVerified
+    if (user.status !== 'active') {
+      const errorUrl = `${frontendUrl}/login?error=account_not_active&message=${encodeURIComponent('Tài khoản của bạn chưa được kích hoạt hoặc đã bị khóa')}`;
+      return res.redirect(errorUrl);
+    }
+    
+    if (!user.emailVerified) {
+      const errorUrl = `${frontendUrl}/login?error=email_not_verified&message=${encodeURIComponent('Vui lòng xác thực email trước')}`;
+      return res.redirect(errorUrl);
+    }
+
     const payload = {
       email: user.email,
       sub: user.id,
@@ -128,7 +141,6 @@ export class AuthController {
     };
 
     const access_token = this.authService.generateToken(payload);
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
     
     // Chuyển hướng về frontend với token
     const redirectUrl = `${frontendUrl}/auth/google/callback?token=${access_token}&user=${encodeURIComponent(JSON.stringify(user))}`;

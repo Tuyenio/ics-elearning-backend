@@ -5,17 +5,56 @@ import { User, UserStatus, UserRole } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import * as bcrypt from 'bcryptjs';
+import { JwtService } from '@nestjs/jwt';
+import { EmailService } from '../common/services/email.service';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    private jwtService: JwtService,
+    private emailService: EmailService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
     const user = this.usersRepository.create(createUserDto);
     return await this.usersRepository.save(user);
+  }
+
+  async createUserByAdmin(createUserDto: CreateUserDto): Promise<User> {
+    // Kiểm tra email đã tồn tại
+    const existing = await this.findByEmail(createUserDto.email);
+    if (existing) {
+      throw new BadRequestException('Email đã tồn tại');
+    }
+
+    // Tạo user với status=pending
+    const user = this.usersRepository.create({
+      ...createUserDto,
+      status: UserStatus.PENDING,
+      emailVerified: false,
+    });
+    
+    const savedUser = await this.usersRepository.save(user);
+    
+    // Tạo verification token
+    const verificationToken = this.jwtService.sign(
+      { email: savedUser.email, type: 'email-verification' },
+      { expiresIn: '24h' }
+    );
+
+    // Cập nhật token vào database
+    await this.updateEmailVerificationToken(savedUser.id, verificationToken);
+
+    // Gửi email xác thực với mật khẩu tạm
+    await this.emailService.sendAdminCreatedUserEmail(
+      savedUser.email, 
+      verificationToken,
+      createUserDto.password // Mật khẩu tạm admin đặt
+    );
+    
+    return savedUser;
   }
 
   async findAll(): Promise<User[]> {
