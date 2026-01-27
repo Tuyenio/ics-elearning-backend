@@ -9,7 +9,7 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
+import { CacheInterceptor, CacheTTL, CacheKey } from '@nestjs/cache-manager';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
@@ -31,14 +31,16 @@ export class CategoriesController {
 
   @Get()
   @UseInterceptors(CacheInterceptor)
-  @CacheTTL(600000) // Cache for 10 minutes
+  @CacheKey('categories_all')
+  @CacheTTL(600)
   findAll() {
     return this.categoriesService.findAll();
   }
 
   @Get('active')
   @UseInterceptors(CacheInterceptor)
-  @CacheTTL(600000) // Cache for 10 minutes
+  @CacheKey('categories_active')
+  @CacheTTL(600)
   findActive() {
     return this.categoriesService.findActive();
   }

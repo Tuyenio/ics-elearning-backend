@@ -28,4 +28,8 @@ export class CreateCategoryDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
+  
+  @IsOptional()
+  @IsString()
+  color?: string
 }
