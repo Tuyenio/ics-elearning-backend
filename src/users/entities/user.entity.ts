@@ -127,6 +127,13 @@ export class User {
     if (this.password) {
       this.password = await bcrypt.hash(this.password, 12);
     }
+    // Set default avatar if not provided
+    if (!this.avatar && this.name) {
+      // Generate a default avatar URL based on user initials
+      const initials = this.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+      // Use a default avatar service or generate a colored placeholder
+      this.avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(this.name)}&background=random&size=200`;
+    }
   }
 
   async validatePassword(password: string): Promise<boolean> {

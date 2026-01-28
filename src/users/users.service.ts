@@ -18,6 +18,11 @@ export class UsersService {
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
+    // Set default avatar if not provided
+    if (!createUserDto.avatar && createUserDto.name) {
+      createUserDto.avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(createUserDto.name)}&background=random&size=200`;
+    }
+    
     const user = this.usersRepository.create(createUserDto);
     return await this.usersRepository.save(user);
   }
@@ -27,6 +32,11 @@ export class UsersService {
     const existing = await this.findByEmail(createUserDto.email);
     if (existing) {
       throw new BadRequestException('Email đã tồn tại');
+    }
+
+    // Set default avatar if not provided
+    if (!createUserDto.avatar && createUserDto.name) {
+      createUserDto.avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(createUserDto.name)}&background=random&size=200`;
     }
 
     // Tạo user với status=pending
