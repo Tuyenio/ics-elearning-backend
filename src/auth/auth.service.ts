@@ -28,15 +28,19 @@ export class AuthService {
   async login(loginDto: LoginDto) {
     const user = await this.validateUser(loginDto.email, loginDto.password);
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Email hoặc mật khẩu không chính xác');
     }
 
     if (!user.emailVerified) {
-      throw new UnauthorizedException('Please verify your email first');
+      throw new UnauthorizedException('Vui lòng xác thực email trước khi đăng nhập');
+    }
+
+    if (user.status === UserStatus.INACTIVE || user.status === 'inactive') {
+      throw new UnauthorizedException('Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ với đội ngũ hỗ trợ để được kích hoạt lại.');
     }
 
     if (user.status !== UserStatus.ACTIVE) {
-      throw new UnauthorizedException('Your account is not active');
+      throw new UnauthorizedException('Tài khoản của bạn đã bị khóa. Vui lòng liên hệ với đội ngũ hỗ trợ để được kích hoạt lại.');
     }
 
     const payload = { 
