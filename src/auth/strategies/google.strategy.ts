@@ -3,7 +3,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, VerifyCallback } from 'passport-google-oauth20';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../../users/users.service';
-import { UserRole } from '../../users/entities/user.entity';
+import { UserRole, UserStatus } from '../../users/entities/user.entity';
 import * as bcrypt from 'bcryptjs';
 
 /* eslint-disable @typescript-eslint/no-unsafe-call */
@@ -67,22 +67,36 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
           role: UserRole.STUDENT,
         });
 
-        // Xác thực email ngay lập tức cho Google users
+        // Xác thực email và kích hoạt tài khoản ngay lập tức cho Google users
         await this.usersService.update(user.id, {
           emailVerified: true,
           emailVerifiedAt: new Date(),
+          status: UserStatus.ACTIVE, // Kích hoạt luôn
         });
 
         // Refresh user data
         user = (await this.usersService.findOne(user.id))!;
       } else {
-        // Nếu user tồn tại nhưng chưa xác thực email, hãy xác thực
+        // QUAN TRỌNG: Kiểm tra trạng thái tài khoản TRƯỚC KHI cập nhật
+        // Nếu tài khoản bị khóa (inactive), KHÔNG cho phép đăng nhập
+        if (user.status === 'inactive') {
+          return done(new Error('Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ với đội ngũ hỗ trợ để được kích hoạt lại.'), false);
+        }
+
+        // Nếu user tồn tại, chỉ cập nhật email verification và avatar
+        // CHỈ tự động kích hoạt nếu đang ở trạng thái "pending" (chưa xác thực)
         const updateData: Record<string, unknown> = {};
         let hasChanges = false;
 
         if (!user.emailVerified) {
           updateData.emailVerified = true;
           updateData.emailVerifiedAt = new Date();
+          hasChanges = true;
+        }
+
+        // CHỈ chuyển từ 'pending' sang 'active', KHÔNG chuyển từ 'inactive' sang 'active'
+        if (user.status === 'pending') {
+          updateData.status = UserStatus.ACTIVE;
           hasChanges = true;
         }
 
@@ -94,6 +108,11 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
         if (hasChanges) {
           await this.usersService.update(user.id, updateData as any);
           user = (await this.usersService.findOne(user.id))!;
+        }
+
+        // Kiểm tra lại trạng thái sau khi update (nếu không phải active thì chặn)
+        if (user.status !== 'active') {
+          return done(new Error('Tài khoản của bạn chưa được kích hoạt hoặc đã bị khóa. Vui lòng liên hệ với đội ngũ hỗ trợ.'), false);
         }
       }
 

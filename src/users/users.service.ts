@@ -39,28 +39,20 @@ export class UsersService {
       createUserDto.avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(createUserDto.name)}&background=random&size=200`;
     }
 
-    // Tạo user với status=pending
+    // Tạo user với status=active và emailVerified=true (không cần xác thực)
     const user = this.usersRepository.create({
       ...createUserDto,
-      status: UserStatus.PENDING,
-      emailVerified: false,
+      status: UserStatus.ACTIVE, // Active luôn
+      emailVerified: true, // Đã xác thực luôn
+      emailVerifiedAt: new Date(),
     });
     
     const savedUser = await this.usersRepository.save(user);
-    
-    // Tạo verification token
-    const verificationToken = this.jwtService.sign(
-      { email: savedUser.email, type: 'email-verification' },
-      { expiresIn: '24h' }
-    );
 
-    // Cập nhật token vào database
-    await this.updateEmailVerificationToken(savedUser.id, verificationToken);
-
-    // Gửi email xác thực với mật khẩu tạm
+    // Gửi email cho user với thông tin tài khoản và mật khẩu
     await this.emailService.sendAdminCreatedUserEmail(
-      savedUser.email, 
-      verificationToken,
+      savedUser.email,
+      savedUser.name,
       createUserDto.password // Mật khẩu tạm admin đặt
     );
     

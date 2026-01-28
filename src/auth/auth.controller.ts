@@ -120,31 +120,42 @@ export class AuthController {
   @UseGuards(GoogleAuthGuard)
   @ApiOperation({ summary: 'Google OAuth callback' })
   async googleAuthRedirect(@Request() req, @Res() res: Response) {
-    const user = req.user;
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
-    
-    // Kiểm tra status và emailVerified
-    if (user.status !== 'active') {
-      const errorUrl = `${frontendUrl}/login?error=account_not_active&message=${encodeURIComponent('Tài khoản của bạn chưa được kích hoạt hoặc đã bị khóa')}`;
-      return res.redirect(errorUrl);
-    }
-    
-    if (!user.emailVerified) {
-      const errorUrl = `${frontendUrl}/login?error=email_not_verified&message=${encodeURIComponent('Vui lòng xác thực email trước')}`;
-      return res.redirect(errorUrl);
-    }
+    try {
+      const user = req.user;
+      const frontendUrl = this.configService.get<string>('FRONTEND_URL');
+      
+      // Kiểm tra status và emailVerified
+      if (user.status !== 'active') {
+        const errorMessage = user.status === 'inactive' 
+          ? 'Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ với đội ngũ hỗ trợ để được kích hoạt lại.'
+          : 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ với đội ngũ hỗ trợ để được kích hoạt lại.';
+        const loginUrl = `${frontendUrl}/login?error=account_locked&message=${encodeURIComponent(errorMessage)}`;
+        return res.redirect(loginUrl);
+      }
+      
+      if (!user.emailVerified) {
+        const errorMessage = 'Vui lòng xác thực email trước khi đăng nhập';
+        const loginUrl = `${frontendUrl}/login?error=email_not_verified&message=${encodeURIComponent(errorMessage)}`;
+        return res.redirect(loginUrl);
+      }
 
-    const payload = {
-      email: user.email,
-      sub: user.id,
-      role: user.role,
-    };
+      const payload = {
+        email: user.email,
+        sub: user.id,
+        role: user.role,
+      };
 
-    const access_token = this.authService.generateToken(payload);
-    
-    // Chuyển hướng về frontend với token
-    const redirectUrl = `${frontendUrl}/auth/google/callback?token=${access_token}&user=${encodeURIComponent(JSON.stringify(user))}`;
-    res.redirect(redirectUrl);
+      const access_token = this.authService.generateToken(payload);
+      
+      // Chuyển hướng về frontend với token
+      const redirectUrl = `${frontendUrl}/auth/google/callback?token=${access_token}&user=${encodeURIComponent(JSON.stringify(user))}`;
+      res.redirect(redirectUrl);
+    } catch (error) {
+      const frontendUrl = this.configService.get<string>('FRONTEND_URL');
+      const errorMessage = error instanceof Error ? error.message : 'Đăng nhập thất bại';
+      const loginUrl = `${frontendUrl}/login?error=auth_failed&message=${encodeURIComponent(errorMessage)}`;
+      res.redirect(loginUrl);
+    }
   }
 }
 

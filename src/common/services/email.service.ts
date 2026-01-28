@@ -143,7 +143,7 @@ export class EmailService {
       html: `
         <div style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: Arial, sans-serif;">
           <div style="text-align: center; margin-bottom: 30px;">
-            <img src="${this.configService.get('FRONTEND_URL')}/image/logo-ics.jpg" alt="ICS Cyber Security" style="height: 60px; border-radius: 50%;">
+            <img src="https://i.imgur.com/VtxQWJx.png" alt="ICS Cyber Security" style="height: 60px;">
           </div>
           
           <h1 style="color: #333; text-align: center; margin-bottom: 30px;">Welcome to ICS Learning!</h1>
@@ -196,8 +196,8 @@ export class EmailService {
     }
   }
 
-  async sendAdminCreatedUserEmail(email: string, token: string, tempPassword: string) {
-    const verificationUrl = `${this.configService.get('FRONTEND_URL')}/verify-email?token=${token}`;
+  async sendAdminCreatedUserEmail(email: string, name: string, tempPassword: string) {
+    const loginUrl = `${this.configService.get('FRONTEND_URL')}/login`;
 
     const mailOptions = {
       from: this.configService.get('SMTP_FROM'),
@@ -206,43 +206,51 @@ export class EmailService {
       html: `
         <div style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: Arial, sans-serif;">
           <div style="text-align: center; margin-bottom: 30px;">
-            <img src="${this.configService.get('FRONTEND_URL')}/image/logo-ics.jpg" alt="ICS Cyber Security" style="height: 60px; border-radius: 50%;">
+            <img src="https://i.imgur.com/VtxQWJx.png" alt="ICS Cyber Security" style="height: 60px;">
           </div>
           
-          <h1 style="color: #333; text-align: center; margin-bottom: 30px;">Your Account Has Been Created</h1>
+          <h1 style="color: #333; text-align: center; margin-bottom: 30px;">Chào mừng bạn đến với ICS Learning!</h1>
           
           <p style="color: #666; font-size: 16px; line-height: 1.5;">
-            An administrator has created an ICS Learning account for you. To activate your account, please verify your email address and set up your password.
+            Xin chào <strong>${name}</strong>,
           </p>
           
-          <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="color: #333; margin-top: 0;">Your Login Credentials:</h3>
-            <p style="color: #666; margin: 10px 0;"><strong>Email:</strong> ${email}</p>
-            <p style="color: #666; margin: 10px 0;"><strong>Temporary Password:</strong> ${tempPassword}</p>
+          <p style="color: #666; font-size: 16px; line-height: 1.5;">
+            Quản trị viên đã tạo tài khoản ICS Learning cho bạn. Tài khoản của bạn đã được kích hoạt và sẵn sàng sử dụng!
+          </p>
+          
+          <div style="background-color: #f0f9ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #007bff;">
+            <h3 style="color: #007bff; margin-top: 0;">📧 Thông tin đăng nhập của bạn:</h3>
+            <p style="color: #333; margin: 10px 0; font-size: 15px;"><strong>Email:</strong> ${email}</p>
+            <p style="color: #333; margin: 10px 0; font-size: 15px;"><strong>Mật khẩu tạm thời:</strong> <code style="background: #e3f2fd; padding: 5px 10px; border-radius: 4px; font-family: monospace;">${tempPassword}</code></p>
           </div>
           
-          <p style="color: #dc3545; font-size: 14px; line-height: 1.5; background-color: #fff3cd; padding: 10px; border-radius: 5px; border-left: 4px solid #ffc107;">
-            <strong>⚠️ Important:</strong> Please verify your email address first, then you can log in and change your password.
-          </p>
+          <div style="background-color: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;">
+            <p style="color: #856404; font-size: 14px; line-height: 1.5; margin: 0;">
+              <strong>⚠️ Lưu ý quan trọng:</strong> Vui lòng đổi mật khẩu ngay sau lần đăng nhập đầu tiên để bảo mật tài khoản của bạn.
+            </p>
+          </div>
           
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${verificationUrl}" 
-               style="background-color: #007bff; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
-              Verify Email & Activate Account
+            <a href="${loginUrl}" 
+               style="background-color: #007bff; color: white; padding: 14px 35px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; font-size: 16px;">
+              🚀 Đăng nhập ngay
             </a>
           </div>
           
           <p style="color: #666; font-size: 14px; line-height: 1.5;">
-            If you can't click the button above, copy and paste this link into your browser:
+            Sau khi đăng nhập, bạn có thể:
           </p>
-          <p style="color: #007bff; word-break: break-all; font-size: 14px;">
-            ${verificationUrl}
-          </p>
+          <ul style="color: #666; font-size: 14px; line-height: 1.8;">
+            <li>✅ Thay đổi mật khẩu trong phần "Hồ sơ cá nhân"</li>
+            <li>✅ Cập nhật thông tin cá nhân</li>
+            <li>✅ Bắt đầu học các khóa học</li>
+          </ul>
           
           <hr style="border: 1px solid #eee; margin: 30px 0;">
           
           <p style="color: #999; font-size: 12px; text-align: center;">
-            This verification link will expire in 24 hours. For security, please change your password after your first login.
+            Nếu bạn gặp vấn đề gì, vui lòng liên hệ với quản trị viên hoặc đội ngũ hỗ trợ của chúng tôi.
           </p>
           
           <p style="color: #999; font-size: 12px; text-align: center;">
