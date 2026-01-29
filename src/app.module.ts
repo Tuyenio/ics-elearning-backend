@@ -36,9 +36,11 @@ import { TeacherModule } from './teacher/teacher.module';
 import { ProgressModule } from './progress/progress.module';
 import { StatsModule } from './stats/stats.module';
 import { UploadModule } from './upload/upload.module';
+import { SystemSettingsModule } from "./system-settings/system-setting.module"
 
 @Module({
   imports: [
+    SystemSettingsModule,
     ConfigModule.forRoot({
       isGlobal: true,
       load: [configuration],

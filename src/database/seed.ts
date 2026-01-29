@@ -18,6 +18,8 @@ import { Discussion } from '../discussions/entities/discussion.entity';
 import { Assignment, AssignmentStatus, AssignmentSubmission, SubmissionStatus } from '../assignments/entities/assignment.entity';
 import { Resource, ResourceType } from '../resources/entities/resource.entity';
 import { Notification, NotificationType, NotificationStatus } from '../notifications/entities/notification.entity';
+import { SystemSetting } from '../system-settings/entities/system-setting.entity';
+
 
 export async function seedDatabase(dataSource: DataSource) {
   console.log('🌱 Starting database seed...');
@@ -39,10 +41,20 @@ export async function seedDatabase(dataSource: DataSource) {
   const submissionRepo = dataSource.getRepository(AssignmentSubmission);
   const resourceRepo = dataSource.getRepository(Resource);
   const notificationRepo = dataSource.getRepository(Notification);
+  const systemSettingRepo = dataSource.getRepository(SystemSetting);
+
 
   // Clear existing data
   console.log('🗑️  Clearing existing data...');
   
+  await systemSettingRepo.upsert(
+  {
+    key: 'site_logo',
+    value: '/image/logo-ics.jpg',
+  },
+  ['key'],
+);
+
   // Use CASCADE to handle foreign key constraints
   const tables = [
     'certificates',
