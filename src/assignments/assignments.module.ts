@@ -5,7 +5,7 @@ import { AssignmentsController } from './assignments.controller';
 import { Assignment, AssignmentSubmission } from './entities/assignment.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Assignment, AssignmentSubmission])],
+  imports: [TypeOrmModule.forFeature([Assignment, AssignmentSubmission]),],
   controllers: [AssignmentsController],
   providers: [AssignmentsService],
   exports: [AssignmentsService],

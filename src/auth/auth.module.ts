@@ -14,10 +14,12 @@ import { TwoFactorAuthService } from './two-factor-auth.service';
 import { TwoFactorAuthController } from './two-factor-auth.controller';
 import { TwoFactorAuth } from './entities/two-factor-auth.entity';
 import { User } from '../users/entities/user.entity';
+import { CacheModule } from '@nestjs/cache-manager';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([TwoFactorAuth, User]),
+    CacheModule.register(),
     UsersModule,
     CommonModule,
     PassportModule,

@@ -4,42 +4,45 @@ import { Repository } from "typeorm"
 import { SystemSetting } from "./entities/system-setting.entity"
 
 @Injectable()
-export class SystemSettingsService {
+export class SystemSettingsService  {
+  async updateMany(settings: Record<string, any>) {
+
+  const entries = Object.entries(settings).map(([key, value]) => ({
+    key,
+    value: String(value),
+  }));
+
+  await this.repo.upsert(entries, ["key"]);
+  this.cache = null;
+  return this.getAll();
+}
+  private cache: Record<string, string> | null = null;
+
   constructor(
     @InjectRepository(SystemSetting)
     private readonly repo: Repository<SystemSetting>,
   ) {}
 
-  /**
-   * Lấy toàn bộ system settings
-   * Trả về dạng object: { key: value }
-   */
   async getAll(): Promise<Record<string, string>> {
-    const settings = await this.repo.find()
+    if (this.cache) return this.cache;
 
-    return settings.reduce((acc, cur) => {
-      acc[cur.key] = cur.value
-      return acc
-    }, {} as Record<string, string>)
+    const settings = await this.repo.find();
+
+    this.cache = settings.reduce((acc, cur) => {
+      acc[cur.key] = cur.value;
+      return acc;
+    }, {} as Record<string, string>);
+
+    return this.cache;
   }
 
-  /**
-   * Cập nhật / tạo mới 1 setting
-   */
-  async update(key: string, value: string): Promise<Record<string, string>> {
-    await this.repo.upsert(
-      { key, value },
-      { conflictPaths: ["key"] },
-    )
+  async update(key: string, value: string) {
+    await this.repo.upsert({ key, value }, ["key"]);
 
-    return this.getAll()
-  }
+    // 🔥 QUAN TRỌNG: clear cache
+    this.cache = null;
 
-  /**
-   * (OPTIONAL) Lấy 1 setting theo key
-   */
-  async getByKey(key: string): Promise<string | null> {
-    const setting = await this.repo.findOne({ where: { key } })
-    return setting?.value ?? null
+    return this.getAll();
   }
 }
+

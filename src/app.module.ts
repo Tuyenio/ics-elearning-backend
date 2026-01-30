@@ -72,7 +72,7 @@ import { SystemSettingsModule } from "./system-settings/system-setting.module"
     // Cache configuration
     CacheModule.register({
       isGlobal: true,
-      ttl: 300000, // 5 minutes default TTL
+      ttl: 5, 
       max: 100, // Maximum number of items in cache
     }),
     TypeOrmModule.forRootAsync({
