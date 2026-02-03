@@ -15,6 +15,7 @@ import { TwoFactorAuthController } from './two-factor-auth.controller';
 import { TwoFactorAuth } from './entities/two-factor-auth.entity';
 import { User } from '../users/entities/user.entity';
 import { CacheModule } from '@nestjs/cache-manager';
+import { SystemSettingsModule } from "../system-settings/system-setting.module"
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { CacheModule } from '@nestjs/cache-manager';
     CacheModule.register(),
     UsersModule,
     CommonModule,
+    SystemSettingsModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

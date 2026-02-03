@@ -11,7 +11,7 @@ export class SystemSettingsController {
   }
 
   @Put()
-  updateMany(@Body() body: Record<string, string>) {
+  updateMany(@Body() body: Record<string, any>) {
   return this.service.updateMany(body);
 }
 

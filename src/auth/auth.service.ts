@@ -5,8 +5,9 @@ import { CreateUserDto } from '../users/dto/create-user.dto';
 import { LoginDto } from './dto/login.dto';
 import * as bcrypt from 'bcryptjs';
 import { UnauthorizedException, ConflictException } from '@nestjs/common';
-import { User, UserStatus } from '../users/entities/user.entity';
+import { User, UserRole, UserStatus } from '../users/entities/user.entity';
 import { EmailService } from '../common/services/email.service';
+import { SystemSettingsService } from "../system-settings/system-setting.service"
 
 @Injectable()
 export class AuthService {
@@ -14,6 +15,7 @@ export class AuthService {
     private usersService: UsersService,
     private jwtService: JwtService,
     private emailService: EmailService,
+    private systemSettingsService: SystemSettingsService,
   ) {}
 
   async validateUser(email: string, password: string): Promise<any> {
@@ -41,6 +43,11 @@ export class AuthService {
 
     if (user.status !== UserStatus.ACTIVE) {
       throw new UnauthorizedException('Tài khoản của bạn đã bị khóa. Vui lòng liên hệ với đội ngũ hỗ trợ để được kích hoạt lại.');
+    }
+
+    const maintenanceMode = await this.systemSettingsService.isMaintenanceMode();
+    if (maintenanceMode && user.role !== UserRole.ADMIN) {
+      throw new UnauthorizedException('Hệ thống đang bảo trì. Vui lòng quay lại sau.');
     }
 
     const payload = { 

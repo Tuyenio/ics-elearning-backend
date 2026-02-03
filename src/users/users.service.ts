@@ -7,6 +7,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import * as bcrypt from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
 import { EmailService } from '../common/services/email.service';
+import { SystemSettingsService } from "../system-settings/system-setting.service"
 
 @Injectable()
 export class UsersService {
@@ -15,6 +16,7 @@ export class UsersService {
     private usersRepository: Repository<User>,
     private jwtService: JwtService,
     private emailService: EmailService,
+    private systemSettingsService: SystemSettingsService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
@@ -78,6 +80,8 @@ export class UsersService {
     totalPages: number;
     stats: { total: number; active: number; inactive: number; teachers: number; students: number };
   }> {
+    const maintenanceMode = await this.systemSettingsService.isMaintenanceMode();
+
     const queryBuilder = this.usersRepository.createQueryBuilder('user');
 
     // Search
@@ -109,6 +113,28 @@ export class UsersService {
 
     // Get stats
     const stats = await this.getStats();
+
+    if (maintenanceMode) {
+      const transformed = data.map((u) => {
+        if (u.role === UserRole.ADMIN) return u;
+        return { ...u, status: UserStatus.INACTIVE } as User;
+      });
+
+      const nonAdminCount = transformed.filter((u) => u.role !== UserRole.ADMIN).length;
+      const adminActive = transformed.filter((u) => u.role === UserRole.ADMIN && u.status === UserStatus.ACTIVE).length;
+
+      return {
+        data: transformed,
+        total,
+        page,
+        totalPages: Math.ceil(total / limit),
+        stats: {
+          ...stats,
+          active: adminActive,
+          inactive: stats.inactive + nonAdminCount,
+        },
+      };
+    }
 
     return {
       data,

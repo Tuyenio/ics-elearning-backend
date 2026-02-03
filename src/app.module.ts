@@ -37,10 +37,20 @@ import { ProgressModule } from './progress/progress.module';
 import { StatsModule } from './stats/stats.module';
 import { UploadModule } from './upload/upload.module';
 import { SystemSettingsModule } from "./system-settings/system-setting.module"
+import { MaintenanceGuard } from "./common/guards/maintenance.guard"
+import { JwtModule } from "@nestjs/jwt"
 
 @Module({
   imports: [
     SystemSettingsModule,
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        secret: configService.get<string>('JWT_SECRET'),
+        signOptions: { expiresIn: '24h' },
+      }),
+      inject: [ConfigService],
+    }),
     ConfigModule.forRoot({
       isGlobal: true,
       load: [configuration],
@@ -131,6 +141,10 @@ import { SystemSettingsModule } from "./system-settings/system-setting.module"
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: MaintenanceGuard,
     },
   ],
 })
