@@ -113,15 +113,6 @@ export class User {
   @OneToMany('Cart', (cart: any) => cart.user)
   cartItems: any[];
 
-  @OneToMany('UserSession', (session: any) => session.user)
-  sessions: any[];
-
-  @OneToMany('QuizAttempt', (attempt: any) => attempt.student)
-  quizAttempts: any[];
-
-  @OneToMany('ExamAttempt', (attempt: any) => attempt.student)
-  examAttempts: any[];
-
   @BeforeInsert()
   async hashPassword() {
     if (this.password) {

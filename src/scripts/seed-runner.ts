@@ -21,6 +21,7 @@ import { Discussion } from '../discussions/entities/discussion.entity';
 import { Assignment, AssignmentSubmission } from '../assignments/entities/assignment.entity';
 import { Resource } from '../resources/entities/resource.entity';
 import { Notification } from '../notifications/entities/notification.entity';
+import { SystemSetting } from '../system-settings/entities/system-setting.entity';
 
 ConfigModule.forRoot();
 
@@ -49,6 +50,7 @@ const AppDataSource = new DataSource({
     AssignmentSubmission,
     Resource,
     Notification,
+    SystemSetting,
   ],
   synchronize: true,
   ssl: {
