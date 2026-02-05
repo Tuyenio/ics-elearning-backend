@@ -11,6 +11,12 @@ import { SystemSettingsService } from "../system-settings/system-setting.service
 
 @Injectable()
 export class UsersService {
+  async updateLastLogin(userId: string) {
+  return this.usersRepository.update(
+    { id: userId },
+    { lastLoginAt: new Date() },
+  );
+}
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,

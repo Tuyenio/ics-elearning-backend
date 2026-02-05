@@ -11,6 +11,7 @@ import { SystemSettingsService } from "../system-settings/system-setting.service
 
 @Injectable()
 export class AuthService {
+  userRepo: any;
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
@@ -49,6 +50,7 @@ export class AuthService {
     if (maintenanceMode && user.role !== UserRole.ADMIN) {
       throw new UnauthorizedException('Hệ thống đang bảo trì. Vui lòng quay lại sau.');
     }
+    await this.usersService.updateLastLogin(user.id);
 
     const payload = { 
       email: user.email, 

@@ -122,6 +122,13 @@ export class User {
   @OneToMany('ExamAttempt', (attempt: any) => attempt.student)
   examAttempts: any[];
 
+  @Column({
+  name: 'lastloginat', // đúng với DB hiện tại
+  type: 'timestamp',
+  nullable: true,
+})
+lastLoginAt?: Date;
+
   @BeforeInsert()
   async hashPassword() {
     if (this.password) {
