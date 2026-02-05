@@ -15,7 +15,7 @@ import { Lesson } from '../../lessons/entities/lesson.entity';
 import { Enrollment } from '../../enrollments/entities/enrollment.entity';
 import { Review } from '../../reviews/entities/review.entity';
 import { Wishlist } from '../../wishlists/entities/wishlist.entity';
-
+import { Payment } from '../../payments/entities/payment.entity';
 export enum CourseLevel {
   BEGINNER = 'beginner',
   INTERMEDIATE = 'intermediate',
@@ -59,6 +59,9 @@ export class Course {
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   discountPrice: number;
+  
+  @OneToMany(() => Payment, payment => payment.course)
+  payments: Payment[];
 
   @Column({
     type: 'enum',
