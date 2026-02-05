@@ -10,6 +10,8 @@ export interface DashboardStats {
   revenueChart: {
     labels: string[];
     data: number[];
+    teachers?: number[];
+    students?: number[];
   };
   topCourses: {
     id: string;
@@ -25,6 +27,17 @@ export interface DashboardStats {
     amount: number;
     status: string;
     createdAt: Date;
+  }[];
+  weeklyStats?: {
+    day: string;
+    activeUsers: number;
+    newSignups: number;
+  }[];
+  categoryDistribution?: CategoryDistribution[];
+  growthChart?: {
+    month: string;
+    teachers: number;
+    students: number;
   }[];
 }
 

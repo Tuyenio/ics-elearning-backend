@@ -57,14 +57,14 @@ export class AdminService {
     const completedPayments = await this.paymentRepo.find({
       where: { status: PaymentStatus.COMPLETED },
     });
-    const totalRevenue = completedPayments.reduce((sum, p) => sum + p.finalAmount, 0);
+    const totalRevenue = completedPayments.reduce((sum, p) => sum + Number(p.finalAmount || 0), 0);
 
     const recentRevenue = completedPayments
       .filter(p => p.createdAt >= thirtyDaysAgo)
-      .reduce((sum, p) => sum + p.finalAmount, 0);
+      .reduce((sum, p) => sum + Number(p.finalAmount || 0), 0);
     const oldRevenue = completedPayments
       .filter(p => p.createdAt >= sixtyDaysAgo && p.createdAt < thirtyDaysAgo)
-      .reduce((sum, p) => sum + p.finalAmount, 0);
+      .reduce((sum, p) => sum + Number(p.finalAmount || 0), 0);
     const revenueGrowth = oldRevenue > 0 ? ((recentRevenue - oldRevenue) / oldRevenue) * 100 : 0;
 
     // Growth calculations
@@ -85,7 +85,16 @@ export class AdminService {
     const courseGrowth = oldCourses > 0 ? ((recentCourses - oldCourses) / oldCourses) * 100 : 0;
 
     // Revenue chart (last 7 days)
-    const revenueChart = await this.getRevenueChart(7);
+    const revenueChart = await this.getRevenueChart(12);
+
+    // Weekly activity stats
+    const weeklyStats = await this.getWeeklyStats();
+
+    // Growth chart (teachers vs students by month)
+    const growthChart = await this.buildGrowthChart();
+
+    // Category distribution
+    const categoryDistribution = await this.getCategoryDistribution();
 
     // Top courses
     const topCourses = await this.getTopCourses();
@@ -105,6 +114,9 @@ export class AdminService {
       revenueChart,
       topCourses,
       recentTransactions,
+      weeklyStats,
+      growthChart,
+      categoryDistribution,
     };
   }
 
@@ -114,19 +126,19 @@ export class AdminService {
     const now = new Date();
 
     for (let i = days - 1; i >= 0; i--) {
-      const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-      const nextDate = new Date(date.getTime() + 24 * 60 * 60 * 1000);
-      
-      const dayRevenue = await this.paymentRepo
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const nextDate = new Date(date.getFullYear(), date.getMonth() + 1, 1);
+
+      const monthRevenue = await this.paymentRepo
         .createQueryBuilder('payment')
         .where('payment.status = :status', { status: PaymentStatus.COMPLETED })
         .andWhere('payment.createdAt >= :start', { start: date })
         .andWhere('payment.createdAt < :end', { end: nextDate })
         .getMany();
 
-      const total = dayRevenue.reduce((sum, p) => sum + p.finalAmount, 0);
+      const total = monthRevenue.reduce((sum, p) => sum + Number(p.finalAmount || 0), 0);
 
-      labels.push(date.toLocaleDateString('vi-VN', { month: 'short', day: 'numeric' }));
+      labels.push(date.toLocaleDateString('vi-VN', { month: 'short', year: 'numeric' }));
       data.push(total);
     }
 
@@ -169,10 +181,57 @@ export class AdminService {
       id: t.id,
       studentName: t.student.name,
       courseName: t.course.title,
-      amount: t.finalAmount,
+      amount: Number(t.finalAmount || 0),
       status: t.status,
       createdAt: t.createdAt,
     }));
+  }
+
+  private async getWeeklyStats() {
+    const stats: { day: string; activeUsers: number; newSignups: number }[] = [];
+    const now = new Date();
+
+    for (let i = 6; i >= 0; i--) {
+      const start = new Date(now);
+      start.setHours(0, 0, 0, 0);
+      start.setDate(now.getDate() - i);
+      const end = new Date(start);
+      end.setDate(start.getDate() + 1);
+
+      const [activeUsers, newSignups] = await Promise.all([
+        this.enrollmentRepo.count({ where: { createdAt: Between(start, end) } }),
+        this.userRepo.count({ where: { createdAt: Between(start, end), role: UserRole.STUDENT } }),
+      ]);
+
+      stats.push({
+        day: start.toLocaleDateString('vi-VN', { weekday: 'short' }),
+        activeUsers,
+        newSignups,
+      });
+    }
+
+    return stats;
+  }
+
+  private async buildGrowthChart() {
+    const teachersByMonth = await this.getUserGrowthByMonth(UserRole.TEACHER);
+    const studentsByMonth = await this.getUserGrowthByMonth(UserRole.STUDENT);
+
+    const monthSet = new Set<string>();
+    teachersByMonth.forEach(item => monthSet.add(item.month));
+    studentsByMonth.forEach(item => monthSet.add(item.month));
+
+    const months = Array.from(monthSet).sort();
+
+    return months.map(month => {
+      const teacherItem = teachersByMonth.find(t => t.month === month);
+      const studentItem = studentsByMonth.find(s => s.month === month);
+      return {
+        month,
+        teachers: teacherItem?.count || 0,
+        students: studentItem?.count || 0,
+      };
+    });
   }
 
   async getGrowthStats(): Promise<GrowthStats> {
@@ -211,7 +270,7 @@ export class AdminService {
       .select('category.name', 'categoryName')
       .addSelect('COUNT(course.id)', 'courseCount')
       .groupBy('category.name')
-      .orderBy('courseCount', 'DESC')
+      .orderBy('COUNT(course.id)', 'DESC')
       .getRawMany();
 
     return distribution.map(d => ({

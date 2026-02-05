@@ -9,6 +9,8 @@ import { Enrollment } from '../enrollments/entities/enrollment.entity';
 import { LessonProgress } from '../lesson-progress/entities/lesson-progress.entity';
 import { Quiz } from '../quizzes/entities/quiz.entity';
 import { QuizAttempt } from '../quizzes/entities/quiz-attempt.entity';
+import { Exam } from '../exams/entities/exam.entity';
+import { ExamAttempt } from '../exams/entities/exam-attempt.entity';
 import { Certificate } from '../certificates/entities/certificate.entity';
 import { Payment } from '../payments/entities/payment.entity';
 import { Review } from '../reviews/entities/review.entity';
@@ -37,6 +39,8 @@ const AppDataSource = new DataSource({
     LessonProgress,
     Quiz,
     QuizAttempt,
+    Exam,
+    ExamAttempt,
     Certificate,
     Payment,
     Review,

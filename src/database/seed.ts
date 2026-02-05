@@ -90,6 +90,20 @@ export async function seedDatabase(dataSource: DataSource) {
     address: 'Hà Nội, Việt Nam',
   });
 
+  // Admin account (alt for testing login)
+  const admin2 = await userRepo.save({
+    email: 't98tuyen@gmail.com',
+    password: hashedPassword,
+    name: 'Nguyễn Văn Tuyến',
+    role: UserRole.ADMIN,
+    status: UserStatus.ACTIVE,
+    emailVerified: true,
+    avatar: '/avatars/admin2.jpg',
+    bio: 'Tài khoản quản trị dự phòng dùng để kiểm thử dashboard.',
+    phone: '0987000000',
+    address: 'Hà Nội, Việt Nam',
+  });
+
   // Teacher account
   const teacher = await userRepo.save({
     email: 'tuyenkoikop@gmail.com',
@@ -132,7 +146,34 @@ export async function seedDatabase(dataSource: DataSource) {
     address: 'Đà Nẵng, Việt Nam',
   });
 
-  const students: User[] = [student]; // Array for compatibility with existing code
+  // Additional students for richer admin metrics
+  const student2 = await userRepo.save({
+    email: 'student2@example.com',
+    password: hashedPassword,
+    name: 'Phạm Thu Hà',
+    role: UserRole.STUDENT,
+    status: UserStatus.ACTIVE,
+    emailVerified: true,
+    avatar: '/avatars/student2.jpg',
+    bio: 'Học viên yêu thích phân tích dữ liệu và AI.',
+    phone: '0909000001',
+    address: 'Hà Nội, Việt Nam',
+  });
+
+  const student3 = await userRepo.save({
+    email: 'student3@example.com',
+    password: hashedPassword,
+    name: 'Đỗ Minh Quân',
+    role: UserRole.STUDENT,
+    status: UserStatus.ACTIVE,
+    emailVerified: true,
+    avatar: '/avatars/student3.jpg',
+    bio: 'Học viên đam mê DevOps và Cloud.',
+    phone: '0909000002',
+    address: 'TP. Hồ Chí Minh, Việt Nam',
+  });
+
+  const students: User[] = [student, student2, student3];
 
   // Create Categories
   console.log('📚 Creating categories...');
@@ -612,116 +653,105 @@ export async function seedDatabase(dataSource: DataSource) {
     }
   }
 
-  // Create Enrollments, Progress, Reviews, Payments for the student
-  console.log('📊 Creating enrollments and progress for student...');
-  
-  // Student enrolls in 8 courses (most of them)
-  const enrolledCoursesCount = 8;
-  const enrolledCourses = courses.slice(0, enrolledCoursesCount);
+  // Create Enrollments, Progress, Reviews, Payments for multiple students
+  console.log('📊 Creating enrollments and progress for students...');
   const enrollments: any[] = [];
+  const allStudents = [student, student2, student3];
+  const enrolledCourses = courses;
+  let txnCounter = 0;
 
-  for (let courseIndex = 0; courseIndex < enrolledCourses.length; courseIndex++) {
-    const course = enrolledCourses[courseIndex];
-    
-    // Create Payment
-    const payment = await paymentRepo.save({
-      transactionId: `TXN${Date.now()}${courseIndex}${course.id.substring(0, 6)}`,
-      studentId: student.id,
-      courseId: course.id,
-      amount: course.price,
-      discountAmount: course.price - course.discountPrice,
-      finalAmount: course.discountPrice,
-      currency: 'VND',
-      status: PaymentStatus.COMPLETED,
-      paymentMethod: [PaymentMethod.CREDIT_CARD, PaymentMethod.WALLET, PaymentMethod.QR_CODE][courseIndex % 3],
-      paidAt: new Date(Date.now() - Math.random() * 60 * 24 * 60 * 60 * 1000), // Last 60 days
-      paymentGatewayId: `GW${Date.now()}${courseIndex}`,
-      metadata: {
-        paymentMethod: 'Online',
-        bankCode: courseIndex % 2 === 0 ? 'VCB' : 'TCB',
-      }
-    });
+  for (const learner of allStudents) {
+    for (let courseIndex = 0; courseIndex < enrolledCourses.length; courseIndex++) {
+      const course = enrolledCourses[courseIndex];
+      const paidAt = new Date(Date.now() - Math.random() * 60 * 24 * 60 * 60 * 1000); // Last 60 days
 
-    // Create Enrollment with varying progress
-    const progress = courseIndex < 3 ? 100 : courseIndex < 5 ? Math.floor(50 + Math.random() * 50) : Math.floor(Math.random() * 50);
-    const isCompleted = progress >= 90;
-    const enrollment = await enrollmentRepo.save({
-      studentId: student.id,
-      courseId: course.id,
-      status: isCompleted ? EnrollmentStatus.COMPLETED : EnrollmentStatus.ACTIVE,
-      progress,
-      completedAt: isCompleted ? new Date() : undefined,
-      lastAccessedAt: new Date(Date.now() - Math.random() * 3 * 24 * 60 * 60 * 1000), // Last 3 days
-    } as any);
-    enrollments.push(enrollment);
-    enrollments.push(enrollment);
-
-    // Update course enrollment count
-    await courseRepo.increment({ id: course.id }, 'enrollmentCount', 1);
-
-    // Create Lesson Progress
-    const lessons = await lessonRepo.find({ where: { courseId: course.id }, order: { order: 'ASC' } });
-    const completedLessons = Math.floor((lessons.length * progress) / 100);
-    
-    for (let j = 0; j < lessons.length; j++) {
-      if (j < completedLessons) {
-        await lessonProgressRepo.save({
-          enrollmentId: enrollment.id,
-          lessonId: lessons[j].id,
-          isCompleted: true,
-          progress: 100,
-          lastPosition: lessons[j].duration,
-          completedAt: new Date(Date.now() - (lessons.length - j) * 24 * 60 * 60 * 1000),
-        });
-      } else if (j === completedLessons) {
-        // Current lesson in progress
-        await lessonProgressRepo.save({
-          enrollmentId: enrollment.id,
-          lessonId: lessons[j].id,
-          isCompleted: false,
-          progress: Math.floor(Math.random() * 80),
-          lastPosition: Math.floor(lessons[j].duration * Math.random() * 0.8),
-          completedAt: undefined,
-        } as any);
-      }
-    }
-
-    // Create Review if course is completed
-    if (isCompleted) {
-      const rating = 4 + Math.floor(Math.random() * 2); // 4 or 5 stars
-      await reviewRepo.save({
-        studentId: student.id,
+      // Create Payment
+      await paymentRepo.save({
+        transactionId: `TXN${Date.now()}${txnCounter++}${course.id.substring(0, 6)}`,
+        studentId: learner.id,
         courseId: course.id,
-        rating,
-        comment: getReviewComment(rating, course.title),
-        isVerifiedPurchase: true,
-        isPublished: true,
-        helpfulCount: Math.floor(Math.random() * 50),
+        amount: course.price,
+        discountAmount: course.price - course.discountPrice,
+        finalAmount: course.discountPrice,
+        currency: 'VND',
+        status: PaymentStatus.COMPLETED,
+        paymentMethod: [PaymentMethod.CREDIT_CARD, PaymentMethod.WALLET, PaymentMethod.QR_CODE][(courseIndex + txnCounter) % 3],
+        paidAt,
+        paymentGatewayId: `GW${Date.now()}${courseIndex}`,
+        metadata: {
+          paymentMethod: 'Online',
+          bankCode: courseIndex % 2 === 0 ? 'VCB' : 'TCB',
+        }
       });
 
-      await courseRepo.increment({ id: course.id }, 'reviewCount', 1);
-      
+      // Create Enrollment with varying progress
+      const progress = courseIndex % 4 === 0 ? 100 : courseIndex % 3 === 0 ? 80 : 40 + Math.floor(Math.random() * 50);
+      const isCompleted = progress >= 90;
+      const enrollment = await enrollmentRepo.save({
+        studentId: learner.id,
+        courseId: course.id,
+        status: isCompleted ? EnrollmentStatus.COMPLETED : EnrollmentStatus.ACTIVE,
+        progress,
+        completedAt: isCompleted ? paidAt : undefined,
+        lastAccessedAt: new Date(Date.now() - Math.random() * 3 * 24 * 60 * 60 * 1000), // Last 3 days
+      } as any);
+      enrollments.push(enrollment);
+
+      // Update course enrollment count
+      await courseRepo.increment({ id: course.id }, 'enrollmentCount', 1);
+
+      // Create Lesson Progress
+      const lessons = await lessonRepo.find({ where: { courseId: course.id }, order: { order: 'ASC' } });
+      const completedLessons = Math.floor((lessons.length * progress) / 100);
+      for (let j = 0; j < lessons.length; j++) {
+        if (j < completedLessons) {
+          await lessonProgressRepo.save({
+            enrollmentId: enrollment.id,
+            lessonId: lessons[j].id,
+            isCompleted: true,
+            progress: 100,
+            lastPosition: lessons[j].duration,
+            completedAt: paidAt,
+            timeSpent: 600 + Math.floor(Math.random() * 1800),
+          });
+        }
+      }
+
+      // Create Review for completed courses
+      if (isCompleted) {
+        await reviewRepo.save({
+          courseId: course.id,
+          studentId: learner.id,
+          rating: Math.floor(4 + Math.random() * 2),
+          comment: `Khóa học ${course.title} rất bổ ích và chi tiết!`,
+          isPublished: true,
+        } as any);
+      }
+
       // Update course rating
       const reviews = await reviewRepo.find({ where: { courseId: course.id } });
-      const avgRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
+      const avgRating = reviews.length > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : 0;
       await courseRepo.update(course.id, { rating: Math.round(avgRating * 10) / 10 });
 
       // Create Certificate
-      await certificateRepo.save({
-        certificateNumber: `ICS-CERT-${Date.now()}-${courseIndex}`,
-        studentId: student.id,
-        courseId: course.id,
-        enrollmentId: enrollment.id,
-        issueDate: new Date(),
-        pdfUrl: `/certificates/${enrollment.id}.pdf`,
-        imageUrl: `/certificates/${enrollment.id}.jpg`,
-        metadata: {
-          courseName: course.title,
-          studentName: student.name,
-          completionDate: new Date().toISOString(),
-          instructor: teacher.name,
-        }
-      });
+      if (isCompleted) {
+        const instructorName = course.teacherId === teacher2.id ? teacher2.name : teacher.name;
+        await certificateRepo.save({
+          certificateNumber: `ICS-CERT-${Date.now()}-${courseIndex}-${txnCounter}`,
+          studentId: learner.id,
+          courseId: course.id,
+          enrollmentId: enrollment.id,
+          issueDate: paidAt,
+          pdfUrl: `/certificates/${enrollment.id}.pdf`,
+          imageUrl: `/certificates/${enrollment.id}.jpg`,
+          metadata: {
+            courseName: course.title,
+            studentName: learner.name,
+            completionDate: paidAt.toISOString(),
+            instructor: instructorName,
+          }
+        });
+      }
     }
   }
 
@@ -751,7 +781,7 @@ export async function seedDatabase(dataSource: DataSource) {
 
   // Create wishlist for student
   console.log('❤️ Creating wishlist...');
-  const wishlistCourses = courses.slice(enrolledCoursesCount, enrolledCoursesCount + 3);
+  const wishlistCourses = courses.slice(0, 3);
   for (const course of wishlistCourses) {
     await dataSource.getRepository(Wishlist).save({
       studentId: student.id,
