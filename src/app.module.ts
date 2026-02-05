@@ -39,6 +39,7 @@ import { UploadModule } from './upload/upload.module';
 import { SystemSettingsModule } from "./system-settings/system-setting.module"
 import { MaintenanceGuard } from "./common/guards/maintenance.guard"
 import { JwtModule } from "@nestjs/jwt"
+import { ScheduleModule } from './schedule/schedule.module'
 
 @Module({
   imports: [
@@ -132,6 +133,7 @@ import { JwtModule } from "@nestjs/jwt"
     ProgressModule,
     StatsModule,
     UploadModule,
+    ScheduleModule, 
   ],
   controllers: [AppController],
   providers: [

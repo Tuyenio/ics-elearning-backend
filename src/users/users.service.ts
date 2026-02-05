@@ -347,4 +347,3 @@ export class UsersService {
     await this.usersRepository.update({ id }, { avatar: avatarUrl });
   }
 }
-
