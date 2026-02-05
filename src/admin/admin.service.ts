@@ -146,7 +146,7 @@ export class AdminService {
   }
 
   async getTopCourses(limit: number = 5) {
-    const courses = await this.courseRepo
+    let courses = await this.courseRepo
       .createQueryBuilder('course')
       .leftJoin('course.enrollments', 'enrollment')
       .leftJoin('course.payments', 'payment')
@@ -157,16 +157,17 @@ export class AdminService {
       .addSelect('COALESCE(SUM(payment.finalAmount), 0)', 'revenue')
       .where('payment.status = :status', { status: PaymentStatus.COMPLETED })
       .groupBy('course.id')
-      .orderBy('revenue', 'DESC')
       .limit(limit)
       .getRawMany();
+
+    courses = courses.sort((a, b) => parseFloat(b.revenue || 0) - parseFloat(a.revenue || 0));
 
     return courses.map(c => ({
       id: c.id,
       title: c.title,
       thumbnail: c.thumbnail,
       enrollments: parseInt(c.enrollments) || 0,
-      revenue: parseFloat(c.revenue) || 0,
+      revenue: Math.round(parseFloat(c.revenue) || 0),
     }));
   }
 
@@ -287,9 +288,9 @@ export class AdminService {
       relations: ['course', 'course.teacher', 'course.category'],
     });
 
-    const totalRevenue = completedPayments.reduce((sum, p) => sum + p.finalAmount, 0);
-    const platformRevenue = totalRevenue * 0.3;
-    const teacherRevenue = totalRevenue * 0.7;
+    const totalRevenue = Math.round(completedPayments.reduce((sum, p) => sum + Number(p.finalAmount || 0), 0));
+    const platformRevenue = Math.round(totalRevenue * 0.3);
+    const teacherRevenue = Math.round(totalRevenue * 0.7);
 
     // Revenue by month
     const revenueByMonth = await this.getRevenueByMonth();
@@ -301,12 +302,12 @@ export class AdminService {
     const revenueByCategory = await this.getRevenueByCategory();
 
     // Average order value
-    const averageOrderValue = completedPayments.length > 0 ? totalRevenue / completedPayments.length : 0;
+    const averageOrderValue = completedPayments.length > 0 ? Math.round(totalRevenue / completedPayments.length) : 0;
 
     // Refund rate
     const refundedPayments = await this.paymentRepo.count({ where: { status: PaymentStatus.REFUNDED } });
     const totalPayments = await this.paymentRepo.count();
-    const refundRate = totalPayments > 0 ? (refundedPayments / totalPayments) * 100 : 0;
+    const refundRate = totalPayments > 0 ? Math.round((refundedPayments / totalPayments) * 1000) / 10 : 0;
 
     return {
       totalRevenue,
@@ -315,8 +316,8 @@ export class AdminService {
       revenueByMonth,
       revenueByTeacher,
       revenueByCategory,
-      averageOrderValue: Math.round(averageOrderValue),
-      refundRate: Math.round(refundRate * 10) / 10,
+      averageOrderValue,
+      refundRate,
     };
   }
 
@@ -334,13 +335,13 @@ export class AdminService {
 
     const monthlyData = result.map((r, index) => {
       const nextMonth = result[index + 1];
-      const growth = nextMonth 
-        ? ((parseFloat(r.revenue) - parseFloat(nextMonth.revenue)) / parseFloat(nextMonth.revenue)) * 100
-        : 0;
+      const currentRevenue = Math.round(parseFloat(r.revenue) || 0);
+      const prevRevenue = nextMonth ? Math.round(parseFloat(nextMonth.revenue) || 0) : currentRevenue;
+      const growth = prevRevenue > 0 ? ((currentRevenue - prevRevenue) / prevRevenue) * 100 : 0;
 
       return {
         month: r.month,
-        revenue: parseFloat(r.revenue) || 0,
+        revenue: currentRevenue,
         orders: parseInt(r.orders),
         growth: Math.round(growth * 10) / 10,
       };
@@ -350,7 +351,7 @@ export class AdminService {
   }
 
   private async getRevenueByTeacher(): Promise<TeacherRevenue[]> {
-    const result = await this.paymentRepo
+    let result = await this.paymentRepo
       .createQueryBuilder('payment')
       .leftJoin('payment.course', 'course')
       .leftJoin('course.teacher', 'teacher')
@@ -364,8 +365,9 @@ export class AdminService {
       .groupBy('teacher.id')
       .addGroupBy('teacher.name')
       .addGroupBy('teacher.email')
-      .orderBy('totalRevenue', 'DESC')
       .getRawMany();
+
+    result = result.sort((a, b) => parseFloat(b.totalRevenue || 0) - parseFloat(a.totalRevenue || 0))
 
     return result.map(r => ({
       teacherId: r.teacherId,
@@ -384,9 +386,9 @@ export class AdminService {
       .where('payment.status = :status', { status: PaymentStatus.COMPLETED })
       .getRawOne();
 
-    const total = parseFloat(totalRevenue?.total || '0');
+    const total = Math.round(parseFloat(totalRevenue?.total || '0'));
 
-    const result = await this.paymentRepo
+    let result = await this.paymentRepo
       .createQueryBuilder('payment')
       .leftJoin('payment.course', 'course')
       .leftJoin('course.category', 'category')
@@ -395,15 +397,19 @@ export class AdminService {
       .addSelect('COUNT(*)', 'orderCount')
       .where('payment.status = :status', { status: PaymentStatus.COMPLETED })
       .groupBy('category.name')
-      .orderBy('revenue', 'DESC')
       .getRawMany();
 
-    return result.map(r => ({
-      categoryName: r.categoryName,
-      revenue: parseFloat(r.revenue) || 0,
-      orderCount: parseInt(r.orderCount),
-      percentage: total > 0 ? Math.round((parseFloat(r.revenue) / total) * 100 * 10) / 10 : 0,
-    }));
+    result = result.sort((a, b) => parseFloat(b.revenue || 0) - parseFloat(a.revenue || 0));
+
+    return result.map(r => {
+      const revenue = Math.round(parseFloat(r.revenue) || 0);
+      return {
+        categoryName: r.categoryName,
+        revenue,
+        orderCount: parseInt(r.orderCount),
+        percentage: total > 0 ? Math.round((revenue / total) * 100 * 10) / 10 : 0,
+      };
+    });
   }
 
   // ===== User Reports =====
@@ -474,26 +480,29 @@ export class AdminService {
   }
 
   private async getTopStudents(): Promise<TopStudent[]> {
-    const result = await this.enrollmentRepo
-      .createQueryBuilder('enrollment')
-      .leftJoin('enrollment.student', 'student')
-      .leftJoin('enrollment.payments', 'payment')
+    // Use payments (completed only) as the source of spending, with enrollments joined for completion stats
+    let result = await this.paymentRepo
+      .createQueryBuilder('payment')
+      .leftJoin('payment.student', 'student')
+      .leftJoin('payment.course', 'course')
+      .leftJoin(Enrollment, 'enrollment', 'enrollment.studentId = student.id')
       .select('student.id', 'studentId')
       .addSelect('student.name', 'studentName')
       .addSelect('student.email', 'studentEmail')
-      .addSelect('COUNT(DISTINCT enrollment.id)', 'coursesEnrolled')
+      .addSelect('COUNT(DISTINCT payment.courseId)', 'coursesEnrolled')
       .addSelect('COALESCE(SUM(payment.finalAmount), 0)', 'totalSpent')
       .addSelect(
-        'ROUND(AVG(CASE WHEN enrollment.completedAt IS NOT NULL THEN 100 ELSE 0 END))',
+        "COALESCE(ROUND(SUM(CASE WHEN enrollment.completedAt IS NOT NULL THEN 1 ELSE 0 END)::numeric / NULLIF(COUNT(enrollment.id), 0) * 100, 1), 0)",
         'completionRate'
       )
       .where('payment.status = :status', { status: PaymentStatus.COMPLETED })
       .groupBy('student.id')
       .addGroupBy('student.name')
       .addGroupBy('student.email')
-      .orderBy('totalSpent', 'DESC')
       .limit(10)
       .getRawMany();
+
+    result = result.sort((a, b) => parseFloat(b.totalSpent || 0) - parseFloat(a.totalSpent || 0));
 
     return result.map(r => ({
       studentId: r.studentId,
@@ -506,7 +515,7 @@ export class AdminService {
   }
 
   private async getTopTeachers(): Promise<TopTeacher[]> {
-    const result = await this.courseRepo
+    let result = await this.courseRepo
       .createQueryBuilder('course')
       .leftJoin('course.teacher', 'teacher')
       .leftJoin('course.enrollments', 'enrollment')
@@ -523,9 +532,10 @@ export class AdminService {
       .groupBy('teacher.id')
       .addGroupBy('teacher.name')
       .addGroupBy('teacher.email')
-      .orderBy('totalRevenue', 'DESC')
       .limit(10)
       .getRawMany();
+
+    result = result.sort((a, b) => parseFloat(b.totalRevenue || 0) - parseFloat(a.totalRevenue || 0))
 
     return result.map(r => ({
       teacherId: r.teacherId,
@@ -583,7 +593,7 @@ export class AdminService {
       courseTitle: r.courseTitle,
       teacherName: r.teacherName,
       enrollments: parseInt(r.enrollments) || 0,
-      revenue: parseFloat(r.revenue) || 0,
+      revenue: Math.round(parseFloat(r.revenue) || 0),
       averageRating: Math.round(parseFloat(r.averageRating) * 10) / 10,
       completionRate: parseFloat(r.completionRate) || 0,
     }));
