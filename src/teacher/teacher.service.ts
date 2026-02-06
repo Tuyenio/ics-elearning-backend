@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
-import { Course } from '../courses/entities/course.entity';
+import { Course, CourseStatus } from '../courses/entities/course.entity';
 import { Enrollment } from '../enrollments/entities/enrollment.entity';
 import { Payment, PaymentStatus } from '../payments/entities/payment.entity';
 import { Review } from '../reviews/entities/review.entity';
 import { TeacherDashboardStats, EarningsData } from './dto/teacher-stats.dto';
+import { EnrollmentStatus } from '../enrollments/entities/enrollment.entity';
 
 @Injectable()
 export class TeacherService {
@@ -37,13 +38,17 @@ export class TeacherService {
         totalRevenue: 0,
         totalStudents: 0,
         totalCourses: 0,
+        activeCourses: 0,
+        totalViews: 0,
         averageRating: 0,
+        completionRate: 0,
         revenueGrowth: 0,
         studentGrowth: 0,
         revenueChart: { labels: [], data: [] },
         studentChart: { labels: [], data: [] },
         weeklyPerformance: [],
         courseDistribution: [],
+        coursePerformance: [],
         recentEnrollments: [],
       };
     }
@@ -70,6 +75,14 @@ export class TeacherService {
     const totalStudents = await this.enrollmentRepo
       .createQueryBuilder('enrollment')
       .select('COUNT(DISTINCT enrollment.studentId)', 'count')
+      .where('enrollment.courseId IN (:...courseIds)', { courseIds })
+      .getRawOne();
+
+    const totalEnrollments = await this.enrollmentRepo.count({ where: { courseId: In(courseIds) } });
+
+    const completionAgg = await this.enrollmentRepo
+      .createQueryBuilder('enrollment')
+      .select('AVG(enrollment.progress)', 'avg')
       .where('enrollment.courseId IN (:...courseIds)', { courseIds })
       .getRawOne();
 
@@ -110,6 +123,31 @@ export class TeacherService {
 
     const courseDistribution = this.buildCourseDistribution(courses);
 
+    const enrollments = await this.enrollmentRepo.find({ where: { courseId: In(courseIds) } });
+
+    const coursePerformance = courses.map(course => {
+      const courseEnrollments = enrollments.filter(e => e.courseId === course.id);
+      const coursePayments = payments.filter(p => p.courseId === course.id);
+      const courseReviews = reviews.filter(r => r.courseId === course.id);
+
+      const revenue = coursePayments.reduce((sum, p) => sum + Number(p.finalAmount || 0), 0);
+      const rating = courseReviews.length > 0
+        ? courseReviews.reduce((sum, r) => sum + r.rating, 0) / courseReviews.length
+        : Number(course.rating || 0);
+      const completion = courseEnrollments.length > 0
+        ? courseEnrollments.reduce((sum, e) => sum + Number(e.progress || 0), 0) / courseEnrollments.length
+        : 0;
+
+      return {
+        id: course.id,
+        title: course.title,
+        students: courseEnrollments.length,
+        revenue: Math.round(revenue),
+        rating: Math.round(rating * 10) / 10,
+        completionRate: Math.round(completion * 10) / 10,
+      };
+    });
+
     // Recent enrollments
     const recentEnrollments = await this.getRecentEnrollments(teacherId);
 
@@ -117,13 +155,17 @@ export class TeacherService {
       totalRevenue,
       totalStudents: parseInt(totalStudents.count) || 0,
       totalCourses: courses.length,
+      activeCourses: courses.filter(c => c.status === CourseStatus.PUBLISHED).length,
+      totalViews: totalEnrollments,
       averageRating: Math.round(averageRating * 10) / 10,
+      completionRate: completionAgg?.avg ? Math.round(Number(completionAgg.avg) * 10) / 10 : 0,
       revenueGrowth: Math.round(revenueGrowth * 10) / 10,
       studentGrowth: Math.round(studentGrowth * 10) / 10,
       revenueChart,
       studentChart,
       weeklyPerformance,
       courseDistribution,
+      coursePerformance,
       recentEnrollments,
     };
   }
@@ -263,28 +305,36 @@ export class TeacherService {
         pendingEarnings: 0,
         paidEarnings: 0,
         byCourse: [],
+        payments: [],
       };
     }
 
-    // Get all completed payments
+    // Get all payments for this teacher's courses
     const payments = await this.paymentRepo.find({
-      where: {
-        status: PaymentStatus.COMPLETED,
-      },
-      relations: ['course'],
+      where: { courseId: In(courseIds) },
+      relations: ['course', 'student'],
+      order: { createdAt: 'DESC' },
     });
 
-    const teacherPayments = payments.filter(p => courseIds.includes(p.courseId));
-    const totalEarnings = teacherPayments.reduce((sum, p) => sum + p.finalAmount, 0);
+    const completedPayments = payments.filter(p => p.status === PaymentStatus.COMPLETED);
+    const pendingPayments = payments.filter(p => p.status === PaymentStatus.PENDING);
+
+    const totalEarnings = completedPayments.reduce(
+      (sum, p) => sum + Number(p.finalAmount ?? p.amount ?? 0),
+      0,
+    );
 
     // For simplicity, assume 70% goes to teacher, 30% to platform
-    const teacherCut = totalEarnings * 0.7;
-    
-    // Earnings by course
+    const teacherCut = Math.round(totalEarnings * 0.7);
+    const pendingEarnings = Math.round(
+      pendingPayments.reduce((sum, p) => sum + Number(p.finalAmount ?? p.amount ?? 0), 0) * 0.7,
+    );
+
+    // Earnings by course (completed payments only)
     const byCourse = courses.map(course => {
-      const coursePayments = teacherPayments.filter(p => p.courseId === course.id);
-      const earnings = coursePayments.reduce((sum, p) => sum + p.finalAmount, 0) * 0.7;
-      
+      const coursePayments = completedPayments.filter(p => p.courseId === course.id);
+      const earnings = coursePayments.reduce((sum, p) => sum + Number(p.finalAmount ?? p.amount ?? 0), 0) * 0.7;
+
       return {
         courseId: course.id,
         courseName: course.title,
@@ -293,11 +343,25 @@ export class TeacherService {
       };
     });
 
+    const paymentRows = payments.map(p => ({
+      id: p.id,
+      studentName: p.student?.name || 'N/A',
+      studentEmail: p.student?.email || '',
+      courseName: p.course?.title || 'N/A',
+      courseId: p.courseId,
+      amount: Number(p.finalAmount ?? p.amount ?? 0),
+      method: p.paymentMethod,
+      status: p.status,
+      date: p.paidAt || p.createdAt,
+      transactionId: p.transactionId,
+    }));
+
     return {
-      totalEarnings: Math.round(teacherCut),
-      pendingEarnings: 0, // Could track pending payouts
-      paidEarnings: Math.round(teacherCut),
+      totalEarnings: teacherCut,
+      pendingEarnings,
+      paidEarnings: teacherCut,
       byCourse,
+      payments: paymentRows,
     };
   }
 
@@ -310,57 +374,42 @@ export class TeacherService {
     }
 
     const enrollments = await this.enrollmentRepo.find({
+      where: { courseId: In(courseIds) },
       relations: ['student', 'course'],
       order: { createdAt: 'DESC' },
     });
 
-    const teacherEnrollments = enrollments.filter(e => courseIds.includes(e.courseId));
-
-    // Group by student
-    const studentMap = new Map();
-    teacherEnrollments.forEach(e => {
-      if (!studentMap.has(e.studentId)) {
-        studentMap.set(e.studentId, {
-          id: e.studentId,
-          name: e.student.name,
-          email: e.student.email,
-          avatar: e.student.avatar,
-          enrolledCourses: [],
-          totalProgress: 0,
-          enrollmentCount: 0,
-        });
-      }
-      const student = studentMap.get(e.studentId);
-      student.enrolledCourses.push({
-        courseId: e.courseId,
-        courseName: e.course.title,
-        progress: e.progress,
-        status: e.status,
-      });
-      student.totalProgress += e.progress;
-      student.enrollmentCount += 1;
-    });
-
-    const students = Array.from(studentMap.values()).map(s => ({
-      ...s,
-      averageProgress: Math.round(s.totalProgress / s.enrollmentCount),
+    const data = enrollments.map(e => ({
+      id: e.id,
+      studentId: e.studentId,
+      name: e.student?.name || 'N/A',
+      email: e.student?.email || '',
+      phone: e.student?.phone || '',
+      avatar: e.student?.avatar || '',
+      courseId: e.courseId,
+      courseName: e.course?.title || 'N/A',
+      progress: Number(e.progress || 0),
+      status: e.status,
+      joinDate: e.createdAt,
+      lastActive: e.lastAccessedAt || e.updatedAt || e.createdAt,
     }));
 
     return {
-      data: students,
-      total: students.length,
+      data,
+      total: data.length,
     };
   }
 
   async exportStudentsToCSV(teacherId: string): Promise<string> {
     const { data } = await this.getStudentList(teacherId);
 
-    const headers = ['Student Name', 'Email', 'Enrolled Courses', 'Average Progress'];
+    const headers = ['Student Name', 'Email', 'Phone', 'Course', 'Progress'];
     const rows = data.map(s => [
       s.name,
       s.email,
-      s.enrollmentCount,
-      `${s.averageProgress}%`,
+      s.phone,
+      s.courseName,
+      `${s.progress}%`,
     ]);
 
     return [
@@ -385,5 +434,89 @@ export class TeacherService {
       '',
       `Total Earnings,${earnings.totalEarnings}`,
     ].join('\n');
+  }
+
+  async getTeacherReviews(teacherId: string) {
+    const courses = await this.courseRepo.find({ where: { teacherId } });
+    const courseIds = courses.map(c => c.id);
+
+    if (courseIds.length === 0) {
+      return {
+        stats: {
+          totalReviews: 0,
+          averageRating: 0,
+          fiveStarCount: 0,
+          responseRate: 0,
+        },
+        courses: [],
+        reviews: [],
+      };
+    }
+
+    const reviews = await this.reviewRepo.find({
+      where: { courseId: In(courseIds) },
+      relations: ['student', 'course'],
+      order: { createdAt: 'DESC' },
+    });
+
+    const totalReviews = reviews.length;
+    const averageRating = totalReviews > 0
+      ? Math.round((reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / totalReviews) * 10) / 10
+      : 0;
+    const fiveStarCount = reviews.filter(r => r.rating === 5).length;
+    const responseRate = totalReviews > 0
+      ? Math.round((reviews.filter(r => !!r.teacherReply).length / totalReviews) * 100)
+      : 0;
+
+    const coursesList = courses.map(c => ({ id: c.id, name: c.title }));
+
+    const mapped = reviews.map(r => ({
+      id: r.id,
+      courseId: r.courseId,
+      courseName: r.course?.title || '',
+      studentName: r.student?.name || 'N/A',
+      studentAvatar: r.student?.avatar || '',
+      studentEmail: r.student?.email || '',
+      rating: r.rating,
+      comment: r.comment,
+      createdAt: r.createdAt,
+      helpful: r.helpfulCount,
+      response: r.teacherReply || '',
+      responseDate: r.repliedAt || undefined,
+    }));
+
+    return {
+      stats: {
+        totalReviews,
+        averageRating,
+        fiveStarCount,
+        responseRate,
+      },
+      courses: coursesList,
+      reviews: mapped,
+    };
+  }
+
+  async replyToReview(teacherId: string, reviewId: string, reply: string) {
+    const review = await this.reviewRepo.findOne({ where: { id: reviewId }, relations: ['course'] });
+    if (!review) {
+      throw new Error('Review not found');
+    }
+
+    const course = await this.courseRepo.findOne({ where: { id: review.courseId, teacherId } });
+    if (!course) {
+      throw new Error('Not authorized to reply to this review');
+    }
+
+    review.teacherReply = reply;
+    review.repliedAt = new Date();
+
+    await this.reviewRepo.save(review);
+
+    return {
+      id: review.id,
+      response: review.teacherReply,
+      responseDate: review.repliedAt,
+    };
   }
 }
