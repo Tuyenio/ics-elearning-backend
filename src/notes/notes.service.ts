@@ -32,7 +32,7 @@ export class NotesService {
 
   async findByCourse(studentId: string, courseId: string): Promise<Note[]> {
     return this.noteRepository.find({
-      where: { studentId, courseId },
+      where: { studentId, course: { id: courseId } },
       relations: ['lesson'],
       order: { createdAt: 'DESC' },
     });
@@ -40,7 +40,7 @@ export class NotesService {
 
   async findByLesson(studentId: string, lessonId: string): Promise<Note[]> {
     return this.noteRepository.find({
-      where: { studentId, lessonId },
+      where: { studentId, lesson: { id: lessonId } },
       order: { timestamp: 'ASC' },
     });
   }

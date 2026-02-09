@@ -143,4 +143,5 @@ export class Course {
 
   @UpdateDateColumn()
   updatedAt: Date;
+  notes: any;
 }
