@@ -100,6 +100,20 @@ export class NotesController {
     return this.notesService.findByLesson(user.id, lessonId);
   }
 
+  @Get('favorites')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.STUDENT)
+  findFavorites(@GetUser() user: User) {
+    return this.notesService.findFavorites(user.id);
+  }
+
+  @Post(':id/toggle-favorite')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.STUDENT)
+  toggleFavorite(@Param('id') id: string, @GetUser() user: User) {
+    return this.notesService.toggleFavorite(id, user.id);
+  }
+
   @Get(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.STUDENT)

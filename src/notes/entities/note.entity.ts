@@ -53,6 +53,9 @@ export class Note {
   @Column({ type: 'json', nullable: true })
   schedule: Array<{ date: string; time: string; content: string }>;
 
+  @Column({ type: 'boolean', default: false })
+  isFavorite: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 

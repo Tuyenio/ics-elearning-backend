@@ -346,4 +346,18 @@ export class NotesService {
     // Generate Excel file as buffer
     return XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer' });
   }
+
+  async toggleFavorite(id: string, userId: string): Promise<Note> {
+    const note = await this.findOne(id, userId);
+    note.isFavorite = !note.isFavorite;
+    return this.noteRepository.save(note);
+  }
+
+  async findFavorites(studentId: string): Promise<Note[]> {
+    return this.noteRepository.find({
+      where: { studentId, isFavorite: true },
+      relations: ['course', 'lesson'],
+      order: { createdAt: 'DESC' },
+    });
+  }
 }
