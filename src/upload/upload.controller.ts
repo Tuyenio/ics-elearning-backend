@@ -117,8 +117,8 @@ export class UploadController {
     
     const url = this.uploadService.generateFileUrl(file.filename, 'avatar');
 
-    // Update user's avatar URL in database (req.user.sub contains the user ID from JWT)
-    await this.usersService.updateUserAvatar(req.user.sub, url);
+    // Update user's avatar URL in database (req.user.id contains the user ID from JWT)
+    await this.usersService.updateUserAvatar(req.user.id, url);
     
     return {
       success: true,

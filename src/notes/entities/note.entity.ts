@@ -38,11 +38,20 @@ export class Note {
   @JoinColumn({ name: 'lessonId' })
   lesson: Lesson;
 
-  @Column({ type: 'text' })
+  @Column({ type: 'varchar', default: 'general' })
+  type: 'general' | 'deadline' | 'checklist' | 'plan';
+
+  @Column({ type: 'text', nullable: true })
   content: string;
 
   @Column({ type: 'int', default: 0 })
   timestamp: number; // Video timestamp in seconds
+
+  @Column({ type: 'json', nullable: true })
+  items: Array<{ id: string; title: string; deadline?: string; priority?: 'high' | 'medium' | 'low'; completed: boolean }>;
+
+  @Column({ type: 'json', nullable: true })
+  schedule: Array<{ date: string; time: string; content: string }>;
 
   @CreateDateColumn()
   createdAt: Date;

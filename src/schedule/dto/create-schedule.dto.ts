@@ -4,7 +4,7 @@ import {
   IsBoolean,
   IsOptional,
   IsArray,
-  IsDateString,
+  Matches,
 } from 'class-validator'
 
 export class CreateScheduleDto {
@@ -26,8 +26,9 @@ export class CreateScheduleDto {
   @IsString()
   duration: string
 
-  @IsDateString()
-  dueDate: string
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'dueDate must be in YYYY-MM-DD format' })
+  dueDate?: string
 
   @IsBoolean()
   completed: boolean
@@ -42,5 +43,6 @@ export class CreateScheduleDto {
 
   @IsOptional()
   @IsArray()
+  @IsString({ each: true })
   tags?: string[]
 }

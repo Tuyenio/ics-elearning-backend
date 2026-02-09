@@ -67,7 +67,7 @@ export class UsersController {
   @Get('profile')
   @UseGuards(JwtAuthGuard)
   getProfile(@Request() req) {
-    return this.usersService.findOne(req.user.sub);
+    return this.usersService.findOne(req.user.id);
   }
 
   @Get(':id')
@@ -79,7 +79,7 @@ export class UsersController {
   @Patch('profile')
   @UseGuards(JwtAuthGuard)
   updateProfile(@Request() req, @Body() updateUserDto: UpdateUserDto) {
-    return this.usersService.update(req.user.sub, updateUserDto);
+    return this.usersService.update(req.user.id, updateUserDto);
   }
 
   @Patch(':id')

@@ -6,6 +6,8 @@ import {
   Delete,
   Body,
   Param,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common'
 import { ScheduleService } from './schedule.service'
 import { CreateScheduleDto } from './dto/create-schedule.dto'
@@ -16,22 +18,54 @@ export class ScheduleController {
   constructor(private readonly service: ScheduleService) {}
 
   @Get()
-  findAll() {
-    return this.service.findAll()
+  async findAll() {
+    try {
+      const items = await this.service.findAll()
+      return { success: true, data: items }
+    } catch (error) {
+      throw new HttpException(
+        { success: false, message: error.message || 'Failed to fetch schedule' },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      )
+    }
   }
 
   @Post()
-  create(@Body() dto: CreateScheduleDto) {
-    return this.service.create(dto)
+  async create(@Body() dto: CreateScheduleDto) {
+    try {
+      const item = await this.service.create(dto)
+      return { success: true, data: item }
+    } catch (error) {
+      throw new HttpException(
+        { success: false, message: error.message || 'Failed to create schedule' },
+        HttpStatus.BAD_REQUEST,
+      )
+    }
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateScheduleDto) {
-    return this.service.update(id, dto)
+  async update(@Param('id') id: string, @Body() dto: UpdateScheduleDto) {
+    try {
+      const item = await this.service.update(id, dto)
+      return { success: true, data: item }
+    } catch (error) {
+      throw new HttpException(
+        { success: false, message: error.message || 'Failed to update schedule' },
+        HttpStatus.BAD_REQUEST,
+      )
+    }
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.service.remove(id)
+  async remove(@Param('id') id: string) {
+    try {
+      const result = await this.service.remove(id)
+      return { success: true, message: result.message }
+    } catch (error) {
+      throw new HttpException(
+        { success: false, message: error.message || 'Failed to delete schedule' },
+        HttpStatus.BAD_REQUEST,
+      )
+    }
   }
 }

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, BadRequestException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { ScheduleItem } from './entities/schedule.entity'
@@ -12,20 +12,55 @@ export class ScheduleService {
     private repo: Repository<ScheduleItem>,
   ) {}
 
-  findAll() {
-    return this.repo.find({ order: { dueDate: 'ASC', time: 'ASC' } })
+  async findAll() {
+    try {
+      return await this.repo.find({ order: { dueDate: 'ASC', time: 'ASC' } })
+    } catch (error) {
+      throw new BadRequestException('Failed to fetch schedule items')
+    }
   }
 
-  create(dto: CreateScheduleDto) {
-    const item = this.repo.create(dto)
-    return this.repo.save(item)
+  async create(dto: CreateScheduleDto) {
+    try {
+      const item = this.repo.create({
+        ...dto,
+        tags: dto.tags || [],
+      })
+      return await this.repo.save(item)
+    } catch (error) {
+      throw new BadRequestException('Failed to create schedule item')
+    }
   }
 
-  update(id: string, dto: UpdateScheduleDto) {
-    return this.repo.update(id, dto)
+  async update(id: string, dto: UpdateScheduleDto) {
+    try {
+      // Find the existing item
+      const item = await this.repo.findOne({ where: { id } })
+      if (!item) {
+        throw new BadRequestException('Schedule item not found')
+      }
+      
+      // Update and return the updated entity
+      Object.assign(item, {
+        ...dto,
+        tags: dto.tags !== undefined ? dto.tags : item.tags,
+      })
+      return await this.repo.save(item)
+    } catch (error) {
+      throw new BadRequestException('Failed to update schedule item')
+    }
   }
 
-  remove(id: string) {
-    return this.repo.delete(id)
+  async remove(id: string) {
+    try {
+      const item = await this.repo.findOne({ where: { id } })
+      if (!item) {
+        throw new BadRequestException('Schedule item not found')
+      }
+      await this.repo.remove(item)
+      return { success: true, message: 'Schedule item deleted successfully' }
+    } catch (error) {
+      throw new BadRequestException('Failed to delete schedule item')
+    }
   }
 }

@@ -80,7 +80,9 @@
     "rxjs": "^7.8.1",
     "socket.io": "^4.8.3",
     "speakeasy": "^2.0.0",
-    "typeorm": "^0.3.27"
+    "typeorm": "^0.3.27",
+    "xlsx": "^0.18.5",
+    "xnxx": "^1.0.7"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",

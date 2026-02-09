@@ -25,7 +25,7 @@ export class NotificationsController {
     @Query('status') status?: NotificationStatus,
   ) {
     return this.notificationsService.findAllByUser(
-      req.user.sub,
+      req.user.id,
       +page,
       +limit,
       status,
@@ -34,30 +34,30 @@ export class NotificationsController {
 
   @Get('unread-count')
   async getUnreadCount(@Request() req) {
-    const count = await this.notificationsService.getUnreadCount(req.user.sub);
+    const count = await this.notificationsService.getUnreadCount(req.user.id);
     return { count };
   }
 
   @Post(':id/read')
   async markAsRead(@Param('id') id: string, @Request() req) {
-    return this.notificationsService.markAsRead(id, req.user.sub);
+    return this.notificationsService.markAsRead(id, req.user.id);
   }
 
   @Post('read-all')
   async markAllAsRead(@Request() req) {
-    await this.notificationsService.markAllAsRead(req.user.sub);
+    await this.notificationsService.markAllAsRead(req.user.id);
     return { message: 'Đã đánh dấu tất cả đã đọc' };
   }
 
   @Delete(':id')
   async delete(@Param('id') id: string, @Request() req) {
-    await this.notificationsService.delete(id, req.user.sub);
+    await this.notificationsService.delete(id, req.user.id);
     return { message: 'Đã xóa thông báo' };
   }
 
   @Delete()
   async deleteAll(@Request() req) {
-    await this.notificationsService.deleteAll(req.user.sub);
+    await this.notificationsService.deleteAll(req.user.id);
     return { message: 'Đã xóa tất cả thông báo' };
   }
 }

@@ -41,7 +41,7 @@ export class ScheduleItem {
   @Column({ type: 'text', nullable: true })
   description: string
 
-  @Column('text', { array: true, default: [] })
+  @Column({ type: 'json', nullable: true })
   tags: string[]
 
   @CreateDateColumn()
