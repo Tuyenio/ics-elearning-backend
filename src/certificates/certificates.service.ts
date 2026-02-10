@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Certificate, CertificateStatus } from './entities/certificate.entity';
 import { CertificateTemplate, TemplateStatus } from './entities/certificate-template.entity';
 import { User } from '../users/entities/user.entity';
 import { Enrollment, EnrollmentStatus } from '../enrollments/entities/enrollment.entity';
+import { Exam, ExamType } from '../exams/entities/exam.entity';
 
 @Injectable()
 export class CertificatesService {
@@ -15,6 +16,8 @@ export class CertificatesService {
     private readonly templateRepository: Repository<CertificateTemplate>,
     @InjectRepository(Enrollment)
     private readonly enrollmentRepository: Repository<Enrollment>,
+    @InjectRepository(Exam)
+    private readonly examRepository: Repository<Exam>,
   ) {}
 
   async generateCertificate(enrollmentId: string): Promise<Certificate> {
@@ -195,6 +198,14 @@ export class CertificatesService {
     });
   }
 
+  async findTemplatesForAdmin(status?: TemplateStatus): Promise<CertificateTemplate[]> {
+    return this.templateRepository.find({
+      where: status ? { status } : {},
+      relations: ['course', 'teacher'],
+      order: { createdAt: 'DESC' },
+    });
+  }
+
   async findTemplateById(id: string): Promise<CertificateTemplate> {
     const template = await this.templateRepository.findOne({
       where: { id },
@@ -240,8 +251,28 @@ export class CertificatesService {
     return this.templateRepository.save(template);
   }
 
-  async approveTemplate(id: string): Promise<CertificateTemplate> {
+  async approveTemplate(id: string, examId?: string): Promise<CertificateTemplate> {
     const template = await this.findTemplateById(id);
+
+    if (template.status !== TemplateStatus.PENDING) {
+      throw new BadRequestException('Chỉ có thể duyệt mẫu chứng chỉ đang chờ duyệt');
+    }
+
+    if (examId) {
+      const exam = await this.examRepository.findOne({ where: { id: examId } });
+      if (!exam) {
+        throw new NotFoundException('Không tìm thấy bài thi');
+      }
+      if (exam.type !== ExamType.OFFICIAL) {
+        throw new BadRequestException('Chỉ có thể gắn mẫu chứng chỉ vào bài thi thật');
+      }
+      if (exam.courseId !== template.courseId) {
+        throw new BadRequestException('Bài thi phải thuộc cùng khóa học với mẫu chứng chỉ');
+      }
+      exam.certificateTemplateId = template.id;
+      await this.examRepository.save(exam);
+    }
+
     template.status = TemplateStatus.APPROVED;
     template.rejectionReason = null;
     return this.templateRepository.save(template);

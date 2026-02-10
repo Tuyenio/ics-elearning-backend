@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Param, UseGuards, Patch, Body, Delete } from '@nestjs/common';
 import { CertificatesService } from './certificates.service';
+import { TemplateStatus } from './entities/certificate-template.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -96,6 +97,20 @@ export class CertificatesController {
     return this.certificatesService.createTemplate(user.id, data);
   }
 
+  @Get('templates/admin/all')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  getAllTemplatesForAdmin() {
+    return this.certificatesService.findTemplatesForAdmin();
+  }
+
+  @Get('templates/admin/pending')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  getPendingTemplatesForAdmin() {
+    return this.certificatesService.findTemplatesForAdmin(TemplateStatus.PENDING);
+  }
+
   @Get('templates/:id')
   @UseGuards(JwtAuthGuard)
   getTemplate(@Param('id') id: string) {
@@ -126,8 +141,8 @@ export class CertificatesController {
   @Patch('templates/:id/approve')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  approveTemplate(@Param('id') id: string) {
-    return this.certificatesService.approveTemplate(id);
+  approveTemplate(@Param('id') id: string, @Body('examId') examId?: string) {
+    return this.certificatesService.approveTemplate(id, examId);
   }
 
   @Patch('templates/:id/reject')
