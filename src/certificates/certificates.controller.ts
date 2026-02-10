@@ -31,6 +31,13 @@ export class CertificatesController {
     return this.certificatesService.findByStudent(user.id);
   }
 
+  @Get('admin/all')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  findAllForAdmin() {
+    return this.certificatesService.findAllForAdmin();
+  }
+
   @Get(':id')
   @UseGuards(JwtAuthGuard)
   findOne(@Param('id') id: string) {

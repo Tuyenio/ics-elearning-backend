@@ -69,6 +69,13 @@ export class CertificatesService {
     });
   }
 
+  async findAllForAdmin(): Promise<Certificate[]> {
+    return this.certificateRepository.find({
+      relations: ['course', 'student', 'enrollment'],
+      order: { createdAt: 'DESC' },
+    });
+  }
+
   async findByTeacher(teacherId: string): Promise<Certificate[]> {
     // Get certificates for courses taught by this teacher
     const certificates = await this.certificateRepository
