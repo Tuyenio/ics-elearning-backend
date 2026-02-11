@@ -2,10 +2,8 @@ import { IsString, IsNotEmpty, IsOptional, IsArray, IsNumber, IsBoolean, IsEnum,
 import { Type } from 'class-transformer';
 
 export enum ExamType {
-  MIDTERM = 'midterm',
-  FINAL = 'final',
   PRACTICE = 'practice',
-  QUIZ = 'quiz',
+  OFFICIAL = 'official',
 }
 
 export class CreateExamDto {

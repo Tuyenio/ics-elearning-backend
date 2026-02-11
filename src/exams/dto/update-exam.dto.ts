@@ -4,8 +4,9 @@ import { IsEnum, IsOptional } from 'class-validator';
 
 export enum ExamStatus {
   DRAFT = 'draft',
-  PUBLISHED = 'published',
-  ARCHIVED = 'archived',
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
 }
 
 export class UpdateExamDto extends PartialType(CreateExamDto) {

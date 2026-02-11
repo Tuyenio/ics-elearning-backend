@@ -25,6 +25,13 @@ export class ExamsController {
 
   // ==================== TEACHER ENDPOINTS ====================
 
+  @Get()
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.TEACHER, UserRole.ADMIN)
+  findAllForTeacher(@Request() req) {
+    return this.examsService.findAll();
+  }
+
   @Post()
   @UseGuards(RolesGuard)
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
@@ -43,7 +50,7 @@ export class ExamsController {
   @UseGuards(RolesGuard)
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   update(@Param('id') id: string, @Body() updateExamDto: UpdateExamDto, @Request() req) {
-    return this.examsService.update(id, updateExamDto, req.user.id);
+    return this.examsService.updateAny(id, updateExamDto);
   }
 
   @Delete(':id')

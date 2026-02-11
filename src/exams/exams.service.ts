@@ -61,6 +61,22 @@ export class ExamsService {
     return await this.examRepository.save(exam);
   }
 
+  async updateAny(id: string, updateExamDto: any): Promise<Exam> {
+    const exam = await this.examRepository.findOne({ where: { id } });
+    if (!exam) throw new NotFoundException('Không tìm thấy bài thi');
+    if (exam.status === ExamStatus.APPROVED) {
+      throw new BadRequestException('Không thể chỉnh sửa bài thi đã được duyệt');
+    }
+
+    Object.assign(exam, updateExamDto);
+    if (exam.status === ExamStatus.REJECTED) {
+      exam.status = ExamStatus.DRAFT;
+      exam.rejectionReason = null;
+    }
+
+    return await this.examRepository.save(exam);
+  }
+
   async delete(id: string, teacherId: string): Promise<void> {
     const exam = await this.examRepository.findOne({
       where: { id, teacherId },

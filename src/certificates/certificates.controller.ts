@@ -14,7 +14,7 @@ export class CertificatesController {
   @Get()
   @UseGuards(JwtAuthGuard)
   findAll(@GetUser() user: User) {
-    return this.certificatesService.findByTeacher(user.id);
+    return this.certificatesService.findAllForAdmin();
   }
 
   @Post('enrollment/:enrollmentId')
@@ -36,22 +36,6 @@ export class CertificatesController {
   @Roles(UserRole.ADMIN)
   findAllForAdmin() {
     return this.certificatesService.findAllForAdmin();
-  }
-
-  @Get(':id')
-  @UseGuards(JwtAuthGuard)
-  findOne(@Param('id') id: string) {
-    return this.certificatesService.findOne(id);
-  }
-
-  @Get('number/:certificateNumber')
-  findByCertificateNumber(@Param('certificateNumber') certificateNumber: string) {
-    return this.certificatesService.findByCertificateNumber(certificateNumber);
-  }
-
-  @Get('verify/:certificateNumber')
-  verifyCertificate(@Param('certificateNumber') certificateNumber: string) {
-    return this.certificatesService.verifyCertificate(certificateNumber);
   }
 
   // Admin endpoints
@@ -90,10 +74,20 @@ export class CertificatesController {
 
   // ==================== CERTIFICATE TEMPLATES ====================
   
+  @Get('templates')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.TEACHER, UserRole.ADMIN)
+  getTemplates(@GetUser() user: User) {
+    return this.certificatesService.findTemplatesForAdmin();
+  }
+
   @Get('templates/my')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   getMyTemplates(@GetUser() user: User) {
+    if (user.role === UserRole.ADMIN) {
+      return this.certificatesService.findTemplatesForAdmin();
+    }
     return this.certificatesService.findTemplatesByTeacher(user.id);
   }
 
@@ -157,5 +151,21 @@ export class CertificatesController {
   @Roles(UserRole.ADMIN)
   rejectTemplate(@Param('id') id: string, @Body('reason') reason: string) {
     return this.certificatesService.rejectTemplate(id, reason);
+  }
+
+  @Get(':id')
+  @UseGuards(JwtAuthGuard)
+  findOne(@Param('id') id: string) {
+    return this.certificatesService.findOne(id);
+  }
+
+  @Get('number/:certificateNumber')
+  findByCertificateNumber(@Param('certificateNumber') certificateNumber: string) {
+    return this.certificatesService.findByCertificateNumber(certificateNumber);
+  }
+
+  @Get('verify/:certificateNumber')
+  verifyCertificate(@Param('certificateNumber') certificateNumber: string) {
+    return this.certificatesService.verifyCertificate(certificateNumber);
   }
 }
