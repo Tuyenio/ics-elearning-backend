@@ -42,7 +42,11 @@ export class ExamsController {
   @Patch(':id')
   @UseGuards(RolesGuard)
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
-  update(@Param('id') id: string, @Body() updateExamDto: UpdateExamDto, @Request() req) {
+  update(
+    @Param('id') id: string,
+    @Body() updateExamDto: UpdateExamDto,
+    @Request() req,
+  ) {
     return this.examsService.update(id, updateExamDto, req.user.id);
   }
 
@@ -115,7 +119,11 @@ export class ExamsController {
   @UseGuards(RolesGuard)
   @Roles(UserRole.STUDENT)
   submitExam(@Body() submitExamDto: SubmitExamDto, @Request() req) {
-    return this.examsService.submitExam(submitExamDto.attemptId, req.user.id, submitExamDto.answers);
+    return this.examsService.submitExam(
+      submitExamDto.attemptId,
+      req.user.id,
+      submitExamDto.answers,
+    );
   }
 
   @Get('my-attempts')
@@ -139,4 +147,3 @@ export class ExamsController {
     return this.examsService.findOne(id);
   }
 }
-

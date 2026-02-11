@@ -69,11 +69,13 @@ export class Discussion {
   @JoinColumn({ name: 'lesson_id' })
   lesson: Lesson;
 
-  @ManyToOne(() => Discussion, discussion => discussion.replies, { nullable: true, onDelete: 'CASCADE' })
+  @ManyToOne(() => Discussion, (discussion) => discussion.replies, {
+    nullable: true,
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'parent_id' })
   parent: Discussion;
 
-  @OneToMany(() => Discussion, discussion => discussion.parent)
+  @OneToMany(() => Discussion, (discussion) => discussion.parent)
   replies: Discussion[];
 }
-

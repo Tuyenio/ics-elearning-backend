@@ -11,7 +11,14 @@ import { Review } from '../reviews/entities/review.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Course, Payment, Enrollment, Category, Review]),
+    TypeOrmModule.forFeature([
+      User,
+      Course,
+      Payment,
+      Enrollment,
+      Category,
+      Review,
+    ]),
   ],
   providers: [AdminService],
   controllers: [AdminController],

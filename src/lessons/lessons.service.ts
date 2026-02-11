@@ -31,14 +31,18 @@ export class LessonsService {
 
     // Check permissions
     if (user.role !== UserRole.ADMIN && course.teacherId !== user.id) {
-      throw new ForbiddenException('Bạn chỉ có thể thêm bài học cho khóa học của bạn');
+      throw new ForbiddenException(
+        'Bạn chỉ có thể thêm bài học cho khóa học của bạn',
+      );
     }
 
     // Get the next order number
     if (createLessonDto.order === undefined) {
       const maxOrder = await this.lessonRepository
         .createQueryBuilder('lesson')
-        .where('lesson.courseId = :courseId', { courseId: createLessonDto.courseId })
+        .where('lesson.courseId = :courseId', {
+          courseId: createLessonDto.courseId,
+        })
         .select('MAX(lesson.order)', 'max')
         .getRawOne();
 
@@ -52,7 +56,13 @@ export class LessonsService {
   async findByCourse(
     courseId: string,
     options?: { page?: number; limit?: number },
-  ): Promise<{ data: Lesson[]; total: number; page: number; limit: number; totalPages: number }> {
+  ): Promise<{
+    data: Lesson[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
     const page = options?.page || 1;
     const limit = options?.limit || 50;
     const skip = (page - 1) * limit;
@@ -86,7 +96,11 @@ export class LessonsService {
     return lesson;
   }
 
-  async update(id: string, updateLessonDto: UpdateLessonDto, user: User): Promise<Lesson> {
+  async update(
+    id: string,
+    updateLessonDto: UpdateLessonDto,
+    user: User,
+  ): Promise<Lesson> {
     const lesson = await this.lessonRepository.findOne({
       where: { id },
       relations: ['course'],
@@ -98,7 +112,9 @@ export class LessonsService {
 
     // Check permissions
     if (user.role !== UserRole.ADMIN && lesson.course.teacherId !== user.id) {
-      throw new ForbiddenException('Bạn chỉ có thể cập nhật bài học trong khóa học của bạn');
+      throw new ForbiddenException(
+        'Bạn chỉ có thể cập nhật bài học trong khóa học của bạn',
+      );
     }
 
     Object.assign(lesson, updateLessonDto);
@@ -117,13 +133,25 @@ export class LessonsService {
 
     // Check permissions
     if (user.role !== UserRole.ADMIN && lesson.course.teacherId !== user.id) {
-      throw new ForbiddenException('Bạn chỉ có thể xóa bài học khỏi khóa học của bạn');
+      throw new ForbiddenException(
+        'Bạn chỉ có thể xóa bài học khỏi khóa học của bạn',
+      );
     }
 
     await this.lessonRepository.remove(lesson);
   }
 
-  async reorder(courseId: string, lessonIds: string[], user: User): Promise<{ data: Lesson[]; total: number; page: number; limit: number; totalPages: number }> {
+  async reorder(
+    courseId: string,
+    lessonIds: string[],
+    user: User,
+  ): Promise<{
+    data: Lesson[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
     const course = await this.courseRepository.findOne({
       where: { id: courseId },
     });
@@ -134,7 +162,9 @@ export class LessonsService {
 
     // Check permissions
     if (user.role !== UserRole.ADMIN && course.teacherId !== user.id) {
-      throw new ForbiddenException('Bạn chỉ có thể sắp xếp lại bài học trong khóa học của bạn');
+      throw new ForbiddenException(
+        'Bạn chỉ có thể sắp xếp lại bài học trong khóa học của bạn',
+      );
     }
 
     const lessons = await this.lessonRepository.findBy({

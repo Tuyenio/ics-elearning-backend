@@ -56,7 +56,11 @@ export class Assignment {
   dueDate: Date;
 
   @Index()
-  @Column({ type: 'enum', enum: AssignmentStatus, default: AssignmentStatus.DRAFT })
+  @Column({
+    type: 'enum',
+    enum: AssignmentStatus,
+    default: AssignmentStatus.DRAFT,
+  })
   status: AssignmentStatus;
 
   @Column({ name: 'allow_late_submission', default: false })
@@ -105,7 +109,11 @@ export class AssignmentSubmission {
   @Column({ type: 'simple-array', nullable: true })
   attachments: string[];
 
-  @Column({ type: 'enum', enum: SubmissionStatus, default: SubmissionStatus.NOT_SUBMITTED })
+  @Column({
+    type: 'enum',
+    enum: SubmissionStatus,
+    default: SubmissionStatus.NOT_SUBMITTED,
+  })
   status: SubmissionStatus;
 
   @Column({ type: 'int', nullable: true })
@@ -142,4 +150,3 @@ export class AssignmentSubmission {
   @JoinColumn({ name: 'graded_by' })
   grader: User;
 }
-

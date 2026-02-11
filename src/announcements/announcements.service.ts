@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto';
@@ -16,7 +20,10 @@ export class AnnouncementsService {
     private readonly courseRepository: Repository<Course>,
   ) {}
 
-  async create(createAnnouncementDto: CreateAnnouncementDto, user: User): Promise<Announcement> {
+  async create(
+    createAnnouncementDto: CreateAnnouncementDto,
+    user: User,
+  ): Promise<Announcement> {
     // Validate course if courseId provided
     if (createAnnouncementDto.courseId) {
       const course = await this.courseRepository.findOne({
@@ -29,7 +36,9 @@ export class AnnouncementsService {
 
       // Only course teacher or admin can create announcements for a course
       if (user.role === UserRole.TEACHER && course.teacherId !== user.id) {
-        throw new ForbiddenException('Bạn chỉ có thể tạo thông báo cho các khóa học của bạn');
+        throw new ForbiddenException(
+          'Bạn chỉ có thể tạo thông báo cho các khóa học của bạn',
+        );
       }
     }
 
@@ -71,7 +80,11 @@ export class AnnouncementsService {
     return announcement;
   }
 
-  async update(id: string, updateAnnouncementDto: UpdateAnnouncementDto, user: User): Promise<Announcement> {
+  async update(
+    id: string,
+    updateAnnouncementDto: UpdateAnnouncementDto,
+    user: User,
+  ): Promise<Announcement> {
     const announcement = await this.findOne(id);
 
     // Only author or admin can update

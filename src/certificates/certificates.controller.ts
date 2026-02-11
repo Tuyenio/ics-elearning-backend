@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Param, UseGuards, Patch, Body, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  UseGuards,
+  Patch,
+  Body,
+  Delete,
+} from '@nestjs/common';
 import { CertificatesService } from './certificates.service';
 import { TemplateStatus } from './entities/certificate-template.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -45,7 +54,9 @@ export class CertificatesController {
   }
 
   @Get('number/:certificateNumber')
-  findByCertificateNumber(@Param('certificateNumber') certificateNumber: string) {
+  findByCertificateNumber(
+    @Param('certificateNumber') certificateNumber: string,
+  ) {
     return this.certificatesService.findByCertificateNumber(certificateNumber);
   }
 
@@ -89,7 +100,7 @@ export class CertificatesController {
   }
 
   // ==================== CERTIFICATE TEMPLATES ====================
-  
+
   @Get('templates/my')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
@@ -115,7 +126,9 @@ export class CertificatesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   getPendingTemplatesForAdmin() {
-    return this.certificatesService.findTemplatesForAdmin(TemplateStatus.PENDING);
+    return this.certificatesService.findTemplatesForAdmin(
+      TemplateStatus.PENDING,
+    );
   }
 
   @Get('templates/:id')
@@ -127,7 +140,11 @@ export class CertificatesController {
   @Patch('templates/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
-  updateTemplate(@Param('id') id: string, @GetUser() user: User, @Body() data: any) {
+  updateTemplate(
+    @Param('id') id: string,
+    @GetUser() user: User,
+    @Body() data: any,
+  ) {
     return this.certificatesService.updateTemplate(id, user.id, data);
   }
 

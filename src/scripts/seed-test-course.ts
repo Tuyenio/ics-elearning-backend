@@ -2,7 +2,11 @@ import { DataSource } from 'typeorm';
 import { ConfigModule } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
 import { User, UserRole, UserStatus } from '../users/entities/user.entity';
-import { Course, CourseLevel, CourseStatus } from '../courses/entities/course.entity';
+import {
+  Course,
+  CourseLevel,
+  CourseStatus,
+} from '../courses/entities/course.entity';
 import { Category } from '../categories/entities/category.entity';
 import { Lesson } from '../lessons/entities/lesson.entity';
 import { Enrollment } from '../enrollments/entities/enrollment.entity';
@@ -14,7 +18,10 @@ import { Cart } from '../cart/entities/cart.entity';
 import { Coupon } from '../coupons/entities/coupon.entity';
 import { Announcement } from '../announcements/entities/announcement.entity';
 import { Discussion } from '../discussions/entities/discussion.entity';
-import { Assignment, AssignmentSubmission } from '../assignments/entities/assignment.entity';
+import {
+  Assignment,
+  AssignmentSubmission,
+} from '../assignments/entities/assignment.entity';
 import { Resource } from '../resources/entities/resource.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { SystemSetting } from '../system-settings/entities/system-setting.entity';
@@ -100,7 +107,9 @@ async function seedTestCourse() {
     console.log(`✅ Created teacher: ${teacher.email}`);
   }
 
-  let category = await categoryRepo.findOne({ where: { name: 'Seed Category' } });
+  let category = await categoryRepo.findOne({
+    where: { name: 'Seed Category' },
+  });
   if (!category) {
     category = await categoryRepo.save({
       name: 'Seed Category',

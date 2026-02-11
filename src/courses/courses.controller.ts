@@ -10,7 +10,12 @@ import {
   Query,
   UseInterceptors,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 import { CoursesService } from './courses.service';
 import { CreateCourseDto } from './dto/create-course.dto';

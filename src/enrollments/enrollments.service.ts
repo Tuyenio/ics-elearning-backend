@@ -30,7 +30,10 @@ export class EnrollmentsService {
     private readonly coursesService: CoursesService,
   ) {}
 
-  async create(createEnrollmentDto: CreateEnrollmentDto, student: User): Promise<Enrollment> {
+  async create(
+    createEnrollmentDto: CreateEnrollmentDto,
+    student: User,
+  ): Promise<Enrollment> {
     const course = await this.courseRepository.findOne({
       where: { id: createEnrollmentDto.courseId },
     });
@@ -42,7 +45,7 @@ export class EnrollmentsService {
     // ✅ Check course status
     if (course.status !== CourseStatus.PUBLISHED) {
       throw new BadRequestException(
-        'Khóa học chưa được công bố hoặc không còn khả dụng'
+        'Khóa học chưa được công bố hoặc không còn khả dụng',
       );
     }
 
@@ -50,7 +53,7 @@ export class EnrollmentsService {
     const finalPrice = course.discountPrice || course.price || 0;
     if (finalPrice > 0) {
       throw new BadRequestException(
-        'Khóa học có phí, vui lòng thanh toán trước khi đăng ký'
+        'Khóa học có phí, vui lòng thanh toán trước khi đăng ký',
       );
     }
 
@@ -99,7 +102,13 @@ export class EnrollmentsService {
   async findByStudent(
     studentId: string,
     options?: { page?: number; limit?: number; status?: string },
-  ): Promise<{ data: Enrollment[]; total: number; page: number; limit: number; totalPages: number }> {
+  ): Promise<{
+    data: Enrollment[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
     const page = options?.page || 1;
     const limit = options?.limit || 20;
     const skip = (page - 1) * limit;
@@ -129,7 +138,12 @@ export class EnrollmentsService {
   async findOne(id: string, userId: string): Promise<Enrollment> {
     const enrollment = await this.enrollmentRepository.findOne({
       where: { id },
-      relations: ['course', 'student', 'lessonProgress', 'lessonProgress.lesson'],
+      relations: [
+        'course',
+        'student',
+        'lessonProgress',
+        'lessonProgress.lesson',
+      ],
     });
 
     if (!enrollment) {
@@ -144,7 +158,10 @@ export class EnrollmentsService {
     return enrollment;
   }
 
-  async findByStudentAndCourse(studentId: string, courseId: string): Promise<Enrollment | null> {
+  async findByStudentAndCourse(
+    studentId: string,
+    courseId: string,
+  ): Promise<Enrollment | null> {
     return this.enrollmentRepository.findOne({
       where: { studentId, courseId },
       relations: ['lessonProgress', 'lessonProgress.lesson'],
@@ -162,7 +179,9 @@ export class EnrollmentsService {
     const totalLessons = enrollment.course.lessons.length;
     if (totalLessons === 0) return;
 
-    const completedLessons = enrollment.lessonProgress.filter((lp) => lp.isCompleted).length;
+    const completedLessons = enrollment.lessonProgress.filter(
+      (lp) => lp.isCompleted,
+    ).length;
     const progress = (completedLessons / totalLessons) * 100;
 
     enrollment.progress = progress;
@@ -177,7 +196,10 @@ export class EnrollmentsService {
     await this.enrollmentRepository.save(enrollment);
   }
 
-  async update(id: string, updateEnrollmentDto: UpdateEnrollmentDto): Promise<Enrollment> {
+  async update(
+    id: string,
+    updateEnrollmentDto: UpdateEnrollmentDto,
+  ): Promise<Enrollment> {
     const enrollment = await this.enrollmentRepository.findOne({
       where: { id },
     });

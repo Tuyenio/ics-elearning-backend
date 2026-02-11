@@ -35,7 +35,9 @@ export class QuizzesService {
 
     // Check permissions
     if (user.role !== UserRole.ADMIN && course.teacherId !== user.id) {
-      throw new ForbiddenException('Bạn chỉ có thể tạo bài kiểm tra cho khóa học của bạn');
+      throw new ForbiddenException(
+        'Bạn chỉ có thể tạo bài kiểm tra cho khóa học của bạn',
+      );
     }
 
     const quiz = this.quizRepository.create(createQuizDto);
@@ -62,7 +64,11 @@ export class QuizzesService {
     return quiz;
   }
 
-  async update(id: string, updateQuizDto: Partial<CreateQuizDto>, user: User): Promise<Quiz> {
+  async update(
+    id: string,
+    updateQuizDto: Partial<CreateQuizDto>,
+    user: User,
+  ): Promise<Quiz> {
     const quiz = await this.quizRepository.findOne({
       where: { id },
       relations: ['course'],
@@ -74,7 +80,9 @@ export class QuizzesService {
 
     // Check permissions
     if (user.role !== UserRole.ADMIN && quiz.course.teacherId !== user.id) {
-      throw new ForbiddenException('Bạn chỉ có thể cập nhật bài kiểm tra cho khóa học của bạn');
+      throw new ForbiddenException(
+        'Bạn chỉ có thể cập nhật bài kiểm tra cho khóa học của bạn',
+      );
     }
 
     Object.assign(quiz, updateQuizDto);
@@ -93,7 +101,9 @@ export class QuizzesService {
 
     // Check permissions
     if (user.role !== UserRole.ADMIN && quiz.course.teacherId !== user.id) {
-      throw new ForbiddenException('Bạn chỉ có thể xóa bài kiểm tra cho khóa học của bạn');
+      throw new ForbiddenException(
+        'Bạn chỉ có thể xóa bài kiểm tra cho khóa học của bạn',
+      );
     }
 
     await this.quizRepository.remove(quiz);
@@ -148,7 +158,10 @@ export class QuizzesService {
     }
 
     // Calculate score
-    const { score, passed } = this.calculateScore(attempt.quiz, submitQuizDto.answers);
+    const { score, passed } = this.calculateScore(
+      attempt.quiz,
+      submitQuizDto.answers,
+    );
 
     attempt.answers = submitQuizDto.answers;
     attempt.score = score;
@@ -193,7 +206,10 @@ export class QuizzesService {
     return attempt;
   }
 
-  private calculateScore(quiz: Quiz, answers: any[]): { score: number; passed: boolean } {
+  private calculateScore(
+    quiz: Quiz,
+    answers: any[],
+  ): { score: number; passed: boolean } {
     const questions = quiz.questions;
     let correctAnswers = 0;
 

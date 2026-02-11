@@ -1,4 +1,12 @@
-import { IsString, IsNotEmpty, IsOptional, IsEnum, IsBoolean, IsUUID, IsNumber } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsEnum,
+  IsBoolean,
+  IsUUID,
+  IsNumber,
+} from 'class-validator';
 
 export enum ResourceType {
   VIDEO = 'video',

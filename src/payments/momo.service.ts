@@ -71,18 +71,35 @@ export class MomoService {
   constructor(private configService: ConfigService) {
     this.config = {
       partnerCode: this.configService.get<string>('MOMO_PARTNER_CODE', 'MOMO'),
-      accessKey: this.configService.get<string>('MOMO_ACCESS_KEY', 'MOMO_ACCESS_KEY'),
-      secretKey: this.configService.get<string>('MOMO_SECRET_KEY', 'MOMO_SECRET_KEY'),
-      endpoint: this.configService.get<string>('MOMO_ENDPOINT', 'https://test-payment.momo.vn/v2/gateway/api'),
-      returnUrl: this.configService.get<string>('MOMO_RETURN_URL', 'http://localhost:3000/enrollment/success'),
-      notifyUrl: this.configService.get<string>('MOMO_NOTIFY_URL', 'http://localhost:5000/api/payments/momo/ipn'),
+      accessKey: this.configService.get<string>(
+        'MOMO_ACCESS_KEY',
+        'MOMO_ACCESS_KEY',
+      ),
+      secretKey: this.configService.get<string>(
+        'MOMO_SECRET_KEY',
+        'MOMO_SECRET_KEY',
+      ),
+      endpoint: this.configService.get<string>(
+        'MOMO_ENDPOINT',
+        'https://test-payment.momo.vn/v2/gateway/api',
+      ),
+      returnUrl: this.configService.get<string>(
+        'MOMO_RETURN_URL',
+        'http://localhost:3000/enrollment/success',
+      ),
+      notifyUrl: this.configService.get<string>(
+        'MOMO_NOTIFY_URL',
+        'http://localhost:5000/api/payments/momo/ipn',
+      ),
     };
   }
 
   /**
    * Create Momo payment URL
    */
-  async createPayment(params: CreatePaymentParams): Promise<MomoPaymentResponse> {
+  async createPayment(
+    params: CreatePaymentParams,
+  ): Promise<MomoPaymentResponse> {
     const {
       orderId,
       requestId,
@@ -95,7 +112,7 @@ export class MomoService {
 
     // Create signature
     const rawSignature = `accessKey=${this.config.accessKey}&amount=${amount}&extraData=${extraData}&ipnUrl=${this.config.notifyUrl}&orderId=${orderId}&orderInfo=${orderInfo}&partnerCode=${this.config.partnerCode}&redirectUrl=${this.config.returnUrl}&requestId=${requestId}&requestType=${requestType}`;
-    
+
     const signature = crypto
       .createHmac('sha256', this.config.secretKey)
       .update(rawSignature)
@@ -127,7 +144,7 @@ export class MomoService {
         body: JSON.stringify(requestBody),
       });
 
-      const result = await response.json() as MomoPaymentResponse;
+      const result = (await response.json()) as MomoPaymentResponse;
 
       if (result.resultCode === 0) {
         this.logger.log(`Created Momo payment for order: ${orderId}`);
@@ -164,7 +181,7 @@ export class MomoService {
 
     // Verify signature
     const rawSignature = `accessKey=${this.config.accessKey}&amount=${amount}&extraData=${extraData}&message=${message}&orderId=${orderId}&orderInfo=${orderInfo}&orderType=${orderType}&partnerCode=${partnerCode}&payType=${payType}&requestId=${requestId}&responseTime=${responseTime}&resultCode=${resultCode}&transId=${transId}`;
-    
+
     const expectedSignature = crypto
       .createHmac('sha256', this.config.secretKey)
       .update(rawSignature)
@@ -195,7 +212,9 @@ export class MomoService {
       };
     }
 
-    this.logger.warn(`Momo payment failed for order: ${orderId}, code: ${resultCode}`);
+    this.logger.warn(
+      `Momo payment failed for order: ${orderId}, code: ${resultCode}`,
+    );
     return {
       success: false,
       code: resultCode,
@@ -208,7 +227,7 @@ export class MomoService {
    */
   async queryTransaction(orderId: string, requestId: string): Promise<any> {
     const rawSignature = `accessKey=${this.config.accessKey}&orderId=${orderId}&partnerCode=${this.config.partnerCode}&requestId=${requestId}`;
-    
+
     const signature = crypto
       .createHmac('sha256', this.config.secretKey)
       .update(rawSignature)
@@ -249,7 +268,7 @@ export class MomoService {
     description: string,
   ): Promise<any> {
     const rawSignature = `accessKey=${this.config.accessKey}&amount=${amount}&description=${description}&orderId=${orderId}&partnerCode=${this.config.partnerCode}&requestId=${requestId}&transId=${transId}`;
-    
+
     const signature = crypto
       .createHmac('sha256', this.config.secretKey)
       .update(rawSignature)
@@ -292,7 +311,7 @@ export class MomoService {
     description: string,
   ): Promise<any> {
     const rawSignature = `accessKey=${this.config.accessKey}&amount=${amount}&description=${description}&orderId=${orderId}&partnerCode=${this.config.partnerCode}&requestId=${requestId}`;
-    
+
     const signature = crypto
       .createHmac('sha256', this.config.secretKey)
       .update(rawSignature)

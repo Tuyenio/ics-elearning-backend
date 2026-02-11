@@ -6,7 +6,7 @@ import { Category } from './entities/category.entity';
 import { CacheModule } from '@nestjs/cache-manager';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Category]),CacheModule.register(),],
+  imports: [TypeOrmModule.forFeature([Category]), CacheModule.register()],
   controllers: [CategoriesController],
   providers: [CategoriesService],
   exports: [CategoriesService],

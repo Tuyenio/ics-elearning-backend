@@ -43,7 +43,9 @@ export class TwoFactorAuthController {
    */
   @Get('enabled')
   async isEnabled(@Request() req) {
-    const isEnabled = await this.twoFactorAuthService.is2FAEnabled(req.user.userId);
+    const isEnabled = await this.twoFactorAuthService.is2FAEnabled(
+      req.user.userId,
+    );
     return { isEnabled };
   }
 
@@ -61,7 +63,10 @@ export class TwoFactorAuthController {
   @Post('verify/totp')
   @HttpCode(HttpStatus.OK)
   async verifyTOTP(@Request() req, @Body() body: VerifyTOTPDto) {
-    return this.twoFactorAuthService.verifyAndEnableTOTP(req.user.userId, body.token);
+    return this.twoFactorAuthService.verifyAndEnableTOTP(
+      req.user.userId,
+      body.token,
+    );
   }
 
   /**
@@ -99,7 +104,10 @@ export class TwoFactorAuthController {
    */
   @Post('setup/sms')
   async setupSMS(@Request() req, @Body() body: SetupSMSDto) {
-    return this.twoFactorAuthService.setupSMS(req.user.userId, body.phoneNumber);
+    return this.twoFactorAuthService.setupSMS(
+      req.user.userId,
+      body.phoneNumber,
+    );
   }
 
   /**

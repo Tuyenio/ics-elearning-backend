@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  Req,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AssignmentsService } from './assignments.service';
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
@@ -45,7 +55,10 @@ export class AssignmentsController {
   @UseGuards(RolesGuard)
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   @ApiOperation({ summary: 'Cập nhật bài tập (Teacher/Admin)' })
-  update(@Param('id') id: string, @Body() updateAssignmentDto: UpdateAssignmentDto) {
+  update(
+    @Param('id') id: string,
+    @Body() updateAssignmentDto: UpdateAssignmentDto,
+  ) {
     return this.assignmentsService.update(id, updateAssignmentDto);
   }
 

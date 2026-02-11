@@ -1,16 +1,16 @@
-import { Entity, Column, PrimaryGeneratedColumn } from "typeorm"
+import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
 
-@Entity("system_settings")
+@Entity('system_settings')
 export class SystemSetting {
   @PrimaryGeneratedColumn()
-  id: number
+  id: number;
 
   @Column({ unique: true })
-  key: string
+  key: string;
 
-  @Column("text", { nullable: true })
-  value: string
+  @Column('text', { nullable: true })
+  value: string;
 
   @Column({ nullable: true })
-  site_logo?: string
+  site_logo?: string;
 }

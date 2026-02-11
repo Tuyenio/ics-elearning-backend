@@ -67,4 +67,3 @@ export class Announcement {
   @JoinColumn({ name: 'course_id' })
   course: Course;
 }
-

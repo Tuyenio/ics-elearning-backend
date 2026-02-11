@@ -6,7 +6,7 @@ import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
 import { User } from './entities/user.entity';
 import { EmailService } from '../common/services/email.service';
-import { SystemSettingsModule } from "../system-settings/system-setting.module"
+import { SystemSettingsModule } from '../system-settings/system-setting.module';
 
 @Module({
   imports: [

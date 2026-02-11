@@ -2,30 +2,65 @@ import { DataSource } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import { User, UserRole, UserStatus } from '../users/entities/user.entity';
 import { Category } from '../categories/entities/category.entity';
-import { Course, CourseLevel, CourseStatus } from '../courses/entities/course.entity';
+import {
+  Course,
+  CourseLevel,
+  CourseStatus,
+} from '../courses/entities/course.entity';
 import { Lesson, LessonType } from '../lessons/entities/lesson.entity';
-import { Enrollment, EnrollmentStatus } from '../enrollments/entities/enrollment.entity';
+import {
+  Enrollment,
+  EnrollmentStatus,
+} from '../enrollments/entities/enrollment.entity';
 import { LessonProgress } from '../lesson-progress/entities/lesson-progress.entity';
 import { Review } from '../reviews/entities/review.entity';
-import { Payment, PaymentStatus, PaymentMethod } from '../payments/entities/payment.entity';
+import {
+  Payment,
+  PaymentStatus,
+  PaymentMethod,
+} from '../payments/entities/payment.entity';
 import { Certificate } from '../certificates/entities/certificate.entity';
-import { CertificateTemplate, TemplateStatus } from '../certificates/entities/certificate-template.entity';
+import {
+  CertificateTemplate,
+  TemplateStatus,
+} from '../certificates/entities/certificate-template.entity';
 import { Note } from '../notes/entities/note.entity';
 import { Wishlist } from '../wishlists/entities/wishlist.entity';
 import { Cart } from '../cart/entities/cart.entity';
-import { Coupon, CouponType, CouponStatus } from '../coupons/entities/coupon.entity';
-import { Announcement, AnnouncementPriority } from '../announcements/entities/announcement.entity';
+import {
+  Coupon,
+  CouponType,
+  CouponStatus,
+} from '../coupons/entities/coupon.entity';
+import {
+  Announcement,
+  AnnouncementPriority,
+} from '../announcements/entities/announcement.entity';
 import { Discussion } from '../discussions/entities/discussion.entity';
-import { Assignment, AssignmentStatus, AssignmentSubmission, SubmissionStatus } from '../assignments/entities/assignment.entity';
+import {
+  Assignment,
+  AssignmentStatus,
+  AssignmentSubmission,
+  SubmissionStatus,
+} from '../assignments/entities/assignment.entity';
 import { Resource, ResourceType } from '../resources/entities/resource.entity';
-import { Notification, NotificationType, NotificationStatus } from '../notifications/entities/notification.entity';
+import {
+  Notification,
+  NotificationType,
+  NotificationStatus,
+} from '../notifications/entities/notification.entity';
 import { SystemSetting } from '../system-settings/entities/system-setting.entity';
 import { Exam, ExamType, ExamStatus } from '../exams/entities/exam.entity';
-import { ExamAttempt, AttemptStatus as ExamAttemptStatus } from '../exams/entities/exam-attempt.entity';
+import {
+  ExamAttempt,
+  AttemptStatus as ExamAttemptStatus,
+} from '../exams/entities/exam-attempt.entity';
 import { Quiz } from '../quizzes/entities/quiz.entity';
-import { QuizAttempt, AttemptStatus as QuizAttemptStatus } from '../quizzes/entities/quiz-attempt.entity';
+import {
+  QuizAttempt,
+  AttemptStatus as QuizAttemptStatus,
+} from '../quizzes/entities/quiz-attempt.entity';
 import { ScheduleItem } from '../schedule/entities/schedule.entity';
-
 
 export async function seedDatabase(dataSource: DataSource) {
   console.log('🌱 Starting database seed...');
@@ -55,17 +90,16 @@ export async function seedDatabase(dataSource: DataSource) {
   const quizAttemptRepo = dataSource.getRepository(QuizAttempt);
   const scheduleRepo = dataSource.getRepository(ScheduleItem);
 
-
   // Clear existing data
   console.log('🗑️  Clearing existing data...');
-  
+
   await systemSettingRepo.upsert(
-  {
-    key: 'site_logo',
-    value: '/image/logo-ics.jpg',
-  },
-  ['key'],
-);
+    {
+      key: 'site_logo',
+      value: '/image/logo-ics.jpg',
+    },
+    ['key'],
+  );
 
   // Use CASCADE to handle foreign key constraints
   const tables = [
@@ -93,9 +127,9 @@ export async function seedDatabase(dataSource: DataSource) {
     'lessons',
     'courses',
     'categories',
-    'users'
+    'users',
   ];
-  
+
   for (const table of tables) {
     await dataSource.query(`TRUNCATE TABLE "${table}" CASCADE`);
   }
@@ -209,7 +243,8 @@ export async function seedDatabase(dataSource: DataSource) {
     {
       name: 'Lập trình Web',
       slug: 'lap-trinh-web',
-      description: 'Học lập trình web từ cơ bản đến nâng cao với HTML, CSS, JavaScript, React, Node.js',
+      description:
+        'Học lập trình web từ cơ bản đến nâng cao với HTML, CSS, JavaScript, React, Node.js',
       icon: '💻',
       order: 1,
       isActive: true,
@@ -217,7 +252,8 @@ export async function seedDatabase(dataSource: DataSource) {
     {
       name: 'AI & Machine Learning',
       slug: 'ai-machine-learning',
-      description: 'Khóa học về Trí tuệ nhân tạo, Machine Learning, Deep Learning',
+      description:
+        'Khóa học về Trí tuệ nhân tạo, Machine Learning, Deep Learning',
       icon: '🤖',
       order: 2,
       isActive: true,
@@ -263,8 +299,10 @@ export async function seedDatabase(dataSource: DataSource) {
     {
       title: 'Lập trình Web Full-stack với React & Node.js',
       slug: 'lap-trinh-web-fullstack-react-nodejs',
-      description: 'Khóa học toàn diện về lập trình web full-stack, từ frontend với React đến backend với Node.js và MongoDB. Xây dựng ứng dụng web hoàn chỉnh từ đầu đến cuối với các dự án thực tế.',
-      shortDescription: 'Trở thành Full-stack Developer chuyên nghiệp với React & Node.js',
+      description:
+        'Khóa học toàn diện về lập trình web full-stack, từ frontend với React đến backend với Node.js và MongoDB. Xây dựng ứng dụng web hoàn chỉnh từ đầu đến cuối với các dự án thực tế.',
+      shortDescription:
+        'Trở thành Full-stack Developer chuyên nghiệp với React & Node.js',
       thumbnail: '/courses/fullstack-react-nodejs.jpg',
       previewVideo: '/videos/preview-fullstack.mp4',
       price: 1999000,
@@ -272,14 +310,18 @@ export async function seedDatabase(dataSource: DataSource) {
       level: CourseLevel.INTERMEDIATE,
       status: CourseStatus.PUBLISHED,
       duration: 3600,
-      requirements: ['Kiến thức cơ bản về HTML, CSS, JavaScript', 'Laptop/PC để code', 'Đam mê học hỏi'],
+      requirements: [
+        'Kiến thức cơ bản về HTML, CSS, JavaScript',
+        'Laptop/PC để code',
+        'Đam mê học hỏi',
+      ],
       outcomes: [
         'Xây dựng ứng dụng web full-stack hoàn chỉnh',
         'Thành thạo React Hooks, Context API, Redux',
         'Xây dựng RESTful API với Node.js & Express',
         'Làm việc với MongoDB và Mongoose',
         'Deploy ứng dụng lên cloud',
-        'Tích hợp thanh toán và authentication'
+        'Tích hợp thanh toán và authentication',
       ],
       tags: ['React', 'Node.js', 'MongoDB', 'Full-stack', 'JavaScript'],
       teacherId: teacher.id,
@@ -293,7 +335,8 @@ export async function seedDatabase(dataSource: DataSource) {
     {
       title: 'Next.js 14 - The Complete Guide',
       slug: 'nextjs-14-complete-guide',
-      description: 'Học Next.js 14 từ cơ bản đến nâng cao. App Router, Server Components, Server Actions, Streaming và nhiều tính năng mới nhất. Xây dựng ứng dụng production-ready.',
+      description:
+        'Học Next.js 14 từ cơ bản đến nâng cao. App Router, Server Components, Server Actions, Streaming và nhiều tính năng mới nhất. Xây dựng ứng dụng production-ready.',
       shortDescription: 'Master Next.js 14 với App Router và Server Components',
       thumbnail: '/courses/nextjs-14.jpg',
       price: 1499000,
@@ -307,7 +350,7 @@ export async function seedDatabase(dataSource: DataSource) {
         'Thành thạo App Router và Server Components',
         'Tối ưu SEO và Performance',
         'Deploy lên Vercel',
-        'Xử lý authentication và authorization'
+        'Xử lý authentication và authorization',
       ],
       tags: ['Next.js', 'React', 'Server Components', 'SEO'],
       teacherId: teacher.id,
@@ -320,7 +363,8 @@ export async function seedDatabase(dataSource: DataSource) {
     {
       title: 'TypeScript từ Zero đến Hero',
       slug: 'typescript-zero-to-hero',
-      description: 'Học TypeScript một cách bài bản từ cơ bản đến nâng cao. Áp dụng TypeScript vào dự án thực tế với React, Node.js. Hiểu sâu về type system và best practices.',
+      description:
+        'Học TypeScript một cách bài bản từ cơ bản đến nâng cao. Áp dụng TypeScript vào dự án thực tế với React, Node.js. Hiểu sâu về type system và best practices.',
       shortDescription: 'Làm chủ TypeScript cho dự án thực tế',
       thumbnail: '/courses/typescript.jpg',
       price: 999000,
@@ -334,7 +378,7 @@ export async function seedDatabase(dataSource: DataSource) {
         'Sử dụng Generics, Decorators',
         'Áp dụng TypeScript vào React/Node.js',
         'Debug và troubleshoot TypeScript errors',
-        'Best practices và design patterns'
+        'Best practices và design patterns',
       ],
       tags: ['TypeScript', 'JavaScript', 'Programming'],
       teacherId: teacher.id,
@@ -346,7 +390,8 @@ export async function seedDatabase(dataSource: DataSource) {
     {
       title: 'Machine Learning A-Z: Hands-On Python',
       slug: 'machine-learning-az-python',
-      description: 'Khóa học Machine Learning toàn diện nhất. Học từ cơ bản đến nâng cao với Python, scikit-learn, TensorFlow. Thực hành với 20+ dự án thực tế.',
+      description:
+        'Khóa học Machine Learning toàn diện nhất. Học từ cơ bản đến nâng cao với Python, scikit-learn, TensorFlow. Thực hành với 20+ dự án thực tế.',
       shortDescription: 'Master Machine Learning với Python',
       thumbnail: '/courses/ml-az.jpg',
       price: 2499000,
@@ -354,13 +399,17 @@ export async function seedDatabase(dataSource: DataSource) {
       level: CourseLevel.INTERMEDIATE,
       status: CourseStatus.PUBLISHED,
       duration: 4200,
-      requirements: ['Python cơ bản', 'Toán học phổ thông', 'Numpy và Pandas cơ bản'],
+      requirements: [
+        'Python cơ bản',
+        'Toán học phổ thông',
+        'Numpy và Pandas cơ bản',
+      ],
       outcomes: [
         'Hiểu các thuật toán ML cơ bản và nâng cao',
         'Xử lý và phân tích dữ liệu',
         'Xây dựng và deploy ML models',
         'Làm việc với TensorFlow và Keras',
-        'Feature engineering và model optimization'
+        'Feature engineering và model optimization',
       ],
       tags: ['Machine Learning', 'Python', 'AI', 'TensorFlow'],
       teacherId: teacher.id,
@@ -374,7 +423,8 @@ export async function seedDatabase(dataSource: DataSource) {
     {
       title: 'Deep Learning & Neural Networks',
       slug: 'deep-learning-neural-networks',
-      description: 'Học Deep Learning từ cơ bản đến nâng cao. CNN, RNN, LSTM, Transformers và nhiều kiến trúc mạng neural hiện đại. Xây dựng AI models thực tế.',
+      description:
+        'Học Deep Learning từ cơ bản đến nâng cao. CNN, RNN, LSTM, Transformers và nhiều kiến trúc mạng neural hiện đại. Xây dựng AI models thực tế.',
       shortDescription: 'Làm chủ Deep Learning và Neural Networks',
       thumbnail: '/courses/deep-learning.jpg',
       price: 2999000,
@@ -388,7 +438,7 @@ export async function seedDatabase(dataSource: DataSource) {
         'Xây dựng CNN cho Computer Vision',
         'Xây dựng RNN/LSTM cho NLP',
         'Sử dụng Transfer Learning',
-        'Deploy deep learning models'
+        'Deploy deep learning models',
       ],
       tags: ['Deep Learning', 'Neural Networks', 'AI', 'Python'],
       teacherId: teacher.id,
@@ -401,7 +451,8 @@ export async function seedDatabase(dataSource: DataSource) {
     {
       title: 'Natural Language Processing với Python',
       slug: 'nlp-with-python',
-      description: 'Học xử lý ngôn ngữ tự nhiên (NLP) với Python. Text Classification, Sentiment Analysis, Chatbots, và nhiều hơn nữa. Sử dụng BERT, GPT và Transformers.',
+      description:
+        'Học xử lý ngôn ngữ tự nhiên (NLP) với Python. Text Classification, Sentiment Analysis, Chatbots, và nhiều hơn nữa. Sử dụng BERT, GPT và Transformers.',
       shortDescription: 'Master NLP và xây dựng ứng dụng AI thực tế',
       thumbnail: '/courses/nlp-python.jpg',
       price: 1999000,
@@ -415,7 +466,7 @@ export async function seedDatabase(dataSource: DataSource) {
         'Xây dựng Chatbot',
         'Text Classification và Sentiment Analysis',
         'Sử dụng BERT và Transformers',
-        'Named Entity Recognition'
+        'Named Entity Recognition',
       ],
       tags: ['NLP', 'Python', 'AI', 'Chatbot'],
       teacherId: teacher.id,
@@ -427,7 +478,8 @@ export async function seedDatabase(dataSource: DataSource) {
     {
       title: 'Data Science Bootcamp 2024',
       slug: 'data-science-bootcamp-2024',
-      description: 'Bootcamp Data Science toàn diện. Từ xử lý dữ liệu, phân tích thống kê đến Machine Learning và visualization. Trở thành Data Scientist chuyên nghiệp.',
+      description:
+        'Bootcamp Data Science toàn diện. Từ xử lý dữ liệu, phân tích thống kê đến Machine Learning và visualization. Trở thành Data Scientist chuyên nghiệp.',
       shortDescription: 'Trở thành Data Scientist chuyên nghiệp',
       thumbnail: '/courses/data-science.jpg',
       price: 2999000,
@@ -441,7 +493,7 @@ export async function seedDatabase(dataSource: DataSource) {
         'Visualization với Matplotlib, Seaborn',
         'Machine Learning với scikit-learn',
         'Làm việc với SQL và databases',
-        'Data storytelling và presentation'
+        'Data storytelling và presentation',
       ],
       tags: ['Data Science', 'Python', 'Machine Learning', 'SQL'],
       teacherId: teacher.id,
@@ -454,7 +506,8 @@ export async function seedDatabase(dataSource: DataSource) {
     {
       title: 'Flutter & Dart - Xây dựng ứng dụng iOS và Android',
       slug: 'flutter-dart-mobile-dev',
-      description: 'Học Flutter và Dart để xây dựng ứng dụng mobile đa nền tảng. Từ cơ bản đến nâng cao. Xây dựng và publish apps lên Store.',
+      description:
+        'Học Flutter và Dart để xây dựng ứng dụng mobile đa nền tảng. Từ cơ bản đến nâng cao. Xây dựng và publish apps lên Store.',
       shortDescription: 'Phát triển app mobile với Flutter',
       thumbnail: '/courses/flutter.jpg',
       price: 1799000,
@@ -468,7 +521,7 @@ export async function seedDatabase(dataSource: DataSource) {
         'Thành thạo Flutter widgets',
         'State Management với Provider, Bloc',
         'Publish app lên Store',
-        'Integration với Firebase'
+        'Integration với Firebase',
       ],
       tags: ['Flutter', 'Dart', 'Mobile', 'iOS', 'Android'],
       teacherId: teacher.id,
@@ -480,7 +533,8 @@ export async function seedDatabase(dataSource: DataSource) {
     {
       title: 'React Native - Build Native Mobile Apps',
       slug: 'react-native-mobile-apps',
-      description: 'Xây dựng ứng dụng mobile native với React Native. Sử dụng JavaScript để develop cho iOS và Android. Tích hợp với native modules.',
+      description:
+        'Xây dựng ứng dụng mobile native với React Native. Sử dụng JavaScript để develop cho iOS và Android. Tích hợp với native modules.',
       shortDescription: 'Xây dựng mobile app với React Native',
       thumbnail: '/courses/react-native.jpg',
       price: 1699000,
@@ -494,7 +548,7 @@ export async function seedDatabase(dataSource: DataSource) {
         'Navigation và routing',
         'State management với Redux',
         'Native modules integration',
-        'Performance optimization'
+        'Performance optimization',
       ],
       tags: ['React Native', 'Mobile', 'JavaScript', 'iOS', 'Android'],
       teacherId: teacher.id,
@@ -506,7 +560,8 @@ export async function seedDatabase(dataSource: DataSource) {
     {
       title: 'DevOps với Docker & Kubernetes',
       slug: 'devops-docker-kubernetes',
-      description: 'Học DevOps từ cơ bản đến nâng cao. Docker containers, Kubernetes orchestration, CI/CD pipelines. Deploy và scale applications.',
+      description:
+        'Học DevOps từ cơ bản đến nâng cao. Docker containers, Kubernetes orchestration, CI/CD pipelines. Deploy và scale applications.',
       shortDescription: 'Master DevOps với Docker & Kubernetes',
       thumbnail: '/courses/devops.jpg',
       price: 2299000,
@@ -520,7 +575,7 @@ export async function seedDatabase(dataSource: DataSource) {
         'Orchestrate containers với Kubernetes',
         'Setup CI/CD pipelines',
         'Monitor và logging',
-        'Security best practices'
+        'Security best practices',
       ],
       tags: ['DevOps', 'Docker', 'Kubernetes', 'CI/CD'],
       teacherId: teacher.id,
@@ -533,7 +588,8 @@ export async function seedDatabase(dataSource: DataSource) {
     {
       title: 'AWS Cloud Practitioner - Complete Course',
       slug: 'aws-cloud-practitioner',
-      description: 'Khóa học AWS toàn diện từ cơ bản đến nâng cao. EC2, S3, Lambda, RDS và nhiều services khác. Chuẩn bị cho AWS certification.',
+      description:
+        'Khóa học AWS toàn diện từ cơ bản đến nâng cao. EC2, S3, Lambda, RDS và nhiều services khác. Chuẩn bị cho AWS certification.',
       shortDescription: 'Master AWS Cloud Services',
       thumbnail: '/courses/aws.jpg',
       price: 1899000,
@@ -547,7 +603,7 @@ export async function seedDatabase(dataSource: DataSource) {
         'Deploy applications trên AWS',
         'Security và IAM',
         'Cost optimization',
-        'Chuẩn bị AWS certification'
+        'Chuẩn bị AWS certification',
       ],
       tags: ['AWS', 'Cloud', 'DevOps', 'Infrastructure'],
       teacherId: teacher.id,
@@ -559,7 +615,8 @@ export async function seedDatabase(dataSource: DataSource) {
     {
       title: 'UI/UX Design Fundamentals',
       slug: 'ui-ux-design-fundamentals',
-      description: 'Học thiết kế UI/UX từ cơ bản. User research, wireframing, prototyping với Figma. Tạo designs đẹp và user-friendly.',
+      description:
+        'Học thiết kế UI/UX từ cơ bản. User research, wireframing, prototyping với Figma. Tạo designs đẹp và user-friendly.',
       shortDescription: 'Thiết kế UI/UX chuyên nghiệp với Figma',
       thumbnail: '/courses/ui-ux.jpg',
       price: 1599000,
@@ -573,7 +630,7 @@ export async function seedDatabase(dataSource: DataSource) {
         'Wireframing và prototyping',
         'Visual design principles',
         'Usability testing',
-        'Design systems'
+        'Design systems',
       ],
       tags: ['UI/UX', 'Design', 'Figma', 'User Experience'],
       teacherId: teacher.id,
@@ -586,7 +643,8 @@ export async function seedDatabase(dataSource: DataSource) {
     {
       title: 'Vue.js 3 - The Modern Way',
       slug: 'vuejs-3-modern-way',
-      description: 'Học Vue.js 3 với Composition API, TypeScript, Pinia. Xây dựng ứng dụng SPA hiện đại.',
+      description:
+        'Học Vue.js 3 với Composition API, TypeScript, Pinia. Xây dựng ứng dụng SPA hiện đại.',
       shortDescription: 'Master Vue.js 3 với Composition API',
       thumbnail: '/courses/vuejs-3.jpg',
       price: 1299000,
@@ -595,7 +653,11 @@ export async function seedDatabase(dataSource: DataSource) {
       status: CourseStatus.PUBLISHED,
       duration: 2000,
       requirements: ['JavaScript cơ bản', 'HTML/CSS'],
-      outcomes: ['Vue 3 Composition API', 'State management với Pinia', 'Deploy Vue apps'],
+      outcomes: [
+        'Vue 3 Composition API',
+        'State management với Pinia',
+        'Deploy Vue apps',
+      ],
       tags: ['Vue.js', 'JavaScript', 'Frontend'],
       teacherId: teacher2.id,
       categoryId: categories[0].id,
@@ -607,7 +669,8 @@ export async function seedDatabase(dataSource: DataSource) {
     {
       title: 'AWS Solutions Architect',
       slug: 'aws-solutions-architect',
-      description: 'Trở thành AWS Solutions Architect. EC2, RDS, S3, Lambda, CloudFormation.',
+      description:
+        'Trở thành AWS Solutions Architect. EC2, RDS, S3, Lambda, CloudFormation.',
       shortDescription: 'Certified AWS Solutions Architect',
       thumbnail: '/courses/aws-architect.jpg',
       price: 2199000,
@@ -616,7 +679,11 @@ export async function seedDatabase(dataSource: DataSource) {
       status: CourseStatus.PUBLISHED,
       duration: 3200,
       requirements: ['IT cơ bản', 'Linux/Windows', 'Networking'],
-      outcomes: ['AWS certifications', 'Cloud architecture', 'High availability design'],
+      outcomes: [
+        'AWS certifications',
+        'Cloud architecture',
+        'High availability design',
+      ],
       tags: ['AWS', 'Cloud', 'DevOps'],
       teacherId: teacher2.id,
       categoryId: categories[4].id,
@@ -629,7 +696,8 @@ export async function seedDatabase(dataSource: DataSource) {
     {
       title: 'Python cho Data Analysis',
       slug: 'python-data-analysis',
-      description: 'Phân tích dữ liệu với Python: Pandas, NumPy, Matplotlib, Seaborn.',
+      description:
+        'Phân tích dữ liệu với Python: Pandas, NumPy, Matplotlib, Seaborn.',
       shortDescription: 'Data Analysis với Python',
       thumbnail: '/courses/python-data-analysis.jpg',
       price: 1499000,
@@ -638,7 +706,11 @@ export async function seedDatabase(dataSource: DataSource) {
       status: CourseStatus.PUBLISHED,
       duration: 2400,
       requirements: ['Python cơ bản', 'Excel'],
-      outcomes: ['Pandas và NumPy', 'Data visualization', 'Statistical analysis'],
+      outcomes: [
+        'Pandas và NumPy',
+        'Data visualization',
+        'Statistical analysis',
+      ],
       tags: ['Python', 'Data Science', 'Analytics'],
       teacherId: teacher2.id,
       categoryId: categories[3].id,
@@ -656,23 +728,37 @@ export async function seedDatabase(dataSource: DataSource) {
 
   // Create Lessons for each course
   console.log('📝 Creating lessons...');
-  
+
   for (const course of courses) {
     const lessonCount = 12 + Math.floor(Math.random() * 8); // 12-19 lessons per course
-    
+
     for (let i = 0; i < lessonCount; i++) {
       await lessonRepo.save({
         title: `Bài ${i + 1}: ${getLessonTitle(i, course.title)}`,
         description: `Nội dung chi tiết của bài học ${i + 1}. Trong bài này bạn sẽ học được những kiến thức quan trọng và thực hành qua các ví dụ cụ thể.`,
-        type: i === 0 ? LessonType.VIDEO : (i % 6 === 0 ? LessonType.QUIZ : LessonType.VIDEO),
+        type:
+          i === 0
+            ? LessonType.VIDEO
+            : i % 6 === 0
+              ? LessonType.QUIZ
+              : LessonType.VIDEO,
         videoUrl: `/videos/${course.slug}/lesson-${i + 1}.mp4`,
         videoThumbnail: `/videos/${course.slug}/thumb-${i + 1}.jpg`,
         duration: 600 + Math.floor(Math.random() * 1800), // 10-40 minutes
         content: i % 6 === 0 ? `Quiz content for lesson ${i + 1}` : '',
-        resources: i % 3 === 0 ? [
-          { name: `Slide bài ${i + 1}.pdf`, url: `/resources/${course.slug}/slide-${i + 1}.pdf` },
-          { name: `Source code.zip`, url: `/resources/${course.slug}/code-${i + 1}.zip` }
-        ] : [],
+        resources:
+          i % 3 === 0
+            ? [
+                {
+                  name: `Slide bài ${i + 1}.pdf`,
+                  url: `/resources/${course.slug}/slide-${i + 1}.pdf`,
+                },
+                {
+                  name: `Source code.zip`,
+                  url: `/resources/${course.slug}/code-${i + 1}.zip`,
+                },
+              ]
+            : [],
         order: i + 1,
         isFree: i < 3, // First 3 lessons are free
         isPublished: true,
@@ -689,9 +775,15 @@ export async function seedDatabase(dataSource: DataSource) {
   let txnCounter = 0;
 
   for (const learner of allStudents) {
-    for (let courseIndex = 0; courseIndex < enrolledCourses.length; courseIndex++) {
+    for (
+      let courseIndex = 0;
+      courseIndex < enrolledCourses.length;
+      courseIndex++
+    ) {
       const course = enrolledCourses[courseIndex];
-      const paidAt = new Date(Date.now() - Math.random() * 60 * 24 * 60 * 60 * 1000); // Last 60 days
+      const paidAt = new Date(
+        Date.now() - Math.random() * 60 * 24 * 60 * 60 * 1000,
+      ); // Last 60 days
 
       // Create Payment
       await paymentRepo.save({
@@ -703,25 +795,38 @@ export async function seedDatabase(dataSource: DataSource) {
         finalAmount: course.discountPrice,
         currency: 'VND',
         status: PaymentStatus.COMPLETED,
-        paymentMethod: [PaymentMethod.CREDIT_CARD, PaymentMethod.WALLET, PaymentMethod.QR_CODE][(courseIndex + txnCounter) % 3],
+        paymentMethod: [
+          PaymentMethod.CREDIT_CARD,
+          PaymentMethod.WALLET,
+          PaymentMethod.QR_CODE,
+        ][(courseIndex + txnCounter) % 3],
         paidAt,
         paymentGatewayId: `GW${Date.now()}${courseIndex}`,
         metadata: {
           paymentMethod: 'Online',
           bankCode: courseIndex % 2 === 0 ? 'VCB' : 'TCB',
-        }
+        },
       });
 
       // Create Enrollment with varying progress
-      const progress = courseIndex % 4 === 0 ? 100 : courseIndex % 3 === 0 ? 80 : 40 + Math.floor(Math.random() * 50);
+      const progress =
+        courseIndex % 4 === 0
+          ? 100
+          : courseIndex % 3 === 0
+            ? 80
+            : 40 + Math.floor(Math.random() * 50);
       const isCompleted = progress >= 90;
       const enrollment = await enrollmentRepo.save({
         studentId: learner.id,
         courseId: course.id,
-        status: isCompleted ? EnrollmentStatus.COMPLETED : EnrollmentStatus.ACTIVE,
+        status: isCompleted
+          ? EnrollmentStatus.COMPLETED
+          : EnrollmentStatus.ACTIVE,
         progress,
         completedAt: isCompleted ? paidAt : undefined,
-        lastAccessedAt: new Date(Date.now() - Math.random() * 3 * 24 * 60 * 60 * 1000), // Last 3 days
+        lastAccessedAt: new Date(
+          Date.now() - Math.random() * 3 * 24 * 60 * 60 * 1000,
+        ), // Last 3 days
       } as any);
       enrollments.push(enrollment);
 
@@ -729,7 +834,10 @@ export async function seedDatabase(dataSource: DataSource) {
       await courseRepo.increment({ id: course.id }, 'enrollmentCount', 1);
 
       // Create Lesson Progress
-      const lessons = await lessonRepo.find({ where: { courseId: course.id }, order: { order: 'ASC' } });
+      const lessons = await lessonRepo.find({
+        where: { courseId: course.id },
+        order: { order: 'ASC' },
+      });
       const completedLessons = Math.floor((lessons.length * progress) / 100);
       for (let j = 0; j < lessons.length; j++) {
         if (j < completedLessons) {
@@ -758,12 +866,18 @@ export async function seedDatabase(dataSource: DataSource) {
 
       // Update course rating
       const reviews = await reviewRepo.find({ where: { courseId: course.id } });
-      const avgRating = reviews.length > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : 0;
-      await courseRepo.update(course.id, { rating: Math.round(avgRating * 10) / 10 });
+      const avgRating =
+        reviews.length > 0
+          ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+          : 0;
+      await courseRepo.update(course.id, {
+        rating: Math.round(avgRating * 10) / 10,
+      });
 
       // Create Certificate
       if (isCompleted) {
-        const instructorName = course.teacherId === teacher2.id ? teacher2.name : teacher.name;
+        const instructorName =
+          course.teacherId === teacher2.id ? teacher2.name : teacher.name;
         await certificateRepo.save({
           certificateNumber: `ICS-CERT-${Date.now()}-${courseIndex}-${txnCounter}`,
           studentId: learner.id,
@@ -777,7 +891,7 @@ export async function seedDatabase(dataSource: DataSource) {
             studentName: learner.name,
             completionDate: paidAt.toISOString(),
             instructor: instructorName,
-          }
+          },
         });
       }
     }
@@ -785,15 +899,15 @@ export async function seedDatabase(dataSource: DataSource) {
 
   // Create some notes for the student
   console.log('📒 Creating notes...');
-  const studentEnrollments = await enrollmentRepo.find({ 
+  const studentEnrollments = await enrollmentRepo.find({
     where: { studentId: student.id },
-    relations: ['course']
+    relations: ['course'],
   });
 
   for (const enrollment of studentEnrollments.slice(0, 5)) {
-    const lessons = await lessonRepo.find({ 
+    const lessons = await lessonRepo.find({
       where: { courseId: enrollment.course.id },
-      take: 3
+      take: 3,
     });
 
     for (const lesson of lessons) {
@@ -817,10 +931,34 @@ export async function seedDatabase(dataSource: DataSource) {
       type: 'deadline',
       content: 'Deadline các bài tập quan trọng',
       items: [
-        { id: '1', title: 'Hoàn thành bài tập React Hooks', deadline: '2026-02-20', priority: 'high', completed: false },
-        { id: '2', title: 'Nộp project cuối kỳ', deadline: '2026-03-01', priority: 'high', completed: false },
-        { id: '3', title: 'Review code bài tập 3', deadline: '2026-02-15', priority: 'medium', completed: true },
-        { id: '4', title: 'Đọc tài liệu TypeScript Generics', deadline: '2026-02-18', priority: 'low', completed: false },
+        {
+          id: '1',
+          title: 'Hoàn thành bài tập React Hooks',
+          deadline: '2026-02-20',
+          priority: 'high',
+          completed: false,
+        },
+        {
+          id: '2',
+          title: 'Nộp project cuối kỳ',
+          deadline: '2026-03-01',
+          priority: 'high',
+          completed: false,
+        },
+        {
+          id: '3',
+          title: 'Review code bài tập 3',
+          deadline: '2026-02-15',
+          priority: 'medium',
+          completed: true,
+        },
+        {
+          id: '4',
+          title: 'Đọc tài liệu TypeScript Generics',
+          deadline: '2026-02-18',
+          priority: 'low',
+          completed: false,
+        },
       ],
       isFavorite: true,
     });
@@ -831,10 +969,34 @@ export async function seedDatabase(dataSource: DataSource) {
       type: 'checklist',
       content: 'Checklist học tập tuần này',
       items: [
-        { id: '1', title: 'Xem video bài 5-8', deadline: '', priority: 'high', completed: true },
-        { id: '2', title: 'Làm quiz chương 3', deadline: '', priority: 'medium', completed: true },
-        { id: '3', title: 'Code along dự án thực tế', deadline: '', priority: 'high', completed: false },
-        { id: '4', title: 'Ôn lại kiến thức cũ', deadline: '', priority: 'low', completed: false },
+        {
+          id: '1',
+          title: 'Xem video bài 5-8',
+          deadline: '',
+          priority: 'high',
+          completed: true,
+        },
+        {
+          id: '2',
+          title: 'Làm quiz chương 3',
+          deadline: '',
+          priority: 'medium',
+          completed: true,
+        },
+        {
+          id: '3',
+          title: 'Code along dự án thực tế',
+          deadline: '',
+          priority: 'high',
+          completed: false,
+        },
+        {
+          id: '4',
+          title: 'Ôn lại kiến thức cũ',
+          deadline: '',
+          priority: 'low',
+          completed: false,
+        },
       ],
       isFavorite: false,
     });
@@ -846,10 +1008,26 @@ export async function seedDatabase(dataSource: DataSource) {
         type: 'plan',
         content: 'Kế hoạch học tập tháng 2',
         schedule: [
-          { date: '2026-02-12', time: '09:00', content: 'Học bài 10: Server Components' },
-          { date: '2026-02-14', time: '14:00', content: 'Thực hành API Routes' },
-          { date: '2026-02-16', time: '10:00', content: 'Ôn tập Middleware & Authentication' },
-          { date: '2026-02-18', time: '09:00', content: 'Làm project: Blog App' },
+          {
+            date: '2026-02-12',
+            time: '09:00',
+            content: 'Học bài 10: Server Components',
+          },
+          {
+            date: '2026-02-14',
+            time: '14:00',
+            content: 'Thực hành API Routes',
+          },
+          {
+            date: '2026-02-16',
+            time: '10:00',
+            content: 'Ôn tập Middleware & Authentication',
+          },
+          {
+            date: '2026-02-18',
+            time: '09:00',
+            content: 'Làm project: Blog App',
+          },
           { date: '2026-02-20', time: '14:00', content: 'Deploy lên Vercel' },
         ],
         isFavorite: true,
@@ -869,7 +1047,9 @@ export async function seedDatabase(dataSource: DataSource) {
 
   // Create Cart items
   console.log('🛒 Creating cart items...');
-  const availableCourses = courses.filter(c => !enrollments.find(e => e.courseId === c.id));
+  const availableCourses = courses.filter(
+    (c) => !enrollments.find((e) => e.courseId === c.id),
+  );
   if (availableCourses.length > 0) {
     for (let i = 0; i < Math.min(2, availableCourses.length); i++) {
       await cartRepo.save({
@@ -934,15 +1114,22 @@ export async function seedDatabase(dataSource: DataSource) {
   console.log('📢 Creating announcements...');
   for (let i = 0; i < 3; i++) {
     await announcementRepo.save({
-      title: i === 0 ? 'Chào mừng đến với khóa học!' : i === 1 ? 'Cập nhật nội dung mới' : 'Thông báo quan trọng',
-      content: i === 0 
-        ? 'Chào các bạn! Mình rất vui được đồng hành cùng các bạn trong khóa học này. Hãy tích cực tham gia thảo luận và làm bài tập nhé!'
-        : i === 1
-        ? 'Mình vừa cập nhật thêm 3 bài học mới về các chủ đề nâng cao. Các bạn check out nhé!'
-        : 'Deadline nộp bài tập cuối khóa là ngày 31/12. Các bạn hoàn thành đúng hạn để nhận certificate nhé!',
+      title:
+        i === 0
+          ? 'Chào mừng đến với khóa học!'
+          : i === 1
+            ? 'Cập nhật nội dung mới'
+            : 'Thông báo quan trọng',
+      content:
+        i === 0
+          ? 'Chào các bạn! Mình rất vui được đồng hành cùng các bạn trong khóa học này. Hãy tích cực tham gia thảo luận và làm bài tập nhé!'
+          : i === 1
+            ? 'Mình vừa cập nhật thêm 3 bài học mới về các chủ đề nâng cao. Các bạn check out nhé!'
+            : 'Deadline nộp bài tập cuối khóa là ngày 31/12. Các bạn hoàn thành đúng hạn để nhận certificate nhé!',
       courseId: courses[i % courses.length].id,
       authorId: teacher.id,
-      priority: i === 2 ? AnnouncementPriority.HIGH : AnnouncementPriority.MEDIUM,
+      priority:
+        i === 2 ? AnnouncementPriority.HIGH : AnnouncementPriority.MEDIUM,
       isPinned: i === 0,
       isPublished: true,
     });
@@ -953,11 +1140,16 @@ export async function seedDatabase(dataSource: DataSource) {
   const allLessons = await lessonRepo.find({ take: 10 });
   for (let i = 0; i < 5; i++) {
     const discussion = await discussionRepo.save({
-      title: i === 0 ? 'Làm sao để cài đặt môi trường?' : 
-             i === 1 ? 'Best practice khi làm dự án' :
-             i === 2 ? 'Lỗi khi chạy code bài 5' :
-             i === 3 ? 'Gợi ý tài liệu tham khảo thêm' :
-             'Câu hỏi về bài tập cuối khóa',
+      title:
+        i === 0
+          ? 'Làm sao để cài đặt môi trường?'
+          : i === 1
+            ? 'Best practice khi làm dự án'
+            : i === 2
+              ? 'Lỗi khi chạy code bài 5'
+              : i === 3
+                ? 'Gợi ý tài liệu tham khảo thêm'
+                : 'Câu hỏi về bài tập cuối khóa',
       content: 'Chi tiết câu hỏi ở đây...',
       courseId: courses[i % courses.length].id,
       lessonId: i > 1 && allLessons[i] ? allLessons[i].id : undefined,
@@ -970,7 +1162,8 @@ export async function seedDatabase(dataSource: DataSource) {
     if (i < 2) {
       await discussionRepo.save({
         title: '',
-        content: 'Mình có thể giúp bạn với vấn đề này. Bạn thử làm theo cách này xem...',
+        content:
+          'Mình có thể giúp bạn với vấn đề này. Bạn thử làm theo cách này xem...',
         courseId: courses[i % courses.length].id,
         authorId: teacher.id,
         parentId: discussion.id,
@@ -1004,10 +1197,22 @@ export async function seedDatabase(dataSource: DataSource) {
       assignmentId: assignments[i].id,
       studentId: student.id,
       content: 'Nội dung bài làm của học viên...',
-      attachments: i === 1 ? ['/uploads/submissions/file1.pdf', '/uploads/submissions/screenshot.png'] : undefined,
-      status: i === 0 ? SubmissionStatus.GRADED : i === 1 ? SubmissionStatus.SUBMITTED : SubmissionStatus.NOT_SUBMITTED,
+      attachments:
+        i === 1
+          ? [
+              '/uploads/submissions/file1.pdf',
+              '/uploads/submissions/screenshot.png',
+            ]
+          : undefined,
+      status:
+        i === 0
+          ? SubmissionStatus.GRADED
+          : i === 1
+            ? SubmissionStatus.SUBMITTED
+            : SubmissionStatus.NOT_SUBMITTED,
       score: i === 0 ? 85 : undefined,
-      feedback: i === 0 ? 'Bài làm tốt! Tuy nhiên cần cải thiện phần...' : undefined,
+      feedback:
+        i === 0 ? 'Bài làm tốt! Tuy nhiên cần cải thiện phần...' : undefined,
       gradedBy: i === 0 ? teacher.id : undefined,
       gradedAt: i === 0 ? new Date() : undefined,
       submittedAt: i < 2 ? new Date() : undefined,
@@ -1018,18 +1223,29 @@ export async function seedDatabase(dataSource: DataSource) {
   console.log('📚 Creating resources...');
   for (let i = 0; i < 6; i++) {
     await resourceRepo.save({
-      title: i === 0 ? 'Slide bài giảng' :
-             i === 1 ? 'Source code mẫu' :
-             i === 2 ? 'Tài liệu tham khảo' :
-             i === 3 ? 'Video hướng dẫn bổ sung' :
-             i === 4 ? 'Cheat sheet' :
-             'Link tài nguyên hữu ích',
+      title:
+        i === 0
+          ? 'Slide bài giảng'
+          : i === 1
+            ? 'Source code mẫu'
+            : i === 2
+              ? 'Tài liệu tham khảo'
+              : i === 3
+                ? 'Video hướng dẫn bổ sung'
+                : i === 4
+                  ? 'Cheat sheet'
+                  : 'Link tài nguyên hữu ích',
       description: 'Mô tả tài nguyên...',
-      type: i === 0 || i === 2 ? ResourceType.PDF :
-            i === 1 ? ResourceType.DOCUMENT :
-            i === 3 ? ResourceType.VIDEO :
-            i === 5 ? ResourceType.LINK :
-            ResourceType.OTHER,
+      type:
+        i === 0 || i === 2
+          ? ResourceType.PDF
+          : i === 1
+            ? ResourceType.DOCUMENT
+            : i === 3
+              ? ResourceType.VIDEO
+              : i === 5
+                ? ResourceType.LINK
+                : ResourceType.OTHER,
       url: i === 5 ? 'https://example.com/resource' : undefined,
       filePath: i !== 5 ? `/uploads/resources/file${i}.pdf` : undefined,
       fileSize: i !== 5 ? 1024000 : undefined,
@@ -1047,7 +1263,8 @@ export async function seedDatabase(dataSource: DataSource) {
       userId: student.id,
       type: NotificationType.SYSTEM_ANNOUNCEMENT,
       title: 'Khóa học mới được cập nhật',
-      message: 'Giảng viên đã thêm 3 bài học mới cho khóa học bạn đang theo dõi',
+      message:
+        'Giảng viên đã thêm 3 bài học mới cho khóa học bạn đang theo dõi',
       status: NotificationStatus.UNREAD,
     },
     {
@@ -1069,7 +1286,8 @@ export async function seedDatabase(dataSource: DataSource) {
       userId: student.id,
       type: NotificationType.COURSE_ENROLLED,
       title: 'Đăng ký khóa học thành công',
-      message: 'Bạn đã đăng ký thành công khóa học "Lập trình Web Full-stack với React & Node.js"',
+      message:
+        'Bạn đã đăng ký thành công khóa học "Lập trình Web Full-stack với React & Node.js"',
       link: '/my-courses',
       status: NotificationStatus.READ,
       readAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
@@ -1094,7 +1312,8 @@ export async function seedDatabase(dataSource: DataSource) {
       userId: teacher.id,
       type: NotificationType.COURSE_ENROLLED,
       title: 'Học viên mới đăng ký',
-      message: 'Có 3 học viên mới đăng ký khóa học "Next.js 14 - The Complete Guide"',
+      message:
+        'Có 3 học viên mới đăng ký khóa học "Next.js 14 - The Complete Guide"',
       link: '/teacher/students',
       status: NotificationStatus.UNREAD,
     },
@@ -1111,7 +1330,8 @@ export async function seedDatabase(dataSource: DataSource) {
       userId: admin.id,
       type: NotificationType.SYSTEM_ANNOUNCEMENT,
       title: 'Hệ thống hoạt động bình thường',
-      message: 'Tất cả dịch vụ đang hoạt động ổn định. Có 15 khóa học mới trong tháng',
+      message:
+        'Tất cả dịch vụ đang hoạt động ổn định. Có 15 khóa học mới trong tháng',
       status: NotificationStatus.UNREAD,
     },
     {
@@ -1127,11 +1347,12 @@ export async function seedDatabase(dataSource: DataSource) {
   // ========== CERTIFICATE TEMPLATES ==========
   console.log('🏅 Creating certificate templates...');
   const certTemplates: CertificateTemplate[] = [];
-  
+
   // Template 1 - Approved, cho khóa học React Fullstack
   const template1 = await certificateTemplateRepo.save({
     title: 'Chứng chỉ Lập trình Web Full-stack',
-    description: 'Chứng nhận hoàn thành khóa học Lập trình Web Full-stack với React & Node.js. Học viên đã nắm vững kiến thức frontend, backend và có khả năng xây dựng ứng dụng web hoàn chỉnh.',
+    description:
+      'Chứng nhận hoàn thành khóa học Lập trình Web Full-stack với React & Node.js. Học viên đã nắm vững kiến thức frontend, backend và có khả năng xây dựng ứng dụng web hoàn chỉnh.',
     courseId: courses[0].id,
     teacherId: teacher.id,
     validityPeriod: 'Vĩnh viễn',
@@ -1151,7 +1372,8 @@ export async function seedDatabase(dataSource: DataSource) {
   // Template 2 - Approved, cho khóa học Next.js
   const template2 = await certificateTemplateRepo.save({
     title: 'Chứng chỉ Next.js 14 Professional',
-    description: 'Chứng nhận năng lực phát triển ứng dụng web hiện đại với Next.js 14, bao gồm App Router, Server Components và Server Actions.',
+    description:
+      'Chứng nhận năng lực phát triển ứng dụng web hiện đại với Next.js 14, bao gồm App Router, Server Components và Server Actions.',
     courseId: courses[1].id,
     teacherId: teacher.id,
     validityPeriod: '2 năm',
@@ -1171,7 +1393,8 @@ export async function seedDatabase(dataSource: DataSource) {
   // Template 3 - Pending, cho khóa học Machine Learning
   const template3 = await certificateTemplateRepo.save({
     title: 'Chứng chỉ Machine Learning Expert',
-    description: 'Chứng nhận hoàn thành khóa học Machine Learning A-Z. Học viên có kiến thức sâu về các thuật toán ML và khả năng xây dựng mô hình AI thực tế.',
+    description:
+      'Chứng nhận hoàn thành khóa học Machine Learning A-Z. Học viên có kiến thức sâu về các thuật toán ML và khả năng xây dựng mô hình AI thực tế.',
     courseId: courses[3].id,
     teacherId: teacher.id,
     validityPeriod: '3 năm',
@@ -1190,7 +1413,8 @@ export async function seedDatabase(dataSource: DataSource) {
   // Template 4 - Draft, cho khóa học Deep Learning
   const template4 = await certificateTemplateRepo.save({
     title: 'Chứng chỉ Deep Learning Specialist',
-    description: 'Chứng nhận chuyên gia Deep Learning với kiến thức về CNN, RNN, Transformers và các mô hình neural network hiện đại.',
+    description:
+      'Chứng nhận chuyên gia Deep Learning với kiến thức về CNN, RNN, Transformers và các mô hình neural network hiện đại.',
     courseId: courses[4].id,
     teacherId: teacher.id,
     validityPeriod: '2 năm',
@@ -1208,7 +1432,8 @@ export async function seedDatabase(dataSource: DataSource) {
   // Template 5 - Rejected, cho khóa học TypeScript
   const template5 = await certificateTemplateRepo.save({
     title: 'Chứng chỉ TypeScript Developer',
-    description: 'Chứng nhận thành thạo TypeScript cho phát triển ứng dụng web.',
+    description:
+      'Chứng nhận thành thạo TypeScript cho phát triển ứng dụng web.',
     courseId: courses[2].id,
     teacherId: teacher.id,
     validityPeriod: 'Vĩnh viễn',
@@ -1219,7 +1444,8 @@ export async function seedDatabase(dataSource: DataSource) {
     templateStyle: 'modern',
     badgeStyle: 'shield',
     status: TemplateStatus.REJECTED,
-    rejectionReason: 'Chứng chỉ cần bổ sung thêm logo và chữ ký giảng viên. Vui lòng cập nhật và gửi lại.',
+    rejectionReason:
+      'Chứng chỉ cần bổ sung thêm logo và chữ ký giảng viên. Vui lòng cập nhật và gửi lại.',
     issuedCount: 0,
   });
   certTemplates.push(template5);
@@ -1227,7 +1453,8 @@ export async function seedDatabase(dataSource: DataSource) {
   // Template 6 - Approved, teacher2, Flutter
   const template6 = await certificateTemplateRepo.save({
     title: 'Chứng chỉ Flutter Mobile Developer',
-    description: 'Chứng nhận năng lực phát triển ứng dụng mobile đa nền tảng với Flutter & Dart.',
+    description:
+      'Chứng nhận năng lực phát triển ứng dụng mobile đa nền tảng với Flutter & Dart.',
     courseId: courses[7].id,
     teacherId: teacher.id,
     validityPeriod: '1 năm',
@@ -1247,7 +1474,8 @@ export async function seedDatabase(dataSource: DataSource) {
   // Template 7 - Pending, teacher2, Vue.js
   const template7 = await certificateTemplateRepo.save({
     title: 'Chứng chỉ Vue.js Frontend Developer',
-    description: 'Chứng nhận hoàn thành khóa học Vue.js 3 với Composition API, TypeScript và Pinia.',
+    description:
+      'Chứng nhận hoàn thành khóa học Vue.js 3 với Composition API, TypeScript và Pinia.',
     courseId: courses[12].id,
     teacherId: teacher2.id,
     validityPeriod: '2 năm',
@@ -1265,7 +1493,8 @@ export async function seedDatabase(dataSource: DataSource) {
   // Template 8 - Approved, teacher2, AWS
   const template8 = await certificateTemplateRepo.save({
     title: 'Chứng chỉ AWS Solutions Architect',
-    description: 'Chứng nhận kiến thức và kỹ năng thiết kế giải pháp trên nền tảng AWS Cloud.',
+    description:
+      'Chứng nhận kiến thức và kỹ năng thiết kế giải pháp trên nền tảng AWS Cloud.',
     courseId: courses[13].id,
     teacherId: teacher2.id,
     validityPeriod: '3 năm',
@@ -1289,7 +1518,8 @@ export async function seedDatabase(dataSource: DataSource) {
   // Exam 1 - Approved, React Fullstack
   const exam1 = await examRepo.save({
     title: 'Bài thi cuối khóa: Full-stack React & Node.js',
-    description: 'Bài thi tổng hợp kiến thức Full-stack development với React và Node.js. Bao gồm câu hỏi về frontend, backend, database và deployment.',
+    description:
+      'Bài thi tổng hợp kiến thức Full-stack development với React và Node.js. Bao gồm câu hỏi về frontend, backend, database và deployment.',
     type: ExamType.OFFICIAL,
     status: ExamStatus.APPROVED,
     courseId: courses[0].id,
@@ -1301,16 +1531,93 @@ export async function seedDatabase(dataSource: DataSource) {
     showCorrectAnswers: true,
     certificateTemplateId: template1.id,
     questions: [
-      { id: 'q1', type: 'multiple_choice', text: 'React Hook nào được sử dụng để quản lý side effects?', options: ['useState', 'useEffect', 'useContext', 'useReducer'], correctAnswer: 'useEffect', points: 10 },
-      { id: 'q2', type: 'multiple_choice', text: 'Middleware nào phổ biến nhất trong Express.js?', options: ['cors', 'helmet', 'morgan', 'Tất cả đều đúng'], correctAnswer: 'Tất cả đều đúng', points: 10 },
-      { id: 'q3', type: 'true_false', text: 'MongoDB là cơ sở dữ liệu quan hệ (SQL).', correctAnswer: 'false', points: 5 },
-      { id: 'q4', type: 'multiple_choice', text: 'Phương thức HTTP nào dùng để cập nhật dữ liệu?', options: ['GET', 'POST', 'PUT', 'DELETE'], correctAnswer: 'PUT', points: 10 },
-      { id: 'q5', type: 'multiple_choice', text: 'JSX là gì?', options: ['Một framework mới', 'JavaScript Extension', 'JavaScript XML', 'Java Syntax Extension'], correctAnswer: 'JavaScript XML', points: 10 },
-      { id: 'q6', type: 'true_false', text: 'useEffect chạy sau khi component render.', correctAnswer: 'true', points: 5 },
-      { id: 'q7', type: 'multiple_choice', text: 'Redux Toolkit giúp gì?', options: ['Tối ưu UI', 'Quản lý state đơn giản hơn', 'Routing', 'Testing'], correctAnswer: 'Quản lý state đơn giản hơn', points: 10 },
-      { id: 'q8', type: 'fill_in', text: 'Lệnh tạo project React mới là: npx create-react-___', correctAnswer: 'app', points: 10 },
-      { id: 'q9', type: 'multiple_choice', text: 'Status code 404 có nghĩa là gì?', options: ['Server Error', 'Not Found', 'Unauthorized', 'Bad Request'], correctAnswer: 'Not Found', points: 10 },
-      { id: 'q10', type: 'multiple_choice', text: 'Cơ chế nào giúp React tối ưu render?', options: ['Virtual DOM', 'Real DOM', 'Shadow DOM', 'Document Object'], correctAnswer: 'Virtual DOM', points: 10 },
+      {
+        id: 'q1',
+        type: 'multiple_choice',
+        text: 'React Hook nào được sử dụng để quản lý side effects?',
+        options: ['useState', 'useEffect', 'useContext', 'useReducer'],
+        correctAnswer: 'useEffect',
+        points: 10,
+      },
+      {
+        id: 'q2',
+        type: 'multiple_choice',
+        text: 'Middleware nào phổ biến nhất trong Express.js?',
+        options: ['cors', 'helmet', 'morgan', 'Tất cả đều đúng'],
+        correctAnswer: 'Tất cả đều đúng',
+        points: 10,
+      },
+      {
+        id: 'q3',
+        type: 'true_false',
+        text: 'MongoDB là cơ sở dữ liệu quan hệ (SQL).',
+        correctAnswer: 'false',
+        points: 5,
+      },
+      {
+        id: 'q4',
+        type: 'multiple_choice',
+        text: 'Phương thức HTTP nào dùng để cập nhật dữ liệu?',
+        options: ['GET', 'POST', 'PUT', 'DELETE'],
+        correctAnswer: 'PUT',
+        points: 10,
+      },
+      {
+        id: 'q5',
+        type: 'multiple_choice',
+        text: 'JSX là gì?',
+        options: [
+          'Một framework mới',
+          'JavaScript Extension',
+          'JavaScript XML',
+          'Java Syntax Extension',
+        ],
+        correctAnswer: 'JavaScript XML',
+        points: 10,
+      },
+      {
+        id: 'q6',
+        type: 'true_false',
+        text: 'useEffect chạy sau khi component render.',
+        correctAnswer: 'true',
+        points: 5,
+      },
+      {
+        id: 'q7',
+        type: 'multiple_choice',
+        text: 'Redux Toolkit giúp gì?',
+        options: [
+          'Tối ưu UI',
+          'Quản lý state đơn giản hơn',
+          'Routing',
+          'Testing',
+        ],
+        correctAnswer: 'Quản lý state đơn giản hơn',
+        points: 10,
+      },
+      {
+        id: 'q8',
+        type: 'fill_in',
+        text: 'Lệnh tạo project React mới là: npx create-react-___',
+        correctAnswer: 'app',
+        points: 10,
+      },
+      {
+        id: 'q9',
+        type: 'multiple_choice',
+        text: 'Status code 404 có nghĩa là gì?',
+        options: ['Server Error', 'Not Found', 'Unauthorized', 'Bad Request'],
+        correctAnswer: 'Not Found',
+        points: 10,
+      },
+      {
+        id: 'q10',
+        type: 'multiple_choice',
+        text: 'Cơ chế nào giúp React tối ưu render?',
+        options: ['Virtual DOM', 'Real DOM', 'Shadow DOM', 'Document Object'],
+        correctAnswer: 'Virtual DOM',
+        points: 10,
+      },
     ],
   } as any);
   exams.push(exam1);
@@ -1318,7 +1625,8 @@ export async function seedDatabase(dataSource: DataSource) {
   // Exam 2 - Approved, Next.js
   const exam2 = await examRepo.save({
     title: 'Bài thi Next.js 14 Professional',
-    description: 'Kiểm tra kiến thức về Next.js 14 bao gồm App Router, Server Components, Data Fetching và Deployment.',
+    description:
+      'Kiểm tra kiến thức về Next.js 14 bao gồm App Router, Server Components, Data Fetching và Deployment.',
     type: ExamType.OFFICIAL,
     status: ExamStatus.APPROVED,
     courseId: courses[1].id,
@@ -1330,14 +1638,77 @@ export async function seedDatabase(dataSource: DataSource) {
     showCorrectAnswers: false,
     certificateTemplateId: template2.id,
     questions: [
-      { id: 'q1', type: 'multiple_choice', text: 'Next.js 14 sử dụng router nào mặc định?', options: ['Pages Router', 'App Router', 'React Router', 'Custom Router'], correctAnswer: 'App Router', points: 10 },
-      { id: 'q2', type: 'true_false', text: 'Server Components không thể sử dụng useState.', correctAnswer: 'true', points: 5 },
-      { id: 'q3', type: 'multiple_choice', text: 'File nào dùng để định nghĩa layout trong App Router?', options: ['_app.tsx', 'layout.tsx', 'template.tsx', '_document.tsx'], correctAnswer: 'layout.tsx', points: 10 },
-      { id: 'q4', type: 'multiple_choice', text: 'Directive "use client" dùng để làm gì?', options: ['Tối ưu SEO', 'Đánh dấu Client Component', 'Bật cache', 'Gọi API'], correctAnswer: 'Đánh dấu Client Component', points: 10 },
-      { id: 'q5', type: 'fill_in', text: 'Hàm để fetch data ở server side trong App Router là ___', correctAnswer: 'fetch', points: 10 },
-      { id: 'q6', type: 'multiple_choice', text: 'Streaming trong Next.js sử dụng component nào?', options: ['Suspense', 'ErrorBoundary', 'Portal', 'Fragment'], correctAnswer: 'Suspense', points: 10 },
-      { id: 'q7', type: 'true_false', text: 'Next.js hỗ trợ static site generation (SSG).', correctAnswer: 'true', points: 5 },
-      { id: 'q8', type: 'multiple_choice', text: 'Middleware trong Next.js chạy ở đâu?', options: ['Client', 'Edge Runtime', 'Node.js Runtime', 'Browser'], correctAnswer: 'Edge Runtime', points: 10 },
+      {
+        id: 'q1',
+        type: 'multiple_choice',
+        text: 'Next.js 14 sử dụng router nào mặc định?',
+        options: [
+          'Pages Router',
+          'App Router',
+          'React Router',
+          'Custom Router',
+        ],
+        correctAnswer: 'App Router',
+        points: 10,
+      },
+      {
+        id: 'q2',
+        type: 'true_false',
+        text: 'Server Components không thể sử dụng useState.',
+        correctAnswer: 'true',
+        points: 5,
+      },
+      {
+        id: 'q3',
+        type: 'multiple_choice',
+        text: 'File nào dùng để định nghĩa layout trong App Router?',
+        options: ['_app.tsx', 'layout.tsx', 'template.tsx', '_document.tsx'],
+        correctAnswer: 'layout.tsx',
+        points: 10,
+      },
+      {
+        id: 'q4',
+        type: 'multiple_choice',
+        text: 'Directive "use client" dùng để làm gì?',
+        options: [
+          'Tối ưu SEO',
+          'Đánh dấu Client Component',
+          'Bật cache',
+          'Gọi API',
+        ],
+        correctAnswer: 'Đánh dấu Client Component',
+        points: 10,
+      },
+      {
+        id: 'q5',
+        type: 'fill_in',
+        text: 'Hàm để fetch data ở server side trong App Router là ___',
+        correctAnswer: 'fetch',
+        points: 10,
+      },
+      {
+        id: 'q6',
+        type: 'multiple_choice',
+        text: 'Streaming trong Next.js sử dụng component nào?',
+        options: ['Suspense', 'ErrorBoundary', 'Portal', 'Fragment'],
+        correctAnswer: 'Suspense',
+        points: 10,
+      },
+      {
+        id: 'q7',
+        type: 'true_false',
+        text: 'Next.js hỗ trợ static site generation (SSG).',
+        correctAnswer: 'true',
+        points: 5,
+      },
+      {
+        id: 'q8',
+        type: 'multiple_choice',
+        text: 'Middleware trong Next.js chạy ở đâu?',
+        options: ['Client', 'Edge Runtime', 'Node.js Runtime', 'Browser'],
+        correctAnswer: 'Edge Runtime',
+        points: 10,
+      },
     ],
   } as any);
   exams.push(exam2);
@@ -1345,7 +1716,8 @@ export async function seedDatabase(dataSource: DataSource) {
   // Exam 3 - Pending, Machine Learning
   const exam3 = await examRepo.save({
     title: 'Bài thi Machine Learning A-Z',
-    description: 'Bài thi tổng hợp về Machine Learning bao gồm các thuật toán cơ bản, feature engineering và model evaluation.',
+    description:
+      'Bài thi tổng hợp về Machine Learning bao gồm các thuật toán cơ bản, feature engineering và model evaluation.',
     type: ExamType.OFFICIAL,
     status: ExamStatus.PENDING,
     courseId: courses[3].id,
@@ -1356,11 +1728,54 @@ export async function seedDatabase(dataSource: DataSource) {
     shuffleQuestions: true,
     showCorrectAnswers: true,
     questions: [
-      { id: 'q1', type: 'multiple_choice', text: 'Supervised Learning là gì?', options: ['Học không giám sát', 'Học có giám sát', 'Học tăng cường', 'Học bán giám sát'], correctAnswer: 'Học có giám sát', points: 10 },
-      { id: 'q2', type: 'true_false', text: 'Decision Tree có thể dùng cho cả classification và regression.', correctAnswer: 'true', points: 5 },
-      { id: 'q3', type: 'multiple_choice', text: 'Overfitting xảy ra khi nào?', options: ['Model quá đơn giản', 'Model quá phức tạp', 'Data quá nhiều', 'Không đủ features'], correctAnswer: 'Model quá phức tạp', points: 10 },
-      { id: 'q4', type: 'multiple_choice', text: 'Thuật toán nào dùng cho clustering?', options: ['Linear Regression', 'K-Means', 'Logistic Regression', 'SVM'], correctAnswer: 'K-Means', points: 10 },
-      { id: 'q5', type: 'fill_in', text: 'Thư viện ML phổ biến nhất của Python là scikit-___', correctAnswer: 'learn', points: 10 },
+      {
+        id: 'q1',
+        type: 'multiple_choice',
+        text: 'Supervised Learning là gì?',
+        options: [
+          'Học không giám sát',
+          'Học có giám sát',
+          'Học tăng cường',
+          'Học bán giám sát',
+        ],
+        correctAnswer: 'Học có giám sát',
+        points: 10,
+      },
+      {
+        id: 'q2',
+        type: 'true_false',
+        text: 'Decision Tree có thể dùng cho cả classification và regression.',
+        correctAnswer: 'true',
+        points: 5,
+      },
+      {
+        id: 'q3',
+        type: 'multiple_choice',
+        text: 'Overfitting xảy ra khi nào?',
+        options: [
+          'Model quá đơn giản',
+          'Model quá phức tạp',
+          'Data quá nhiều',
+          'Không đủ features',
+        ],
+        correctAnswer: 'Model quá phức tạp',
+        points: 10,
+      },
+      {
+        id: 'q4',
+        type: 'multiple_choice',
+        text: 'Thuật toán nào dùng cho clustering?',
+        options: ['Linear Regression', 'K-Means', 'Logistic Regression', 'SVM'],
+        correctAnswer: 'K-Means',
+        points: 10,
+      },
+      {
+        id: 'q5',
+        type: 'fill_in',
+        text: 'Thư viện ML phổ biến nhất của Python là scikit-___',
+        correctAnswer: 'learn',
+        points: 10,
+      },
     ],
   } as any);
   exams.push(exam3);
@@ -1368,7 +1783,8 @@ export async function seedDatabase(dataSource: DataSource) {
   // Exam 4 - Practice, TypeScript
   const exam4 = await examRepo.save({
     title: 'Bài thi thực hành TypeScript',
-    description: 'Bài thi thực hành kiểm tra kiến thức TypeScript type system, generics và best practices.',
+    description:
+      'Bài thi thực hành kiểm tra kiến thức TypeScript type system, generics và best practices.',
     type: ExamType.PRACTICE,
     status: ExamStatus.APPROVED,
     courseId: courses[2].id,
@@ -1379,10 +1795,41 @@ export async function seedDatabase(dataSource: DataSource) {
     shuffleQuestions: false,
     showCorrectAnswers: true,
     questions: [
-      { id: 'q1', type: 'multiple_choice', text: 'Kiểu "any" trong TypeScript có nghĩa gì?', options: ['Không có kiểu', 'Chấp nhận mọi kiểu', 'Kiểu số', 'Kiểu chuỗi'], correctAnswer: 'Chấp nhận mọi kiểu', points: 10 },
-      { id: 'q2', type: 'true_false', text: 'Interface có thể extend nhiều interface khác.', correctAnswer: 'true', points: 5 },
-      { id: 'q3', type: 'multiple_choice', text: 'Generic type dùng ký hiệu gì phổ biến nhất?', options: ['<T>', '<G>', '<A>', '<X>'], correctAnswer: '<T>', points: 10 },
-      { id: 'q4', type: 'fill_in', text: 'Từ khóa để khai báo enum trong TypeScript là ___', correctAnswer: 'enum', points: 10 },
+      {
+        id: 'q1',
+        type: 'multiple_choice',
+        text: 'Kiểu "any" trong TypeScript có nghĩa gì?',
+        options: [
+          'Không có kiểu',
+          'Chấp nhận mọi kiểu',
+          'Kiểu số',
+          'Kiểu chuỗi',
+        ],
+        correctAnswer: 'Chấp nhận mọi kiểu',
+        points: 10,
+      },
+      {
+        id: 'q2',
+        type: 'true_false',
+        text: 'Interface có thể extend nhiều interface khác.',
+        correctAnswer: 'true',
+        points: 5,
+      },
+      {
+        id: 'q3',
+        type: 'multiple_choice',
+        text: 'Generic type dùng ký hiệu gì phổ biến nhất?',
+        options: ['<T>', '<G>', '<A>', '<X>'],
+        correctAnswer: '<T>',
+        points: 10,
+      },
+      {
+        id: 'q4',
+        type: 'fill_in',
+        text: 'Từ khóa để khai báo enum trong TypeScript là ___',
+        correctAnswer: 'enum',
+        points: 10,
+      },
     ],
   } as any);
   exams.push(exam4);
@@ -1401,9 +1848,33 @@ export async function seedDatabase(dataSource: DataSource) {
     shuffleQuestions: true,
     showCorrectAnswers: true,
     questions: [
-      { id: 'q1', type: 'multiple_choice', text: 'Docker container khác gì với Virtual Machine?', options: ['Không khác', 'Nhẹ hơn, dùng chung kernel', 'Nặng hơn', 'Chạy chậm hơn'], correctAnswer: 'Nhẹ hơn, dùng chung kernel', points: 10 },
-      { id: 'q2', type: 'fill_in', text: 'File cấu hình Docker được gọi là ___file', correctAnswer: 'Docker', points: 10 },
-      { id: 'q3', type: 'true_false', text: 'Kubernetes có thể tự động scale pods.', correctAnswer: 'true', points: 5 },
+      {
+        id: 'q1',
+        type: 'multiple_choice',
+        text: 'Docker container khác gì với Virtual Machine?',
+        options: [
+          'Không khác',
+          'Nhẹ hơn, dùng chung kernel',
+          'Nặng hơn',
+          'Chạy chậm hơn',
+        ],
+        correctAnswer: 'Nhẹ hơn, dùng chung kernel',
+        points: 10,
+      },
+      {
+        id: 'q2',
+        type: 'fill_in',
+        text: 'File cấu hình Docker được gọi là ___file',
+        correctAnswer: 'Docker',
+        points: 10,
+      },
+      {
+        id: 'q3',
+        type: 'true_false',
+        text: 'Kubernetes có thể tự động scale pods.',
+        correctAnswer: 'true',
+        points: 5,
+      },
     ],
   } as any);
   exams.push(exam5);
@@ -1411,7 +1882,8 @@ export async function seedDatabase(dataSource: DataSource) {
   // Exam 6 - Approved, teacher2, AWS
   const exam6 = await examRepo.save({
     title: 'Bài thi AWS Solutions Architect',
-    description: 'Bài thi mô phỏng chứng chỉ AWS Solutions Architect - Associate.',
+    description:
+      'Bài thi mô phỏng chứng chỉ AWS Solutions Architect - Associate.',
     type: ExamType.OFFICIAL,
     status: ExamStatus.APPROVED,
     courseId: courses[13].id,
@@ -1423,33 +1895,101 @@ export async function seedDatabase(dataSource: DataSource) {
     showCorrectAnswers: false,
     certificateTemplateId: template8.id,
     questions: [
-      { id: 'q1', type: 'multiple_choice', text: 'S3 là viết tắt của gì?', options: ['Simple Storage Service', 'Secure Storage System', 'Standard Storage Solution', 'Scalable Storage Service'], correctAnswer: 'Simple Storage Service', points: 10 },
-      { id: 'q2', type: 'multiple_choice', text: 'EC2 instance type nào tối ưu cho compute-intensive?', options: ['T3', 'M5', 'C5', 'R5'], correctAnswer: 'C5', points: 10 },
-      { id: 'q3', type: 'true_false', text: 'Lambda function có thể chạy tối đa 15 phút.', correctAnswer: 'true', points: 5 },
-      { id: 'q4', type: 'multiple_choice', text: 'Dịch vụ nào dùng cho database quan hệ trên AWS?', options: ['DynamoDB', 'RDS', 'ElastiCache', 'Redshift'], correctAnswer: 'RDS', points: 10 },
-      { id: 'q5', type: 'fill_in', text: 'Dịch vụ DNS của AWS là Route ___', correctAnswer: '53', points: 10 },
+      {
+        id: 'q1',
+        type: 'multiple_choice',
+        text: 'S3 là viết tắt của gì?',
+        options: [
+          'Simple Storage Service',
+          'Secure Storage System',
+          'Standard Storage Solution',
+          'Scalable Storage Service',
+        ],
+        correctAnswer: 'Simple Storage Service',
+        points: 10,
+      },
+      {
+        id: 'q2',
+        type: 'multiple_choice',
+        text: 'EC2 instance type nào tối ưu cho compute-intensive?',
+        options: ['T3', 'M5', 'C5', 'R5'],
+        correctAnswer: 'C5',
+        points: 10,
+      },
+      {
+        id: 'q3',
+        type: 'true_false',
+        text: 'Lambda function có thể chạy tối đa 15 phút.',
+        correctAnswer: 'true',
+        points: 5,
+      },
+      {
+        id: 'q4',
+        type: 'multiple_choice',
+        text: 'Dịch vụ nào dùng cho database quan hệ trên AWS?',
+        options: ['DynamoDB', 'RDS', 'ElastiCache', 'Redshift'],
+        correctAnswer: 'RDS',
+        points: 10,
+      },
+      {
+        id: 'q5',
+        type: 'fill_in',
+        text: 'Dịch vụ DNS của AWS là Route ___',
+        correctAnswer: '53',
+        points: 10,
+      },
     ],
   } as any);
   exams.push(exam6);
 
   // ========== EXAM ATTEMPTS ==========
   console.log('📊 Creating exam attempts...');
-  
+
   // Student 1 đã thi exam1 (React Fullstack) - passed
   await examAttemptRepo.save({
     examId: exam1.id,
     studentId: student.id,
     answers: [
-      { questionId: 'q1', answer: 'useEffect', isCorrect: true, earnedPoints: 10 },
-      { questionId: 'q2', answer: 'Tất cả đều đúng', isCorrect: true, earnedPoints: 10 },
+      {
+        questionId: 'q1',
+        answer: 'useEffect',
+        isCorrect: true,
+        earnedPoints: 10,
+      },
+      {
+        questionId: 'q2',
+        answer: 'Tất cả đều đúng',
+        isCorrect: true,
+        earnedPoints: 10,
+      },
       { questionId: 'q3', answer: 'false', isCorrect: true, earnedPoints: 5 },
       { questionId: 'q4', answer: 'PUT', isCorrect: true, earnedPoints: 10 },
-      { questionId: 'q5', answer: 'JavaScript XML', isCorrect: true, earnedPoints: 10 },
+      {
+        questionId: 'q5',
+        answer: 'JavaScript XML',
+        isCorrect: true,
+        earnedPoints: 10,
+      },
       { questionId: 'q6', answer: 'true', isCorrect: true, earnedPoints: 5 },
-      { questionId: 'q7', answer: 'Quản lý state đơn giản hơn', isCorrect: true, earnedPoints: 10 },
+      {
+        questionId: 'q7',
+        answer: 'Quản lý state đơn giản hơn',
+        isCorrect: true,
+        earnedPoints: 10,
+      },
       { questionId: 'q8', answer: 'app', isCorrect: true, earnedPoints: 10 },
-      { questionId: 'q9', answer: 'Not Found', isCorrect: true, earnedPoints: 10 },
-      { questionId: 'q10', answer: 'Real DOM', isCorrect: false, earnedPoints: 0 },
+      {
+        questionId: 'q9',
+        answer: 'Not Found',
+        isCorrect: true,
+        earnedPoints: 10,
+      },
+      {
+        questionId: 'q10',
+        answer: 'Real DOM',
+        isCorrect: false,
+        earnedPoints: 0,
+      },
     ],
     score: 90,
     earnedPoints: 80,
@@ -1458,7 +1998,9 @@ export async function seedDatabase(dataSource: DataSource) {
     passed: true,
     certificateIssued: true,
     startedAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
-    completedAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000 + 65 * 60 * 1000),
+    completedAt: new Date(
+      Date.now() - 14 * 24 * 60 * 60 * 1000 + 65 * 60 * 1000,
+    ),
     timeSpent: 3900,
   } as any);
 
@@ -1467,14 +2009,39 @@ export async function seedDatabase(dataSource: DataSource) {
     examId: exam2.id,
     studentId: student.id,
     answers: [
-      { questionId: 'q1', answer: 'App Router', isCorrect: true, earnedPoints: 10 },
+      {
+        questionId: 'q1',
+        answer: 'App Router',
+        isCorrect: true,
+        earnedPoints: 10,
+      },
       { questionId: 'q2', answer: 'true', isCorrect: true, earnedPoints: 5 },
-      { questionId: 'q3', answer: 'layout.tsx', isCorrect: true, earnedPoints: 10 },
-      { questionId: 'q4', answer: 'Đánh dấu Client Component', isCorrect: true, earnedPoints: 10 },
+      {
+        questionId: 'q3',
+        answer: 'layout.tsx',
+        isCorrect: true,
+        earnedPoints: 10,
+      },
+      {
+        questionId: 'q4',
+        answer: 'Đánh dấu Client Component',
+        isCorrect: true,
+        earnedPoints: 10,
+      },
       { questionId: 'q5', answer: 'fetch', isCorrect: true, earnedPoints: 10 },
-      { questionId: 'q6', answer: 'ErrorBoundary', isCorrect: false, earnedPoints: 0 },
+      {
+        questionId: 'q6',
+        answer: 'ErrorBoundary',
+        isCorrect: false,
+        earnedPoints: 0,
+      },
       { questionId: 'q7', answer: 'true', isCorrect: true, earnedPoints: 5 },
-      { questionId: 'q8', answer: 'Edge Runtime', isCorrect: true, earnedPoints: 10 },
+      {
+        questionId: 'q8',
+        answer: 'Edge Runtime',
+        isCorrect: true,
+        earnedPoints: 10,
+      },
     ],
     score: 85.7,
     earnedPoints: 60,
@@ -1482,7 +2049,9 @@ export async function seedDatabase(dataSource: DataSource) {
     status: ExamAttemptStatus.COMPLETED,
     passed: true,
     startedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
-    completedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000 + 45 * 60 * 1000),
+    completedAt: new Date(
+      Date.now() - 10 * 24 * 60 * 60 * 1000 + 45 * 60 * 1000,
+    ),
     timeSpent: 2700,
   } as any);
 
@@ -1491,7 +2060,12 @@ export async function seedDatabase(dataSource: DataSource) {
     examId: exam4.id,
     studentId: student.id,
     answers: [
-      { questionId: 'q1', answer: 'Chấp nhận mọi kiểu', isCorrect: true, earnedPoints: 10 },
+      {
+        questionId: 'q1',
+        answer: 'Chấp nhận mọi kiểu',
+        isCorrect: true,
+        earnedPoints: 10,
+      },
     ],
     score: 0,
     earnedPoints: 10,
@@ -1507,16 +2081,41 @@ export async function seedDatabase(dataSource: DataSource) {
     examId: exam1.id,
     studentId: student2.id,
     answers: [
-      { questionId: 'q1', answer: 'useEffect', isCorrect: true, earnedPoints: 10 },
+      {
+        questionId: 'q1',
+        answer: 'useEffect',
+        isCorrect: true,
+        earnedPoints: 10,
+      },
       { questionId: 'q2', answer: 'cors', isCorrect: false, earnedPoints: 0 },
       { questionId: 'q3', answer: 'false', isCorrect: true, earnedPoints: 5 },
       { questionId: 'q4', answer: 'PUT', isCorrect: true, earnedPoints: 10 },
-      { questionId: 'q5', answer: 'JavaScript XML', isCorrect: true, earnedPoints: 10 },
+      {
+        questionId: 'q5',
+        answer: 'JavaScript XML',
+        isCorrect: true,
+        earnedPoints: 10,
+      },
       { questionId: 'q6', answer: 'true', isCorrect: true, earnedPoints: 5 },
-      { questionId: 'q7', answer: 'Quản lý state đơn giản hơn', isCorrect: true, earnedPoints: 10 },
+      {
+        questionId: 'q7',
+        answer: 'Quản lý state đơn giản hơn',
+        isCorrect: true,
+        earnedPoints: 10,
+      },
       { questionId: 'q8', answer: 'app', isCorrect: true, earnedPoints: 10 },
-      { questionId: 'q9', answer: 'Bad Request', isCorrect: false, earnedPoints: 0 },
-      { questionId: 'q10', answer: 'Virtual DOM', isCorrect: true, earnedPoints: 10 },
+      {
+        questionId: 'q9',
+        answer: 'Bad Request',
+        isCorrect: false,
+        earnedPoints: 0,
+      },
+      {
+        questionId: 'q10',
+        answer: 'Virtual DOM',
+        isCorrect: true,
+        earnedPoints: 10,
+      },
     ],
     score: 77.8,
     earnedPoints: 70,
@@ -1524,7 +2123,9 @@ export async function seedDatabase(dataSource: DataSource) {
     status: ExamAttemptStatus.COMPLETED,
     passed: true,
     startedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-    completedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000 + 80 * 60 * 1000),
+    completedAt: new Date(
+      Date.now() - 7 * 24 * 60 * 60 * 1000 + 80 * 60 * 1000,
+    ),
     timeSpent: 4800,
   } as any);
 
@@ -1533,7 +2134,12 @@ export async function seedDatabase(dataSource: DataSource) {
     examId: exam6.id,
     studentId: student3.id,
     answers: [
-      { questionId: 'q1', answer: 'Simple Storage Service', isCorrect: true, earnedPoints: 10 },
+      {
+        questionId: 'q1',
+        answer: 'Simple Storage Service',
+        isCorrect: true,
+        earnedPoints: 10,
+      },
       { questionId: 'q2', answer: 'T3', isCorrect: false, earnedPoints: 0 },
     ],
     score: 22.2,
@@ -1542,7 +2148,9 @@ export async function seedDatabase(dataSource: DataSource) {
     status: ExamAttemptStatus.TIMED_OUT,
     passed: false,
     startedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-    completedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000 + 130 * 60 * 1000),
+    completedAt: new Date(
+      Date.now() - 5 * 24 * 60 * 60 * 1000 + 130 * 60 * 1000,
+    ),
     timeSpent: 7800,
   } as any);
 
@@ -1550,10 +2158,11 @@ export async function seedDatabase(dataSource: DataSource) {
   console.log('🧩 Creating quizzes...');
   const quizzes: Quiz[] = [];
 
-  // Quiz cho khóa React Fullstack  
+  // Quiz cho khóa React Fullstack
   const quiz1 = await quizRepo.save({
     title: 'Quiz: React Hooks cơ bản',
-    description: 'Kiểm tra kiến thức về React Hooks: useState, useEffect, useContext',
+    description:
+      'Kiểm tra kiến thức về React Hooks: useState, useEffect, useContext',
     courseId: courses[0].id,
     timeLimit: 15,
     passingScore: 70,
@@ -1561,9 +2170,34 @@ export async function seedDatabase(dataSource: DataSource) {
     showCorrectAnswers: true,
     shuffleQuestions: false,
     questions: [
-      { id: 'q1', type: 'multiple_choice', text: 'useState trả về gì?', options: ['Một giá trị', 'Một mảng [value, setter]', 'Một object', 'Một function'], correctAnswer: 'Một mảng [value, setter]', points: 10 },
-      { id: 'q2', type: 'true_false', text: 'useEffect chạy trước khi component mount.', correctAnswer: 'false', points: 5 },
-      { id: 'q3', type: 'multiple_choice', text: 'Hook nào dùng để chia sẻ state giữa components?', options: ['useState', 'useEffect', 'useContext', 'useMemo'], correctAnswer: 'useContext', points: 10 },
+      {
+        id: 'q1',
+        type: 'multiple_choice',
+        text: 'useState trả về gì?',
+        options: [
+          'Một giá trị',
+          'Một mảng [value, setter]',
+          'Một object',
+          'Một function',
+        ],
+        correctAnswer: 'Một mảng [value, setter]',
+        points: 10,
+      },
+      {
+        id: 'q2',
+        type: 'true_false',
+        text: 'useEffect chạy trước khi component mount.',
+        correctAnswer: 'false',
+        points: 5,
+      },
+      {
+        id: 'q3',
+        type: 'multiple_choice',
+        text: 'Hook nào dùng để chia sẻ state giữa components?',
+        options: ['useState', 'useEffect', 'useContext', 'useMemo'],
+        correctAnswer: 'useContext',
+        points: 10,
+      },
     ],
   } as any);
   quizzes.push(quiz1);
@@ -1578,9 +2212,28 @@ export async function seedDatabase(dataSource: DataSource) {
     showCorrectAnswers: true,
     shuffleQuestions: true,
     questions: [
-      { id: 'q1', type: 'multiple_choice', text: 'Node.js dùng engine nào?', options: ['V8', 'SpiderMonkey', 'Chakra', 'JavaScriptCore'], correctAnswer: 'V8', points: 10 },
-      { id: 'q2', type: 'true_false', text: 'Express.js là một micro-framework.', correctAnswer: 'true', points: 5 },
-      { id: 'q3', type: 'fill_in', text: 'Lệnh cài Express: npm install ___', correctAnswer: 'express', points: 10 },
+      {
+        id: 'q1',
+        type: 'multiple_choice',
+        text: 'Node.js dùng engine nào?',
+        options: ['V8', 'SpiderMonkey', 'Chakra', 'JavaScriptCore'],
+        correctAnswer: 'V8',
+        points: 10,
+      },
+      {
+        id: 'q2',
+        type: 'true_false',
+        text: 'Express.js là một micro-framework.',
+        correctAnswer: 'true',
+        points: 5,
+      },
+      {
+        id: 'q3',
+        type: 'fill_in',
+        text: 'Lệnh cài Express: npm install ___',
+        correctAnswer: 'express',
+        points: 10,
+      },
     ],
   } as any);
   quizzes.push(quiz2);
@@ -1595,8 +2248,21 @@ export async function seedDatabase(dataSource: DataSource) {
     showCorrectAnswers: true,
     shuffleQuestions: false,
     questions: [
-      { id: 'q1', type: 'multiple_choice', text: 'File nào là entry point của một route?', options: ['index.tsx', 'page.tsx', 'route.tsx', 'main.tsx'], correctAnswer: 'page.tsx', points: 10 },
-      { id: 'q2', type: 'true_false', text: 'loading.tsx tự động tạo Suspense boundary.', correctAnswer: 'true', points: 5 },
+      {
+        id: 'q1',
+        type: 'multiple_choice',
+        text: 'File nào là entry point của một route?',
+        options: ['index.tsx', 'page.tsx', 'route.tsx', 'main.tsx'],
+        correctAnswer: 'page.tsx',
+        points: 10,
+      },
+      {
+        id: 'q2',
+        type: 'true_false',
+        text: 'loading.tsx tự động tạo Suspense boundary.',
+        correctAnswer: 'true',
+        points: 5,
+      },
     ],
   } as any);
   quizzes.push(quiz3);
@@ -1617,7 +2283,9 @@ export async function seedDatabase(dataSource: DataSource) {
     passed: true,
     status: QuizAttemptStatus.COMPLETED,
     startedAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000),
-    completedAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000 + 8 * 60 * 1000),
+    completedAt: new Date(
+      Date.now() - 20 * 24 * 60 * 60 * 1000 + 8 * 60 * 1000,
+    ),
     timeSpent: 480,
   } as any);
 
@@ -1634,7 +2302,9 @@ export async function seedDatabase(dataSource: DataSource) {
     passed: false,
     status: QuizAttemptStatus.COMPLETED,
     startedAt: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000),
-    completedAt: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000 + 12 * 60 * 1000),
+    completedAt: new Date(
+      Date.now() - 18 * 24 * 60 * 60 * 1000 + 12 * 60 * 1000,
+    ),
     timeSpent: 720,
   } as any);
 
@@ -1651,7 +2321,9 @@ export async function seedDatabase(dataSource: DataSource) {
     passed: true,
     status: QuizAttemptStatus.COMPLETED,
     startedAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
-    completedAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000 + 10 * 60 * 1000),
+    completedAt: new Date(
+      Date.now() - 15 * 24 * 60 * 60 * 1000 + 10 * 60 * 1000,
+    ),
     timeSpent: 600,
   } as any);
 
@@ -1669,7 +2341,8 @@ export async function seedDatabase(dataSource: DataSource) {
       dueDate: '2026-02-12',
       completed: false,
       important: true,
-      description: 'Tìm hiểu sâu về Server Components và cách chúng hoạt động trong Next.js 14',
+      description:
+        'Tìm hiểu sâu về Server Components và cách chúng hoạt động trong Next.js 14',
       tags: ['Next.js', 'React'],
     },
     {
@@ -1734,7 +2407,8 @@ export async function seedDatabase(dataSource: DataSource) {
       dueDate: '2026-02-13',
       completed: false,
       important: false,
-      description: 'Ôn tập kiến thức về Generics, Conditional Types và Mapped Types',
+      description:
+        'Ôn tập kiến thức về Generics, Conditional Types và Mapped Types',
       tags: ['TypeScript'],
     },
     {
@@ -1768,14 +2442,29 @@ export async function seedDatabase(dataSource: DataSource) {
   // ========== SYSTEM SETTINGS - Bổ sung đầy đủ ==========
   console.log('⚙️ Creating system settings...');
   const settingsData = [
-    { key: 'about_ics', value: 'ICS Learning là nền tảng học trực tuyến hàng đầu Việt Nam, cung cấp các khóa học chất lượng cao trong lĩnh vực Công nghệ thông tin và các ngành nghề liên quan.' },
-    { key: 'mission', value: 'Sứ mệnh của ICS Learning là mang đến cơ hội học tập chất lượng cao, dễ tiếp cận cho mọi người, giúp phát triển kỹ năng và sự nghiệp trong lĩnh vực công nghệ.' },
-    { key: 'vision', value: 'Trở thành nền tảng edtech số 1 Việt Nam, kết nối học viên với các giảng viên hàng đầu và tạo ra cộng đồng học tập sôi động.' },
+    {
+      key: 'about_ics',
+      value:
+        'ICS Learning là nền tảng học trực tuyến hàng đầu Việt Nam, cung cấp các khóa học chất lượng cao trong lĩnh vực Công nghệ thông tin và các ngành nghề liên quan.',
+    },
+    {
+      key: 'mission',
+      value:
+        'Sứ mệnh của ICS Learning là mang đến cơ hội học tập chất lượng cao, dễ tiếp cận cho mọi người, giúp phát triển kỹ năng và sự nghiệp trong lĩnh vực công nghệ.',
+    },
+    {
+      key: 'vision',
+      value:
+        'Trở thành nền tảng edtech số 1 Việt Nam, kết nối học viên với các giảng viên hàng đầu và tạo ra cộng đồng học tập sôi động.',
+    },
     { key: 'supportEmail', value: 'support@icslearning.vn' },
     { key: 'businessEmail', value: 'business@icslearning.vn' },
     { key: 'phone', value: '0987654321' },
     { key: 'hotline', value: '1900-xxxx' },
-    { key: 'address', value: '123 Đường ABC, Quận XYZ, TP. Hồ Chí Minh, Việt Nam' },
+    {
+      key: 'address',
+      value: '123 Đường ABC, Quận XYZ, TP. Hồ Chí Minh, Việt Nam',
+    },
     { key: 'workingHours', value: 'Thứ 2 - Thứ 6: 8:00 - 17:00' },
     { key: 'facebook', value: 'https://facebook.com/icslearning' },
     { key: 'instagram', value: 'https://instagram.com/icslearning' },
@@ -1804,22 +2493,38 @@ export async function seedDatabase(dataSource: DataSource) {
   console.log(`- ${await reviewRepo.count()} reviews`);
   console.log(`- ${await paymentRepo.count()} payments`);
   console.log(`- ${await certificateRepo.count()} certificates`);
-  console.log(`- ${await certificateTemplateRepo.count()} certificate templates`);
+  console.log(
+    `- ${await certificateTemplateRepo.count()} certificate templates`,
+  );
   console.log(`- ${await examRepo.count()} exams`);
   console.log(`- ${await examAttemptRepo.count()} exam attempts`);
   console.log(`- ${await quizRepo.count()} quizzes`);
   console.log(`- ${await quizAttemptRepo.count()} quiz attempts`);
   console.log(`- ${await scheduleRepo.count()} schedule items`);
   console.log(`- ${await dataSource.getRepository(Note).count()} notes`);
-  console.log(`- ${await dataSource.getRepository(Wishlist).count()} wishlist items`);
+  console.log(
+    `- ${await dataSource.getRepository(Wishlist).count()} wishlist items`,
+  );
   console.log(`- ${await dataSource.getRepository(Cart).count()} cart items`);
   console.log(`- ${await dataSource.getRepository(Coupon).count()} coupons`);
-  console.log(`- ${await dataSource.getRepository(Announcement).count()} announcements`);
-  console.log(`- ${await dataSource.getRepository(Discussion).count()} discussions`);
-  console.log(`- ${await dataSource.getRepository(Assignment).count()} assignments`);
-  console.log(`- ${await dataSource.getRepository(AssignmentSubmission).count()} submissions`);
-  console.log(`- ${await dataSource.getRepository(Resource).count()} resources`);
-  console.log(`- ${await dataSource.getRepository(Notification).count()} notifications`);
+  console.log(
+    `- ${await dataSource.getRepository(Announcement).count()} announcements`,
+  );
+  console.log(
+    `- ${await dataSource.getRepository(Discussion).count()} discussions`,
+  );
+  console.log(
+    `- ${await dataSource.getRepository(Assignment).count()} assignments`,
+  );
+  console.log(
+    `- ${await dataSource.getRepository(AssignmentSubmission).count()} submissions`,
+  );
+  console.log(
+    `- ${await dataSource.getRepository(Resource).count()} resources`,
+  );
+  console.log(
+    `- ${await dataSource.getRepository(Notification).count()} notifications`,
+  );
   console.log(`- ${await systemSettingRepo.count()} system settings`);
 }
 
@@ -1855,7 +2560,7 @@ function getReviewComment(rating: number, courseTitle: string): string {
       `Nội dung khóa học rất chất lượng, đáng đồng tiền bát gạo! Cảm ơn thầy đã tạo ra khóa học này.`,
       `Học xong khóa này mình đã tự tin hơn rất nhiều. Dự án thực tế rất hữu ích. Highly recommended!`,
       `Khóa học hay nhất mà mình từng học về chủ đề này. Giảng viên rất nhiệt tình và chuyên nghiệp.`,
-      `Perfect! Mọi thứ đều được giải thích rất rõ ràng. Bài tập thực hành phong phú và sát với thực tế.`
+      `Perfect! Mọi thứ đều được giải thích rất rõ ràng. Bài tập thực hành phong phú và sát với thực tế.`,
     ],
     4: [
       `Khóa học tốt, nội dung chi tiết. Tuy nhiên có thể cải thiện thêm phần thực hành. Overall vẫn rất đáng học!`,

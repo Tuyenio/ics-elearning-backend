@@ -9,7 +9,12 @@ import {
   UseGuards,
   Query,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { EnrollmentsService } from './enrollments.service';
 import { CreateEnrollmentDto } from './dto/create-enrollment.dto';
 import { UpdateEnrollmentDto } from './dto/update-enrollment.dto';
@@ -29,7 +34,10 @@ export class EnrollmentsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.STUDENT)
   @ApiOperation({ summary: 'Đăng ký khóa học' })
-  create(@Body() createEnrollmentDto: CreateEnrollmentDto, @GetUser() user: User) {
+  create(
+    @Body() createEnrollmentDto: CreateEnrollmentDto,
+    @GetUser() user: User,
+  ) {
     return this.enrollmentsService.create(createEnrollmentDto, user);
   }
 
@@ -80,7 +88,10 @@ export class EnrollmentsController {
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  update(@Param('id') id: string, @Body() updateEnrollmentDto: UpdateEnrollmentDto) {
+  update(
+    @Param('id') id: string,
+    @Body() updateEnrollmentDto: UpdateEnrollmentDto,
+  ) {
     return this.enrollmentsService.update(id, updateEnrollmentDto);
   }
 

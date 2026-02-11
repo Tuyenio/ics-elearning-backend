@@ -16,4 +16,3 @@ import { CertificatesModule } from '../certificates/certificates.module';
   exports: [ExamsService],
 })
 export class ExamsModule {}
-

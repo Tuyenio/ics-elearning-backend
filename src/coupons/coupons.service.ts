@@ -43,7 +43,9 @@ export class CouponsService {
 
       // Only teacher can create coupon for their own courses
       if (user.role === UserRole.TEACHER && course.teacherId !== user.id) {
-        throw new BadRequestException('Bạn chỉ có thể tạo coupon cho khóa học của bạn');
+        throw new BadRequestException(
+          'Bạn chỉ có thể tạo coupon cho khóa học của bạn',
+        );
       }
     }
 
@@ -87,10 +89,17 @@ export class CouponsService {
     return coupon;
   }
 
-  async update(id: string, updateCouponDto: UpdateCouponDto, user: User): Promise<Coupon> {
+  async update(
+    id: string,
+    updateCouponDto: UpdateCouponDto,
+    user: User,
+  ): Promise<Coupon> {
     const coupon = await this.findOne(id, user);
 
-    if (updateCouponDto.courseId && updateCouponDto.courseId !== coupon.courseId) {
+    if (
+      updateCouponDto.courseId &&
+      updateCouponDto.courseId !== coupon.courseId
+    ) {
       const course = await this.courseRepository.findOne({
         where: { id: updateCouponDto.courseId },
       });
@@ -100,7 +109,9 @@ export class CouponsService {
       }
 
       if (user.role === UserRole.TEACHER && course.teacherId !== user.id) {
-        throw new BadRequestException('Bạn chỉ có thể gán coupon cho khóa học của bạn');
+        throw new BadRequestException(
+          'Bạn chỉ có thể gán coupon cho khóa học của bạn',
+        );
       }
     }
 
@@ -113,7 +124,10 @@ export class CouponsService {
     await this.couponRepository.remove(coupon);
   }
 
-  async validateCoupon(code: string, courseId: string): Promise<{
+  async validateCoupon(
+    code: string,
+    courseId: string,
+  ): Promise<{
     valid: boolean;
     coupon?: Coupon;
     discount?: number;
@@ -144,12 +158,18 @@ export class CouponsService {
 
     // Check usage limit
     if (coupon.usageLimit && coupon.usedCount >= coupon.usageLimit) {
-      return { valid: false, message: 'Đã đạt giới hạn sở lần sử dụng mã giảm giá' };
+      return {
+        valid: false,
+        message: 'Đã đạt giới hạn sở lần sử dụng mã giảm giá',
+      };
     }
 
     // Check course restriction
     if (coupon.courseId && coupon.courseId !== courseId) {
-      return { valid: false, message: 'Mã giảm giá không hợp lệ cho khóa học này' };
+      return {
+        valid: false,
+        message: 'Mã giảm giá không hợp lệ cho khóa học này',
+      };
     }
 
     // Get course to calculate discount

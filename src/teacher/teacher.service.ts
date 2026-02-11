@@ -31,7 +31,7 @@ export class TeacherService {
       where: { teacherId },
       relations: ['category'],
     });
-    const courseIds = courses.map(c => c.id);
+    const courseIds = courses.map((c) => c.id);
 
     if (courseIds.length === 0) {
       return {
@@ -60,16 +60,20 @@ export class TeacherService {
         status: PaymentStatus.COMPLETED,
       },
     });
-    const totalRevenue = payments.reduce((sum, p) => sum + Number(p.finalAmount || 0), 0);
+    const totalRevenue = payments.reduce(
+      (sum, p) => sum + Number(p.finalAmount || 0),
+      0,
+    );
 
     // Recent revenue for growth
     const recentRevenue = payments
-      .filter(p => p.createdAt >= thirtyDaysAgo)
+      .filter((p) => p.createdAt >= thirtyDaysAgo)
       .reduce((sum, p) => sum + Number(p.finalAmount || 0), 0);
     const oldRevenue = payments
-      .filter(p => p.createdAt >= sixtyDaysAgo && p.createdAt < thirtyDaysAgo)
+      .filter((p) => p.createdAt >= sixtyDaysAgo && p.createdAt < thirtyDaysAgo)
       .reduce((sum, p) => sum + Number(p.finalAmount || 0), 0);
-    const revenueGrowth = oldRevenue > 0 ? ((recentRevenue - oldRevenue) / oldRevenue) * 100 : 0;
+    const revenueGrowth =
+      oldRevenue > 0 ? ((recentRevenue - oldRevenue) / oldRevenue) * 100 : 0;
 
     // Total students (unique enrollments)
     const totalStudents = await this.enrollmentRepo
@@ -78,7 +82,9 @@ export class TeacherService {
       .where('enrollment.courseId IN (:...courseIds)', { courseIds })
       .getRawOne();
 
-    const totalEnrollments = await this.enrollmentRepo.count({ where: { courseId: In(courseIds) } });
+    const totalEnrollments = await this.enrollmentRepo.count({
+      where: { courseId: In(courseIds) },
+    });
 
     const completionAgg = await this.enrollmentRepo
       .createQueryBuilder('enrollment')
@@ -103,17 +109,21 @@ export class TeacherService {
         .getRawOne(),
     ]);
 
-    const studentGrowth = parseInt(oldStudents.count) > 0
-      ? ((parseInt(recentStudents.count) - parseInt(oldStudents.count)) / parseInt(oldStudents.count)) * 100
-      : 0;
+    const studentGrowth =
+      parseInt(oldStudents.count) > 0
+        ? ((parseInt(recentStudents.count) - parseInt(oldStudents.count)) /
+            parseInt(oldStudents.count)) *
+          100
+        : 0;
 
     // Average rating
     const reviews = await this.reviewRepo.find({
       where: { courseId: In(courseIds) },
     });
-    const averageRating = reviews.length > 0
-      ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
-      : 0;
+    const averageRating =
+      reviews.length > 0
+        ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+        : 0;
 
     const revenueChart = await this.getRevenueChart(teacherId, 12);
 
@@ -123,20 +133,33 @@ export class TeacherService {
 
     const courseDistribution = this.buildCourseDistribution(courses);
 
-    const enrollments = await this.enrollmentRepo.find({ where: { courseId: In(courseIds) } });
+    const enrollments = await this.enrollmentRepo.find({
+      where: { courseId: In(courseIds) },
+    });
 
-    const coursePerformance = courses.map(course => {
-      const courseEnrollments = enrollments.filter(e => e.courseId === course.id);
-      const coursePayments = payments.filter(p => p.courseId === course.id);
-      const courseReviews = reviews.filter(r => r.courseId === course.id);
+    const coursePerformance = courses.map((course) => {
+      const courseEnrollments = enrollments.filter(
+        (e) => e.courseId === course.id,
+      );
+      const coursePayments = payments.filter((p) => p.courseId === course.id);
+      const courseReviews = reviews.filter((r) => r.courseId === course.id);
 
-      const revenue = coursePayments.reduce((sum, p) => sum + Number(p.finalAmount || 0), 0);
-      const rating = courseReviews.length > 0
-        ? courseReviews.reduce((sum, r) => sum + r.rating, 0) / courseReviews.length
-        : Number(course.rating || 0);
-      const completion = courseEnrollments.length > 0
-        ? courseEnrollments.reduce((sum, e) => sum + Number(e.progress || 0), 0) / courseEnrollments.length
-        : 0;
+      const revenue = coursePayments.reduce(
+        (sum, p) => sum + Number(p.finalAmount || 0),
+        0,
+      );
+      const rating =
+        courseReviews.length > 0
+          ? courseReviews.reduce((sum, r) => sum + r.rating, 0) /
+            courseReviews.length
+          : Number(course.rating || 0);
+      const completion =
+        courseEnrollments.length > 0
+          ? courseEnrollments.reduce(
+              (sum, e) => sum + Number(e.progress || 0),
+              0,
+            ) / courseEnrollments.length
+          : 0;
 
       return {
         id: course.id,
@@ -155,10 +178,13 @@ export class TeacherService {
       totalRevenue,
       totalStudents: parseInt(totalStudents.count) || 0,
       totalCourses: courses.length,
-      activeCourses: courses.filter(c => c.status === CourseStatus.PUBLISHED).length,
+      activeCourses: courses.filter((c) => c.status === CourseStatus.PUBLISHED)
+        .length,
       totalViews: totalEnrollments,
       averageRating: Math.round(averageRating * 10) / 10,
-      completionRate: completionAgg?.avg ? Math.round(Number(completionAgg.avg) * 10) / 10 : 0,
+      completionRate: completionAgg?.avg
+        ? Math.round(Number(completionAgg.avg) * 10) / 10
+        : 0,
       revenueGrowth: Math.round(revenueGrowth * 10) / 10,
       studentGrowth: Math.round(studentGrowth * 10) / 10,
       revenueChart,
@@ -176,7 +202,7 @@ export class TeacherService {
     const now = new Date();
 
     const courses = await this.courseRepo.find({ where: { teacherId } });
-    const courseIds = courses.map(c => c.id);
+    const courseIds = courses.map((c) => c.id);
 
     for (let i = months - 1; i >= 0; i--) {
       const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -185,12 +211,17 @@ export class TeacherService {
       const monthRevenue = await this.paymentRepo
         .createQueryBuilder('payment')
         .where('payment.status = :status', { status: PaymentStatus.COMPLETED })
-        .andWhere('payment.courseId IN (:...courseIds)', { courseIds: courseIds.length > 0 ? courseIds : [''] })
+        .andWhere('payment.courseId IN (:...courseIds)', {
+          courseIds: courseIds.length > 0 ? courseIds : [''],
+        })
         .andWhere('payment.createdAt >= :start', { start })
         .andWhere('payment.createdAt < :end', { end })
         .getMany();
 
-      const total = monthRevenue.reduce((sum, p) => sum + Number(p.finalAmount || 0), 0);
+      const total = monthRevenue.reduce(
+        (sum, p) => sum + Number(p.finalAmount || 0),
+        0,
+      );
 
       labels.push(start.toLocaleDateString('vi-VN', { month: 'short' }));
       data.push(total);
@@ -205,7 +236,7 @@ export class TeacherService {
     const now = new Date();
 
     const courses = await this.courseRepo.find({ where: { teacherId } });
-    const courseIds = courses.map(c => c.id);
+    const courseIds = courses.map((c) => c.id);
 
     for (let i = months - 1; i >= 0; i--) {
       const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -213,7 +244,9 @@ export class TeacherService {
 
       const count = await this.enrollmentRepo
         .createQueryBuilder('enrollment')
-        .where('enrollment.courseId IN (:...courseIds)', { courseIds: courseIds.length > 0 ? courseIds : [''] })
+        .where('enrollment.courseId IN (:...courseIds)', {
+          courseIds: courseIds.length > 0 ? courseIds : [''],
+        })
         .andWhere('enrollment.createdAt >= :start', { start })
         .andWhere('enrollment.createdAt < :end', { end })
         .getCount();
@@ -228,31 +261,45 @@ export class TeacherService {
   async getWeeklyPerformance(teacherId: string) {
     const now = new Date();
     const courses = await this.courseRepo.find({ where: { teacherId } });
-    const courseIds = courses.map(c => c.id);
+    const courseIds = courses.map((c) => c.id);
 
     const results: { day: string; revenue: number }[] = [];
     for (let i = 6; i >= 0; i--) {
-      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
-      const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i + 1);
+      const start = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate() - i,
+      );
+      const end = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate() - i + 1,
+      );
 
       const payments = await this.paymentRepo
         .createQueryBuilder('payment')
         .where('payment.status = :status', { status: PaymentStatus.COMPLETED })
-        .andWhere('payment.courseId IN (:...courseIds)', { courseIds: courseIds.length > 0 ? courseIds : [''] })
+        .andWhere('payment.courseId IN (:...courseIds)', {
+          courseIds: courseIds.length > 0 ? courseIds : [''],
+        })
         .andWhere('payment.createdAt >= :start', { start })
         .andWhere('payment.createdAt < :end', { end })
         .getMany();
 
-      const revenue = payments.reduce((sum, p) => sum + Number(p.finalAmount || 0), 0);
+      const revenue = payments.reduce(
+        (sum, p) => sum + Number(p.finalAmount || 0),
+        0,
+      );
       results.push({
         day: start.toLocaleDateString('vi-VN', { weekday: 'short' }),
         revenue,
       });
     }
 
-    const avgRevenue = results.reduce((sum, r) => sum + r.revenue, 0) / (results.length || 1);
+    const avgRevenue =
+      results.reduce((sum, r) => sum + r.revenue, 0) / (results.length || 1);
 
-    return results.map(r => ({
+    return results.map((r) => ({
       ...r,
       target: Math.round(avgRevenue * 1.1),
     }));
@@ -261,17 +308,20 @@ export class TeacherService {
   buildCourseDistribution(courses: Course[]) {
     const categoryMap = new Map<string, number>();
 
-    courses.forEach(course => {
+    courses.forEach((course) => {
       const name = course.category?.name || 'Khác';
       categoryMap.set(name, (categoryMap.get(name) || 0) + 1);
     });
 
-    return Array.from(categoryMap.entries()).map(([name, value]) => ({ name, value }));
+    return Array.from(categoryMap.entries()).map(([name, value]) => ({
+      name,
+      value,
+    }));
   }
 
   async getRecentEnrollments(teacherId: string, limit: number = 10) {
     const courses = await this.courseRepo.find({ where: { teacherId } });
-    const courseIds = courses.map(c => c.id);
+    const courseIds = courses.map((c) => c.id);
 
     if (courseIds.length === 0) {
       return [];
@@ -284,7 +334,7 @@ export class TeacherService {
       take: limit,
     });
 
-    return enrollments.map(e => ({
+    return enrollments.map((e) => ({
       id: e.id,
       studentName: e.student.name,
       courseName: e.course.title,
@@ -298,7 +348,7 @@ export class TeacherService {
       where: { teacherId },
     });
 
-    const courseIds = courses.map(c => c.id);
+    const courseIds = courses.map((c) => c.id);
     if (courseIds.length === 0) {
       return {
         totalEarnings: 0,
@@ -316,8 +366,12 @@ export class TeacherService {
       order: { createdAt: 'DESC' },
     });
 
-    const completedPayments = payments.filter(p => p.status === PaymentStatus.COMPLETED);
-    const pendingPayments = payments.filter(p => p.status === PaymentStatus.PENDING);
+    const completedPayments = payments.filter(
+      (p) => p.status === PaymentStatus.COMPLETED,
+    );
+    const pendingPayments = payments.filter(
+      (p) => p.status === PaymentStatus.PENDING,
+    );
 
     const totalEarnings = completedPayments.reduce(
       (sum, p) => sum + Number(p.finalAmount ?? p.amount ?? 0),
@@ -327,13 +381,22 @@ export class TeacherService {
     // For simplicity, assume 70% goes to teacher, 30% to platform
     const teacherCut = Math.round(totalEarnings * 0.7);
     const pendingEarnings = Math.round(
-      pendingPayments.reduce((sum, p) => sum + Number(p.finalAmount ?? p.amount ?? 0), 0) * 0.7,
+      pendingPayments.reduce(
+        (sum, p) => sum + Number(p.finalAmount ?? p.amount ?? 0),
+        0,
+      ) * 0.7,
     );
 
     // Earnings by course (completed payments only)
-    const byCourse = courses.map(course => {
-      const coursePayments = completedPayments.filter(p => p.courseId === course.id);
-      const earnings = coursePayments.reduce((sum, p) => sum + Number(p.finalAmount ?? p.amount ?? 0), 0) * 0.7;
+    const byCourse = courses.map((course) => {
+      const coursePayments = completedPayments.filter(
+        (p) => p.courseId === course.id,
+      );
+      const earnings =
+        coursePayments.reduce(
+          (sum, p) => sum + Number(p.finalAmount ?? p.amount ?? 0),
+          0,
+        ) * 0.7;
 
       return {
         courseId: course.id,
@@ -343,7 +406,7 @@ export class TeacherService {
       };
     });
 
-    const paymentRows = payments.map(p => ({
+    const paymentRows = payments.map((p) => ({
       id: p.id,
       studentName: p.student?.name || 'N/A',
       studentEmail: p.student?.email || '',
@@ -367,7 +430,7 @@ export class TeacherService {
 
   async getStudentList(teacherId: string) {
     const courses = await this.courseRepo.find({ where: { teacherId } });
-    const courseIds = courses.map(c => c.id);
+    const courseIds = courses.map((c) => c.id);
 
     if (courseIds.length === 0) {
       return { data: [], total: 0 };
@@ -379,7 +442,7 @@ export class TeacherService {
       order: { createdAt: 'DESC' },
     });
 
-    const data = enrollments.map(e => ({
+    const data = enrollments.map((e) => ({
       id: e.id,
       studentId: e.studentId,
       name: e.student?.name || 'N/A',
@@ -404,7 +467,7 @@ export class TeacherService {
     const { data } = await this.getStudentList(teacherId);
 
     const headers = ['Student Name', 'Email', 'Phone', 'Course', 'Progress'];
-    const rows = data.map(s => [
+    const rows = data.map((s) => [
       s.name,
       s.email,
       s.phone,
@@ -412,17 +475,14 @@ export class TeacherService {
       `${s.progress}%`,
     ]);
 
-    return [
-      headers.join(','),
-      ...rows.map(row => row.join(',')),
-    ].join('\n');
+    return [headers.join(','), ...rows.map((row) => row.join(','))].join('\n');
   }
 
   async exportEarningsToCSV(teacherId: string): Promise<string> {
     const earnings = await this.getEarnings(teacherId);
 
     const headers = ['Course Name', 'Enrollments', 'Earnings (VND)'];
-    const rows = earnings.byCourse.map(c => [
+    const rows = earnings.byCourse.map((c) => [
       c.courseName,
       c.enrollments,
       c.earnings,
@@ -430,7 +490,7 @@ export class TeacherService {
 
     return [
       headers.join(','),
-      ...rows.map(row => row.join(',')),
+      ...rows.map((row) => row.join(',')),
       '',
       `Total Earnings,${earnings.totalEarnings}`,
     ].join('\n');
@@ -438,7 +498,7 @@ export class TeacherService {
 
   async getTeacherReviews(teacherId: string) {
     const courses = await this.courseRepo.find({ where: { teacherId } });
-    const courseIds = courses.map(c => c.id);
+    const courseIds = courses.map((c) => c.id);
 
     if (courseIds.length === 0) {
       return {
@@ -460,17 +520,26 @@ export class TeacherService {
     });
 
     const totalReviews = reviews.length;
-    const averageRating = totalReviews > 0
-      ? Math.round((reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / totalReviews) * 10) / 10
-      : 0;
-    const fiveStarCount = reviews.filter(r => r.rating === 5).length;
-    const responseRate = totalReviews > 0
-      ? Math.round((reviews.filter(r => !!r.teacherReply).length / totalReviews) * 100)
-      : 0;
+    const averageRating =
+      totalReviews > 0
+        ? Math.round(
+            (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) /
+              totalReviews) *
+              10,
+          ) / 10
+        : 0;
+    const fiveStarCount = reviews.filter((r) => r.rating === 5).length;
+    const responseRate =
+      totalReviews > 0
+        ? Math.round(
+            (reviews.filter((r) => !!r.teacherReply).length / totalReviews) *
+              100,
+          )
+        : 0;
 
-    const coursesList = courses.map(c => ({ id: c.id, name: c.title }));
+    const coursesList = courses.map((c) => ({ id: c.id, name: c.title }));
 
-    const mapped = reviews.map(r => ({
+    const mapped = reviews.map((r) => ({
       id: r.id,
       courseId: r.courseId,
       courseName: r.course?.title || '',
@@ -498,12 +567,17 @@ export class TeacherService {
   }
 
   async replyToReview(teacherId: string, reviewId: string, reply: string) {
-    const review = await this.reviewRepo.findOne({ where: { id: reviewId }, relations: ['course'] });
+    const review = await this.reviewRepo.findOne({
+      where: { id: reviewId },
+      relations: ['course'],
+    });
     if (!review) {
       throw new Error('Review not found');
     }
 
-    const course = await this.courseRepo.findOne({ where: { id: review.courseId, teacherId } });
+    const course = await this.courseRepo.findOne({
+      where: { id: review.courseId, teacherId },
+    });
     if (!course) {
       throw new Error('Not authorized to reply to this review');
     }

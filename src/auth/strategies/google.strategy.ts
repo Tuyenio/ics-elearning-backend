@@ -6,7 +6,6 @@ import { UsersService } from '../../users/users.service';
 import { UserRole, UserStatus } from '../../users/entities/user.entity';
 import * as bcrypt from 'bcryptjs';
 
-/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 
 interface GoogleProfile {
@@ -80,7 +79,12 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
         // QUAN TRỌNG: Kiểm tra trạng thái tài khoản TRƯỚC KHI cập nhật
         // Nếu tài khoản bị khóa (inactive), KHÔNG cho phép đăng nhập
         if (user.status === 'inactive') {
-          return done(new Error('Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ với đội ngũ hỗ trợ để được kích hoạt lại.'), false);
+          return done(
+            new Error(
+              'Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ với đội ngũ hỗ trợ để được kích hoạt lại.',
+            ),
+            false,
+          );
         }
 
         // Nếu user tồn tại, chỉ cập nhật email verification và avatar
@@ -112,7 +116,12 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
 
         // Kiểm tra lại trạng thái sau khi update (nếu không phải active thì chặn)
         if (user.status !== 'active') {
-          return done(new Error('Tài khoản của bạn chưa được kích hoạt hoặc đã bị khóa. Vui lòng liên hệ với đội ngũ hỗ trợ.'), false);
+          return done(
+            new Error(
+              'Tài khoản của bạn chưa được kích hoạt hoặc đã bị khóa. Vui lòng liên hệ với đội ngũ hỗ trợ.',
+            ),
+            false,
+          );
         }
       }
 
@@ -132,4 +141,3 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     }
   }
 }
-

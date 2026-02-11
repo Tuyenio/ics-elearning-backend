@@ -81,4 +81,3 @@ export class Resource {
   @JoinColumn({ name: 'uploaded_by' })
   uploader: User;
 }
-

@@ -1,4 +1,10 @@
-import { IsString, IsOptional, IsBoolean, IsNumber, IsNotEmpty } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsBoolean,
+  IsNumber,
+  IsNotEmpty,
+} from 'class-validator';
 
 export class CreateCategoryDto {
   @IsString()
@@ -28,8 +34,8 @@ export class CreateCategoryDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
-  
+
   @IsOptional()
   @IsString()
-  color?: string
+  color?: string;
 }

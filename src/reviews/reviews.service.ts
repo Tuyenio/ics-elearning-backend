@@ -26,7 +26,10 @@ export class ReviewsService {
     private readonly coursesService: CoursesService,
   ) {}
 
-  async create(createReviewDto: CreateReviewDto, student: User): Promise<Review> {
+  async create(
+    createReviewDto: CreateReviewDto,
+    student: User,
+  ): Promise<Review> {
     const course = await this.courseRepository.findOne({
       where: { id: createReviewDto.courseId },
     });
@@ -44,7 +47,9 @@ export class ReviewsService {
     });
 
     if (!enrollment) {
-      throw new ForbiddenException('Bạn phải đăng ký khóa học để có thể đánh giá');
+      throw new ForbiddenException(
+        'Bạn phải đăng ký khóa học để có thể đánh giá',
+      );
     }
 
     // Check if already reviewed
@@ -76,7 +81,13 @@ export class ReviewsService {
   async findByCourse(
     courseId: string,
     options?: { page?: number; limit?: number; sortBy?: string },
-  ): Promise<{ data: Review[]; total: number; page: number; limit: number; totalPages: number }> {
+  ): Promise<{
+    data: Review[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
     const page = options?.page || 1;
     const limit = options?.limit || 20;
     const skip = (page - 1) * limit;
@@ -120,7 +131,11 @@ export class ReviewsService {
     return review;
   }
 
-  async update(id: string, updateReviewDto: UpdateReviewDto, user: User): Promise<Review> {
+  async update(
+    id: string,
+    updateReviewDto: UpdateReviewDto,
+    user: User,
+  ): Promise<Review> {
     const review = await this.findOne(id);
 
     if (review.studentId !== user.id) {
@@ -162,7 +177,11 @@ export class ReviewsService {
     return this.reviewRepository.save(review);
   }
 
-  async replyToReview(reviewId: string, reply: string, teacherId: string): Promise<Review> {
+  async replyToReview(
+    reviewId: string,
+    reply: string,
+    teacherId: string,
+  ): Promise<Review> {
     const review = await this.reviewRepository.findOne({
       where: { id: reviewId },
       relations: ['course', 'course.teacher'],
@@ -174,7 +193,9 @@ export class ReviewsService {
 
     // Verify that the teacher owns the course
     if (review.course.teacherId !== teacherId) {
-      throw new ForbiddenException('Bạn chỉ có thể phản hồi đánh giá của các khóa học của bạn');
+      throw new ForbiddenException(
+        'Bạn chỉ có thể phản hồi đánh giá của các khóa học của bạn',
+      );
     }
 
     review.teacherReply = reply;

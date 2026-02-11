@@ -1,4 +1,13 @@
-import { Controller, Get, UseGuards, Req, Res, Post, Body, Param } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  UseGuards,
+  Req,
+  Res,
+  Post,
+  Body,
+  Param,
+} from '@nestjs/common';
 import { TeacherService } from './teacher.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -54,7 +63,11 @@ export class TeacherController {
   }
 
   @Post('reviews/:id/reply')
-  replyReview(@Req() req: any, @Param('id') id: string, @Body('reply') reply: string) {
+  replyReview(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body('reply') reply: string,
+  ) {
     return this.teacherService.replyToReview(req.user.userId, id, reply);
   }
 }

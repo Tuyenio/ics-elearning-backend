@@ -36,10 +36,10 @@ import { TeacherModule } from './teacher/teacher.module';
 import { ProgressModule } from './progress/progress.module';
 import { StatsModule } from './stats/stats.module';
 import { UploadModule } from './upload/upload.module';
-import { SystemSettingsModule } from "./system-settings/system-setting.module"
-import { MaintenanceGuard } from "./common/guards/maintenance.guard"
-import { JwtModule } from "@nestjs/jwt"
-import { ScheduleModule } from './schedule/schedule.module'
+import { SystemSettingsModule } from './system-settings/system-setting.module';
+import { MaintenanceGuard } from './common/guards/maintenance.guard';
+import { JwtModule } from '@nestjs/jwt';
+import { ScheduleModule } from './schedule/schedule.module';
 
 @Module({
   imports: [
@@ -83,7 +83,7 @@ import { ScheduleModule } from './schedule/schedule.module'
     // Cache configuration
     CacheModule.register({
       isGlobal: true,
-      ttl: 5, 
+      ttl: 5,
       max: 100, // Maximum number of items in cache
     }),
     TypeOrmModule.forRootAsync({
@@ -97,14 +97,20 @@ import { ScheduleModule } from './schedule/schedule.module'
         synchronize: configService.get('NODE_ENV') === 'development', // Auto-sync in development
         migrationsRun: false, // Disable auto-run migrations (use scripts instead)
         logging: configService.get('NODE_ENV') === 'development',
-        ssl: configService.get('DATABASE_SSL') === 'true' ? {
-          rejectUnauthorized: false,
-        } : false,
-        extra: configService.get('DATABASE_SSL') === 'true' ? {
-          ssl: {
-            rejectUnauthorized: false,
-          },
-        } : undefined,
+        ssl:
+          configService.get('DATABASE_SSL') === 'true'
+            ? {
+                rejectUnauthorized: false,
+              }
+            : false,
+        extra:
+          configService.get('DATABASE_SSL') === 'true'
+            ? {
+                ssl: {
+                  rejectUnauthorized: false,
+                },
+              }
+            : undefined,
       }),
     }),
     AuthModule,
@@ -133,7 +139,7 @@ import { ScheduleModule } from './schedule/schedule.module'
     ProgressModule,
     StatsModule,
     UploadModule,
-    ScheduleModule, 
+    ScheduleModule,
   ],
   controllers: [AppController],
   providers: [

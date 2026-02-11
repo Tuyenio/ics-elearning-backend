@@ -42,7 +42,10 @@ export class LessonProgressController {
   @Get('enrollment/:enrollmentId')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.STUDENT)
-  getEnrollmentProgress(@Param('enrollmentId') enrollmentId: string, @GetUser() user: User) {
+  getEnrollmentProgress(
+    @Param('enrollmentId') enrollmentId: string,
+    @GetUser() user: User,
+  ) {
     return this.lessonProgressService.getEnrollmentProgress(enrollmentId, user);
   }
 }

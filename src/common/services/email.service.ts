@@ -73,7 +73,10 @@ export class EmailService {
       await this.transporter.sendMail(mailOptions);
       this.logger.log(`Verification email sent to ${email}`);
     } catch (error) {
-      this.logger.error(`Failed to send verification email to ${email}:`, error);
+      this.logger.error(
+        `Failed to send verification email to ${email}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -128,7 +131,10 @@ export class EmailService {
       await this.transporter.sendMail(mailOptions);
       this.logger.log(`Password reset email sent to ${email}`);
     } catch (error) {
-      this.logger.error(`Failed to send password reset email to ${email}:`, error);
+      this.logger.error(
+        `Failed to send password reset email to ${email}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -196,7 +202,11 @@ export class EmailService {
     }
   }
 
-  async sendAdminCreatedUserEmail(email: string, name: string, tempPassword: string) {
+  async sendAdminCreatedUserEmail(
+    email: string,
+    name: string,
+    tempPassword: string,
+  ) {
     const loginUrl = `${this.configService.get('FRONTEND_URL')}/login`;
 
     const mailOptions = {
@@ -264,7 +274,10 @@ export class EmailService {
       await this.transporter.sendMail(mailOptions);
       this.logger.log(`Admin-created user email sent to ${email}`);
     } catch (error) {
-      this.logger.error(`Failed to send admin-created user email to ${email}:`, error);
+      this.logger.error(
+        `Failed to send admin-created user email to ${email}:`,
+        error,
+      );
       throw error;
     }
   }

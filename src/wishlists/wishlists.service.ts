@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Wishlist } from './entities/wishlist.entity';
@@ -52,7 +56,9 @@ export class WishlistsService {
     });
 
     if (!wishlist) {
-      throw new NotFoundException('Khóa học không tìm thấy trong danh sách yêu thích');
+      throw new NotFoundException(
+        'Khóa học không tìm thấy trong danh sách yêu thích',
+      );
     }
 
     await this.wishlistRepository.remove(wishlist);

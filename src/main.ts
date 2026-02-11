@@ -22,9 +22,12 @@ async function bootstrap() {
 
   // Get configuration
   const port = configService.get<number>('port', 5001);
-  const frontendUrl = configService.get<string>('frontendUrl', 'http://localhost:3000');
+  const frontendUrl = configService.get<string>(
+    'frontendUrl',
+    'http://localhost:3000',
+  );
   const nodeEnv = configService.get<string>('nodeEnv', 'development');
-  
+
   // Enable CORS with multiple origins support
   const allowedOrigins = [
     'http://localhost:3000',
@@ -38,7 +41,7 @@ async function bootstrap() {
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps, Postman, curl)
       if (!origin) return callback(null, true);
-      
+
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
@@ -97,7 +100,9 @@ async function bootstrap() {
   if (nodeEnv !== 'production') {
     const config = new DocumentBuilder()
       .setTitle('ICS E-Learning Platform API')
-      .setDescription('Backend API for ICS E-Learning Platform - Comprehensive online learning system')
+      .setDescription(
+        'Backend API for ICS E-Learning Platform - Comprehensive online learning system',
+      )
       .setVersion('1.0')
       .addTag('auth', 'Authentication endpoints')
       .addTag('users', 'User management')
@@ -132,15 +137,16 @@ async function bootstrap() {
       },
     });
 
-    logger.log(`📖 Swagger docs available at: http://localhost:${port}/api/docs`);
+    logger.log(
+      `📖 Swagger docs available at: http://localhost:${port}/api/docs`,
+    );
   }
 
   await app.listen(port);
-  
+
   logger.log(`🚀 Server running on: http://localhost:${port}`);
   logger.log(`📝 Environment: ${nodeEnv}`);
   logger.log(`🌐 Frontend URL: ${frontendUrl}`);
   logger.log(`🔧 API Prefix: /api`);
 }
 bootstrap();
-

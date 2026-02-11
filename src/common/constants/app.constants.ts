@@ -8,7 +8,11 @@ export const APP_CONSTANTS = {
   MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
   ALLOWED_IMAGE_TYPES: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
   ALLOWED_VIDEO_TYPES: ['video/mp4', 'video/webm', 'video/ogg'],
-  ALLOWED_DOCUMENT_TYPES: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+  ALLOWED_DOCUMENT_TYPES: [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  ],
 
   // Date Formats
   DATE_FORMAT: 'YYYY-MM-DD',
@@ -16,14 +20,14 @@ export const APP_CONSTANTS = {
   TIME_FORMAT: 'HH:mm:ss',
 
   // Cache TTL (seconds)
-  CACHE_TTL_SHORT: 60,        // 1 minute
-  CACHE_TTL_MEDIUM: 300,      // 5 minutes
-  CACHE_TTL_LONG: 3600,       // 1 hour
-  CACHE_TTL_DAY: 86400,       // 24 hours
+  CACHE_TTL_SHORT: 60, // 1 minute
+  CACHE_TTL_MEDIUM: 300, // 5 minutes
+  CACHE_TTL_LONG: 3600, // 1 hour
+  CACHE_TTL_DAY: 86400, // 24 hours
 
   // Rate Limiting
-  RATE_LIMIT_TTL: 60,         // 1 minute
-  RATE_LIMIT_MAX: 100,        // 100 requests per TTL
+  RATE_LIMIT_TTL: 60, // 1 minute
+  RATE_LIMIT_MAX: 100, // 100 requests per TTL
 
   // Password
   MIN_PASSWORD_LENGTH: 8,
@@ -31,14 +35,14 @@ export const APP_CONSTANTS = {
 
   // OTP/2FA
   OTP_LENGTH: 6,
-  OTP_EXPIRY: 300,            // 5 minutes (in seconds)
+  OTP_EXPIRY: 300, // 5 minutes (in seconds)
   BACKUP_CODES_COUNT: 10,
 
   // Certificate
   CERTIFICATE_VALIDITY_DAYS: 3650, // 10 years
 
   // Payment
-  PAYMENT_TIMEOUT: 900,       // 15 minutes (in seconds)
+  PAYMENT_TIMEOUT: 900, // 15 minutes (in seconds)
 
   // Course
   MAX_COURSE_TITLE_LENGTH: 200,
@@ -123,4 +127,4 @@ export const ERROR_CODES = {
   INTERNAL_ERROR: 'GEN_003',
 } as const;
 
-export type ErrorCode = typeof ERROR_CODES[keyof typeof ERROR_CODES];
+export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];

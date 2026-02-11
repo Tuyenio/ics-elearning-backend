@@ -1,4 +1,11 @@
-import { Controller, Get, Post, Delete, Param, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Param,
+  UseGuards,
+} from '@nestjs/common';
 import { WishlistsService } from './wishlists.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -20,7 +27,10 @@ export class WishlistsController {
   @Delete('course/:courseId')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.STUDENT)
-  removeFromWishlist(@Param('courseId') courseId: string, @GetUser() user: User) {
+  removeFromWishlist(
+    @Param('courseId') courseId: string,
+    @GetUser() user: User,
+  ) {
     return this.wishlistsService.removeFromWishlist(courseId, user);
   }
 

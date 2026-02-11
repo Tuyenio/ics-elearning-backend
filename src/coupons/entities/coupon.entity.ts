@@ -36,10 +36,22 @@ export class Coupon {
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   value: number;
 
-  @Column({ name: 'min_purchase', type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column({
+    name: 'min_purchase',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+  })
   minPurchase: number;
 
-  @Column({ name: 'max_discount', type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column({
+    name: 'max_discount',
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+  })
   maxDiscount: number;
 
   @Column({ name: 'usage_limit', nullable: true })

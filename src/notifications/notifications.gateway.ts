@@ -20,7 +20,9 @@ import { Notification } from './entities/notification.entity';
   namespace: 'notifications',
 })
 @Injectable()
-export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class NotificationsGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server: Server;
 
@@ -30,8 +32,10 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
 
   async handleConnection(client: Socket) {
     try {
-      const token = client.handshake.auth.token || client.handshake.headers.authorization?.split(' ')[1];
-      
+      const token =
+        client.handshake.auth.token ||
+        client.handshake.headers.authorization?.split(' ')[1];
+
       if (!token) {
         client.disconnect();
         return;
@@ -55,7 +59,7 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
 
       // Join user-specific room
       client.join(`user:${userId}`);
-      
+
       console.log(`Client connected: ${client.id} for user ${userId}`);
     } catch (error: any) {
       console.error('WebSocket connection error:', error.message);
@@ -84,7 +88,7 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
 
   // Send notification to multiple users
   sendToUsers(userIds: string[], notification: Notification) {
-    userIds.forEach(userId => {
+    userIds.forEach((userId) => {
       this.server.to(`user:${userId}`).emit('notification', notification);
     });
   }

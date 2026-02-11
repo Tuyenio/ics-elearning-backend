@@ -1,4 +1,14 @@
-import { IsString, IsNotEmpty, IsOptional, IsInt, IsBoolean, IsEnum, IsArray, IsDateString, IsUUID } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsInt,
+  IsBoolean,
+  IsEnum,
+  IsArray,
+  IsDateString,
+  IsUUID,
+} from 'class-validator';
 import { AssignmentStatus } from '../entities/assignment.entity';
 
 export class CreateAssignmentDto {

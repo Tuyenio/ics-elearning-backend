@@ -1,160 +1,405 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class InitialSchema1766994848772 implements MigrationInterface {
-    name = 'InitialSchema1766994848772'
+  name = 'InitialSchema1766994848772';
 
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`CREATE TABLE "users" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "email" character varying NOT NULL, "password" character varying NOT NULL, "name" character varying NOT NULL, "phone" character varying, "avatar" character varying, "role" "public"."users_role_enum" NOT NULL DEFAULT 'student', "status" "public"."users_status_enum" NOT NULL DEFAULT 'pending', "bio" character varying, "dateOfBirth" date, "address" character varying, "emailVerificationToken" text, "emailVerified" boolean NOT NULL DEFAULT false, "emailVerifiedAt" TIMESTAMP, "passwordResetToken" text, "passwordResetExpires" TIMESTAMP, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_97672ac88f789774dd47f7c8be3" UNIQUE ("email"), CONSTRAINT "PK_a3ffb1c0c8416b9fc6f907b7433" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "categories" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "name" character varying NOT NULL, "slug" character varying NOT NULL, "description" text, "icon" character varying, "image" character varying, "order" integer NOT NULL DEFAULT '0', "isActive" boolean NOT NULL DEFAULT true, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_8b0be371d28245da6e4f4b61878" UNIQUE ("name"), CONSTRAINT "UQ_420d9f679d41281f282f5bc7d09" UNIQUE ("slug"), CONSTRAINT "PK_24dbc6126a28ff948da33e97d3b" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "certificates" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "certificateNumber" character varying NOT NULL, "studentId" uuid NOT NULL, "courseId" uuid NOT NULL, "enrollmentId" uuid NOT NULL, "issueDate" TIMESTAMP NOT NULL, "pdfUrl" character varying, "imageUrl" character varying, "metadata" text, "status" character varying NOT NULL DEFAULT 'approved', "rejectionReason" text, "shareId" character varying, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_9742ea65bce69db989c2e676936" UNIQUE ("certificateNumber"), CONSTRAINT "REL_23287b04f9c0072b935a2abd6f" UNIQUE ("enrollmentId"), CONSTRAINT "PK_e4c7e31e2144300bea7d89eb165" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "enrollments" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "studentId" uuid NOT NULL, "courseId" uuid NOT NULL, "status" "public"."enrollments_status_enum" NOT NULL DEFAULT 'active', "progress" numeric(5,2) NOT NULL DEFAULT '0', "completedAt" TIMESTAMP, "expiresAt" TIMESTAMP, "lastAccessedAt" TIMESTAMP, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_7c0f752f9fb68bf6ed7367ab00f" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "lesson_progress" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "enrollmentId" uuid NOT NULL, "lessonId" uuid NOT NULL, "isCompleted" boolean NOT NULL DEFAULT false, "progress" numeric(5,2) NOT NULL DEFAULT '0', "lastPosition" integer NOT NULL DEFAULT '0', "completedAt" TIMESTAMP, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_e6223ebbc5f8f5fce40e0193de1" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "lessons" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "title" character varying NOT NULL, "description" text, "type" "public"."lessons_type_enum" NOT NULL DEFAULT 'video', "videoUrl" character varying, "videoThumbnail" character varying, "duration" integer NOT NULL DEFAULT '0', "content" text, "resources" text, "order" integer NOT NULL DEFAULT '0', "isFree" boolean NOT NULL DEFAULT false, "isPublished" boolean NOT NULL DEFAULT false, "courseId" uuid NOT NULL, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_9b9a8d455cac672d262d7275730" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "reviews" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "studentId" uuid NOT NULL, "courseId" uuid NOT NULL, "rating" integer NOT NULL, "comment" text, "isVerifiedPurchase" boolean NOT NULL DEFAULT false, "helpfulCount" integer NOT NULL DEFAULT '0', "isPublished" boolean NOT NULL DEFAULT true, "teacherReply" text, "repliedAt" TIMESTAMP, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_231ae565c273ee700b283f15c1d" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "courses" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "title" character varying NOT NULL, "slug" character varying NOT NULL, "description" text NOT NULL, "shortDescription" text, "thumbnail" character varying, "previewVideo" character varying, "price" numeric(10,2) NOT NULL DEFAULT '0', "discountPrice" numeric(10,2) NOT NULL DEFAULT '0', "level" "public"."courses_level_enum" NOT NULL DEFAULT 'beginner', "status" "public"."courses_status_enum" NOT NULL DEFAULT 'draft', "rejectionReason" text, "duration" integer NOT NULL DEFAULT '0', "requirements" text, "outcomes" text, "tags" text, "enrollmentCount" integer NOT NULL DEFAULT '0', "rating" numeric(3,2) NOT NULL DEFAULT '0', "reviewCount" integer NOT NULL DEFAULT '0', "isFeatured" boolean NOT NULL DEFAULT false, "isBestseller" boolean NOT NULL DEFAULT false, "teacherId" uuid NOT NULL, "categoryId" uuid, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_a3bb2d01cfa0f95bc5e034e1b7a" UNIQUE ("slug"), CONSTRAINT "PK_3f70a487cc718ad8eda4e6d58c9" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "wishlists" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "studentId" uuid NOT NULL, "courseId" uuid NOT NULL, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_d0a37f2848c5d268d315325f359" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "resources" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "title" character varying NOT NULL, "description" text, "type" "public"."resources_type_enum" NOT NULL, "url" character varying, "file_path" character varying, "file_size" bigint, "course_id" uuid NOT NULL, "lesson_id" uuid, "uploaded_by" uuid NOT NULL, "download_count" integer NOT NULL DEFAULT '0', "is_public" boolean NOT NULL DEFAULT false, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_632484ab9dff41bba94f9b7c85e" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "quiz_attempts" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "studentId" uuid NOT NULL, "quizId" uuid NOT NULL, "answers" text, "score" numeric(5,2) NOT NULL DEFAULT '0', "passed" boolean NOT NULL DEFAULT false, "status" "public"."quiz_attempts_status_enum" NOT NULL DEFAULT 'in_progress', "startedAt" TIMESTAMP, "completedAt" TIMESTAMP, "timeSpent" integer NOT NULL DEFAULT '0', "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_a84a93fb092359516dc5b325b90" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "quizzes" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "title" character varying NOT NULL, "description" text, "questions" text NOT NULL, "timeLimit" integer NOT NULL DEFAULT '60', "passingScore" integer NOT NULL DEFAULT '70', "maxAttempts" integer NOT NULL DEFAULT '3', "showCorrectAnswers" boolean NOT NULL DEFAULT true, "shuffleQuestions" boolean NOT NULL DEFAULT false, "courseId" uuid NOT NULL, "lessonId" uuid, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_b24f0f7662cf6b3a0e7dba0a1b4" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "payments" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "transactionId" character varying NOT NULL, "studentId" uuid NOT NULL, "courseId" uuid NOT NULL, "amount" numeric(10,2) NOT NULL, "discountAmount" numeric(10,2) NOT NULL DEFAULT '0', "finalAmount" numeric(10,2), "currency" character varying NOT NULL DEFAULT 'VND', "status" "public"."payments_status_enum" NOT NULL DEFAULT 'pending', "paymentMethod" character varying NOT NULL DEFAULT 'bank_transfer', "paymentGatewayId" character varying, "gatewayTransactionId" character varying, "metadata" text, "paidAt" TIMESTAMP, "failureReason" text, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_c39d78e8744809ece8ca95730e2" UNIQUE ("transactionId"), CONSTRAINT "PK_197ab7af18c93fbb0c9b28b4a59" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "notifications" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "userId" uuid NOT NULL, "type" "public"."notifications_type_enum" NOT NULL, "title" character varying NOT NULL, "message" text NOT NULL, "link" character varying, "metadata" text, "status" "public"."notifications_status_enum" NOT NULL DEFAULT 'unread', "readAt" TIMESTAMP, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_6a72c3c0f683f6462415e653c3a" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "notes" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "studentId" uuid NOT NULL, "courseId" uuid NOT NULL, "lessonId" uuid NOT NULL, "content" text NOT NULL, "timestamp" integer NOT NULL DEFAULT '0', "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_af6206538ea96c4e77e9f400c3d" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "exams" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "title" character varying NOT NULL, "description" text, "type" "public"."exams_type_enum" NOT NULL DEFAULT 'practice', "status" "public"."exams_status_enum" NOT NULL DEFAULT 'draft', "questions" text NOT NULL, "timeLimit" integer NOT NULL DEFAULT '60', "passingScore" integer NOT NULL DEFAULT '70', "maxAttempts" integer NOT NULL DEFAULT '3', "shuffleQuestions" boolean NOT NULL DEFAULT true, "showCorrectAnswers" boolean NOT NULL DEFAULT true, "certificateTemplateId" character varying, "rejectionReason" text, "courseId" uuid NOT NULL, "teacherId" uuid NOT NULL, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_b43159ee3efa440952794b4f53e" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "exam_attempts" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "examId" uuid NOT NULL, "studentId" uuid NOT NULL, "answers" text, "score" double precision NOT NULL DEFAULT '0', "earnedPoints" double precision NOT NULL DEFAULT '0', "totalPoints" double precision NOT NULL DEFAULT '0', "status" "public"."exam_attempts_status_enum" NOT NULL DEFAULT 'in_progress', "passed" boolean NOT NULL DEFAULT false, "certificateIssued" boolean NOT NULL DEFAULT false, "certificateId" character varying, "startedAt" TIMESTAMP NOT NULL, "completedAt" TIMESTAMP, "timeSpent" integer NOT NULL DEFAULT '0', "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_4eb6c7775e0a9c178ef7f4826f9" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "discussions" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "title" character varying NOT NULL, "content" text NOT NULL, "course_id" uuid NOT NULL, "lesson_id" uuid, "author_id" uuid NOT NULL, "parent_id" uuid, "is_pinned" boolean NOT NULL DEFAULT false, "is_resolved" boolean NOT NULL DEFAULT false, "reply_count" integer NOT NULL DEFAULT '0', "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_4b3d110d8e5d9077ddc0a0d1b4c" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "coupons" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "code" character varying NOT NULL, "type" "public"."coupons_type_enum" NOT NULL DEFAULT 'percentage', "value" numeric(10,2) NOT NULL, "min_purchase" numeric(10,2), "max_discount" numeric(10,2), "usage_limit" integer, "used_count" integer NOT NULL DEFAULT '0', "course_id" uuid, "created_by" uuid NOT NULL, "status" "public"."coupons_status_enum" NOT NULL DEFAULT 'active', "valid_from" TIMESTAMP, "valid_until" TIMESTAMP, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_e025109230e82925843f2a14c48" UNIQUE ("code"), CONSTRAINT "PK_d7ea8864a0150183770f3e9a8cb" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "cart" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "user_id" uuid NOT NULL, "course_id" uuid NOT NULL, "price" numeric(10,2), "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_c524ec48751b9b5bcfbf6e59be7" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "two_factor_auth" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "userId" uuid NOT NULL, "isEnabled" boolean NOT NULL DEFAULT false, "method" "public"."two_factor_auth_method_enum" NOT NULL DEFAULT 'totp', "secret" character varying, "backupCodes" text, "phoneNumber" character varying, "isVerified" boolean NOT NULL DEFAULT false, "verifiedAt" TIMESTAMP, "lastUsedAt" TIMESTAMP, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_ceebe2fe995d01aeff8cb013f53" UNIQUE ("userId"), CONSTRAINT "PK_ac930594b4dbe3771cf16cd108d" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "user_sessions" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "userId" uuid NOT NULL, "token" character varying NOT NULL, "deviceInfo" character varying, "ipAddress" character varying, "location" character varying, "status" "public"."user_sessions_status_enum" NOT NULL DEFAULT 'active', "expiresAt" TIMESTAMP NOT NULL, "lastActivityAt" TIMESTAMP, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_e93e031a5fed190d4789b6bfd83" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "assignments" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "title" character varying NOT NULL, "description" text NOT NULL, "course_id" uuid NOT NULL, "lesson_id" uuid, "created_by" uuid NOT NULL, "max_score" integer NOT NULL DEFAULT '100', "due_date" TIMESTAMP, "status" "public"."assignments_status_enum" NOT NULL DEFAULT 'draft', "allow_late_submission" boolean NOT NULL DEFAULT false, "instructions" text, "attachments" text, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_c54ca359535e0012b04dcbd80ee" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "assignment_submissions" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "assignment_id" uuid NOT NULL, "student_id" uuid NOT NULL, "content" text, "attachments" text, "status" "public"."assignment_submissions_status_enum" NOT NULL DEFAULT 'not_submitted', "score" integer, "feedback" text, "graded_by" uuid, "graded_at" TIMESTAMP, "submitted_at" TIMESTAMP, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_0caedc49d0357bedac05ca5a806" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE TABLE "announcements" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "title" character varying NOT NULL, "content" text NOT NULL, "course_id" uuid, "author_id" uuid NOT NULL, "priority" "public"."announcements_priority_enum" NOT NULL DEFAULT 'medium', "is_pinned" boolean NOT NULL DEFAULT false, "is_published" boolean NOT NULL DEFAULT true, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_b3ad760876ff2e19d58e05dc8b0" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`ALTER TABLE "certificates" ADD CONSTRAINT "FK_dd01ec6501540780943fe16cf75" FOREIGN KEY ("studentId") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "certificates" ADD CONSTRAINT "FK_e50e73bc3bdcfb0eb3d561f1494" FOREIGN KEY ("courseId") REFERENCES "courses"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "certificates" ADD CONSTRAINT "FK_23287b04f9c0072b935a2abd6fc" FOREIGN KEY ("enrollmentId") REFERENCES "enrollments"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "enrollments" ADD CONSTRAINT "FK_bf3ba3dfa95e2df7388eb4589fd" FOREIGN KEY ("studentId") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "enrollments" ADD CONSTRAINT "FK_60dd0ae4e21002e63a5fdefeec8" FOREIGN KEY ("courseId") REFERENCES "courses"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "lesson_progress" ADD CONSTRAINT "FK_5bc4ad7572c19f8c12a67fee6b1" FOREIGN KEY ("enrollmentId") REFERENCES "enrollments"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "lesson_progress" ADD CONSTRAINT "FK_df13299d2740b302dd44a368df9" FOREIGN KEY ("lessonId") REFERENCES "lessons"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "lessons" ADD CONSTRAINT "FK_1a9ff2409a84c76560ae8a92590" FOREIGN KEY ("courseId") REFERENCES "courses"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "reviews" ADD CONSTRAINT "FK_63a921d8859a586e1fc91ff4f5f" FOREIGN KEY ("studentId") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "reviews" ADD CONSTRAINT "FK_01ad76b89c3d4f612209556e2c3" FOREIGN KEY ("courseId") REFERENCES "courses"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "courses" ADD CONSTRAINT "FK_f921bd9bb6d061b90d386fa3721" FOREIGN KEY ("teacherId") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "courses" ADD CONSTRAINT "FK_c730473dfb837b3e62057cd9447" FOREIGN KEY ("categoryId") REFERENCES "categories"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "wishlists" ADD CONSTRAINT "FK_7e8bcc5c1ff10ae3aae0f551c95" FOREIGN KEY ("studentId") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "wishlists" ADD CONSTRAINT "FK_432a76f72b5d6a760bcaf469973" FOREIGN KEY ("courseId") REFERENCES "courses"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "resources" ADD CONSTRAINT "FK_65d16228cfa6e88403acc8d466a" FOREIGN KEY ("course_id") REFERENCES "courses"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "resources" ADD CONSTRAINT "FK_8f294aae89a7693f9cec1a6723a" FOREIGN KEY ("lesson_id") REFERENCES "lessons"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "resources" ADD CONSTRAINT "FK_9cf8aa3e8c65a062c8634306faa" FOREIGN KEY ("uploaded_by") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "quiz_attempts" ADD CONSTRAINT "FK_30ae16bcedd2b2663686edfc7a8" FOREIGN KEY ("studentId") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "quiz_attempts" ADD CONSTRAINT "FK_23f2bbe9288b221b1b377372782" FOREIGN KEY ("quizId") REFERENCES "quizzes"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "quizzes" ADD CONSTRAINT "FK_9021b7e89ea353c02a361a10b72" FOREIGN KEY ("courseId") REFERENCES "courses"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "quizzes" ADD CONSTRAINT "FK_eba9ff0775c843581aab6916b32" FOREIGN KEY ("lessonId") REFERENCES "lessons"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "payments" ADD CONSTRAINT "FK_b2731e10aef7f886a08c552290e" FOREIGN KEY ("studentId") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "payments" ADD CONSTRAINT "FK_00097d3b3147848e3585aabb433" FOREIGN KEY ("courseId") REFERENCES "courses"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "notifications" ADD CONSTRAINT "FK_692a909ee0fa9383e7859f9b406" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "notes" ADD CONSTRAINT "FK_c4b5e5ac09bb41db7967ccfe34d" FOREIGN KEY ("studentId") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "notes" ADD CONSTRAINT "FK_a3fca84a5e23e9f5eb39e45fbbb" FOREIGN KEY ("courseId") REFERENCES "courses"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "notes" ADD CONSTRAINT "FK_30fe52bc8cca36dcb2156cba325" FOREIGN KEY ("lessonId") REFERENCES "lessons"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "exams" ADD CONSTRAINT "FK_3dcd9199b8cd801383e623c3d11" FOREIGN KEY ("courseId") REFERENCES "courses"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "exams" ADD CONSTRAINT "FK_698b8b125b1bf0e0d4a38bee303" FOREIGN KEY ("teacherId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "exam_attempts" ADD CONSTRAINT "FK_4eb0dd11d0191d842a8331e91d0" FOREIGN KEY ("examId") REFERENCES "exams"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "exam_attempts" ADD CONSTRAINT "FK_b3cfd8fad204570a1d448846892" FOREIGN KEY ("studentId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "discussions" ADD CONSTRAINT "FK_cedb0b583906c7f01fc7bd4972c" FOREIGN KEY ("author_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "discussions" ADD CONSTRAINT "FK_86f683d676a567be37cc9c06c88" FOREIGN KEY ("course_id") REFERENCES "courses"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "discussions" ADD CONSTRAINT "FK_79212043b84fa5438c38ce14380" FOREIGN KEY ("lesson_id") REFERENCES "lessons"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "discussions" ADD CONSTRAINT "FK_a2559be8d2f054ea1ca1430229e" FOREIGN KEY ("parent_id") REFERENCES "discussions"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "coupons" ADD CONSTRAINT "FK_cbfc36859d6d455581303e85088" FOREIGN KEY ("course_id") REFERENCES "courses"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "coupons" ADD CONSTRAINT "FK_dc1cf7573d95d72ac52fe10a976" FOREIGN KEY ("created_by") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "cart" ADD CONSTRAINT "FK_f091e86a234693a49084b4c2c86" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "cart" ADD CONSTRAINT "FK_ccbdf937aeec8a8e8fb3c454d60" FOREIGN KEY ("course_id") REFERENCES "courses"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "two_factor_auth" ADD CONSTRAINT "FK_ceebe2fe995d01aeff8cb013f53" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "user_sessions" ADD CONSTRAINT "FK_55fa4db8406ed66bc7044328427" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "assignments" ADD CONSTRAINT "FK_03fa66c20619cbc55aa4ebc69bd" FOREIGN KEY ("created_by") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "assignments" ADD CONSTRAINT "FK_33f833f305070d2d4e6305d8a0c" FOREIGN KEY ("course_id") REFERENCES "courses"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "assignments" ADD CONSTRAINT "FK_c0fda9de424e0e719787f6b5764" FOREIGN KEY ("lesson_id") REFERENCES "lessons"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "assignment_submissions" ADD CONSTRAINT "FK_0c62b946a9e40285ac33fe970bb" FOREIGN KEY ("assignment_id") REFERENCES "assignments"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "assignment_submissions" ADD CONSTRAINT "FK_45b95e9a93646e79972f824a93f" FOREIGN KEY ("student_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "assignment_submissions" ADD CONSTRAINT "FK_31312ce3e8a1d0ec00c7648e00c" FOREIGN KEY ("graded_by") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "announcements" ADD CONSTRAINT "FK_0a13cf0aa1f1a2666699ff473f0" FOREIGN KEY ("author_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "announcements" ADD CONSTRAINT "FK_e8f5ed3ae7b8b9e1f18fe9bb150" FOREIGN KEY ("course_id") REFERENCES "courses"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-    }
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      `CREATE TABLE "users" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "email" character varying NOT NULL, "password" character varying NOT NULL, "name" character varying NOT NULL, "phone" character varying, "avatar" character varying, "role" "public"."users_role_enum" NOT NULL DEFAULT 'student', "status" "public"."users_status_enum" NOT NULL DEFAULT 'pending', "bio" character varying, "dateOfBirth" date, "address" character varying, "emailVerificationToken" text, "emailVerified" boolean NOT NULL DEFAULT false, "emailVerifiedAt" TIMESTAMP, "passwordResetToken" text, "passwordResetExpires" TIMESTAMP, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_97672ac88f789774dd47f7c8be3" UNIQUE ("email"), CONSTRAINT "PK_a3ffb1c0c8416b9fc6f907b7433" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "categories" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "name" character varying NOT NULL, "slug" character varying NOT NULL, "description" text, "icon" character varying, "image" character varying, "order" integer NOT NULL DEFAULT '0', "isActive" boolean NOT NULL DEFAULT true, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_8b0be371d28245da6e4f4b61878" UNIQUE ("name"), CONSTRAINT "UQ_420d9f679d41281f282f5bc7d09" UNIQUE ("slug"), CONSTRAINT "PK_24dbc6126a28ff948da33e97d3b" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "certificates" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "certificateNumber" character varying NOT NULL, "studentId" uuid NOT NULL, "courseId" uuid NOT NULL, "enrollmentId" uuid NOT NULL, "issueDate" TIMESTAMP NOT NULL, "pdfUrl" character varying, "imageUrl" character varying, "metadata" text, "status" character varying NOT NULL DEFAULT 'approved', "rejectionReason" text, "shareId" character varying, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_9742ea65bce69db989c2e676936" UNIQUE ("certificateNumber"), CONSTRAINT "REL_23287b04f9c0072b935a2abd6f" UNIQUE ("enrollmentId"), CONSTRAINT "PK_e4c7e31e2144300bea7d89eb165" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "enrollments" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "studentId" uuid NOT NULL, "courseId" uuid NOT NULL, "status" "public"."enrollments_status_enum" NOT NULL DEFAULT 'active', "progress" numeric(5,2) NOT NULL DEFAULT '0', "completedAt" TIMESTAMP, "expiresAt" TIMESTAMP, "lastAccessedAt" TIMESTAMP, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_7c0f752f9fb68bf6ed7367ab00f" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "lesson_progress" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "enrollmentId" uuid NOT NULL, "lessonId" uuid NOT NULL, "isCompleted" boolean NOT NULL DEFAULT false, "progress" numeric(5,2) NOT NULL DEFAULT '0', "lastPosition" integer NOT NULL DEFAULT '0', "completedAt" TIMESTAMP, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_e6223ebbc5f8f5fce40e0193de1" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "lessons" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "title" character varying NOT NULL, "description" text, "type" "public"."lessons_type_enum" NOT NULL DEFAULT 'video', "videoUrl" character varying, "videoThumbnail" character varying, "duration" integer NOT NULL DEFAULT '0', "content" text, "resources" text, "order" integer NOT NULL DEFAULT '0', "isFree" boolean NOT NULL DEFAULT false, "isPublished" boolean NOT NULL DEFAULT false, "courseId" uuid NOT NULL, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_9b9a8d455cac672d262d7275730" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "reviews" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "studentId" uuid NOT NULL, "courseId" uuid NOT NULL, "rating" integer NOT NULL, "comment" text, "isVerifiedPurchase" boolean NOT NULL DEFAULT false, "helpfulCount" integer NOT NULL DEFAULT '0', "isPublished" boolean NOT NULL DEFAULT true, "teacherReply" text, "repliedAt" TIMESTAMP, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_231ae565c273ee700b283f15c1d" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "courses" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "title" character varying NOT NULL, "slug" character varying NOT NULL, "description" text NOT NULL, "shortDescription" text, "thumbnail" character varying, "previewVideo" character varying, "price" numeric(10,2) NOT NULL DEFAULT '0', "discountPrice" numeric(10,2) NOT NULL DEFAULT '0', "level" "public"."courses_level_enum" NOT NULL DEFAULT 'beginner', "status" "public"."courses_status_enum" NOT NULL DEFAULT 'draft', "rejectionReason" text, "duration" integer NOT NULL DEFAULT '0', "requirements" text, "outcomes" text, "tags" text, "enrollmentCount" integer NOT NULL DEFAULT '0', "rating" numeric(3,2) NOT NULL DEFAULT '0', "reviewCount" integer NOT NULL DEFAULT '0', "isFeatured" boolean NOT NULL DEFAULT false, "isBestseller" boolean NOT NULL DEFAULT false, "teacherId" uuid NOT NULL, "categoryId" uuid, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_a3bb2d01cfa0f95bc5e034e1b7a" UNIQUE ("slug"), CONSTRAINT "PK_3f70a487cc718ad8eda4e6d58c9" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "wishlists" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "studentId" uuid NOT NULL, "courseId" uuid NOT NULL, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_d0a37f2848c5d268d315325f359" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "resources" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "title" character varying NOT NULL, "description" text, "type" "public"."resources_type_enum" NOT NULL, "url" character varying, "file_path" character varying, "file_size" bigint, "course_id" uuid NOT NULL, "lesson_id" uuid, "uploaded_by" uuid NOT NULL, "download_count" integer NOT NULL DEFAULT '0', "is_public" boolean NOT NULL DEFAULT false, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_632484ab9dff41bba94f9b7c85e" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "quiz_attempts" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "studentId" uuid NOT NULL, "quizId" uuid NOT NULL, "answers" text, "score" numeric(5,2) NOT NULL DEFAULT '0', "passed" boolean NOT NULL DEFAULT false, "status" "public"."quiz_attempts_status_enum" NOT NULL DEFAULT 'in_progress', "startedAt" TIMESTAMP, "completedAt" TIMESTAMP, "timeSpent" integer NOT NULL DEFAULT '0', "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_a84a93fb092359516dc5b325b90" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "quizzes" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "title" character varying NOT NULL, "description" text, "questions" text NOT NULL, "timeLimit" integer NOT NULL DEFAULT '60', "passingScore" integer NOT NULL DEFAULT '70', "maxAttempts" integer NOT NULL DEFAULT '3', "showCorrectAnswers" boolean NOT NULL DEFAULT true, "shuffleQuestions" boolean NOT NULL DEFAULT false, "courseId" uuid NOT NULL, "lessonId" uuid, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_b24f0f7662cf6b3a0e7dba0a1b4" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "payments" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "transactionId" character varying NOT NULL, "studentId" uuid NOT NULL, "courseId" uuid NOT NULL, "amount" numeric(10,2) NOT NULL, "discountAmount" numeric(10,2) NOT NULL DEFAULT '0', "finalAmount" numeric(10,2), "currency" character varying NOT NULL DEFAULT 'VND', "status" "public"."payments_status_enum" NOT NULL DEFAULT 'pending', "paymentMethod" character varying NOT NULL DEFAULT 'bank_transfer', "paymentGatewayId" character varying, "gatewayTransactionId" character varying, "metadata" text, "paidAt" TIMESTAMP, "failureReason" text, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_c39d78e8744809ece8ca95730e2" UNIQUE ("transactionId"), CONSTRAINT "PK_197ab7af18c93fbb0c9b28b4a59" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "notifications" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "userId" uuid NOT NULL, "type" "public"."notifications_type_enum" NOT NULL, "title" character varying NOT NULL, "message" text NOT NULL, "link" character varying, "metadata" text, "status" "public"."notifications_status_enum" NOT NULL DEFAULT 'unread', "readAt" TIMESTAMP, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_6a72c3c0f683f6462415e653c3a" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "notes" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "studentId" uuid NOT NULL, "courseId" uuid NOT NULL, "lessonId" uuid NOT NULL, "content" text NOT NULL, "timestamp" integer NOT NULL DEFAULT '0', "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_af6206538ea96c4e77e9f400c3d" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "exams" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "title" character varying NOT NULL, "description" text, "type" "public"."exams_type_enum" NOT NULL DEFAULT 'practice', "status" "public"."exams_status_enum" NOT NULL DEFAULT 'draft', "questions" text NOT NULL, "timeLimit" integer NOT NULL DEFAULT '60', "passingScore" integer NOT NULL DEFAULT '70', "maxAttempts" integer NOT NULL DEFAULT '3', "shuffleQuestions" boolean NOT NULL DEFAULT true, "showCorrectAnswers" boolean NOT NULL DEFAULT true, "certificateTemplateId" character varying, "rejectionReason" text, "courseId" uuid NOT NULL, "teacherId" uuid NOT NULL, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_b43159ee3efa440952794b4f53e" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "exam_attempts" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "examId" uuid NOT NULL, "studentId" uuid NOT NULL, "answers" text, "score" double precision NOT NULL DEFAULT '0', "earnedPoints" double precision NOT NULL DEFAULT '0', "totalPoints" double precision NOT NULL DEFAULT '0', "status" "public"."exam_attempts_status_enum" NOT NULL DEFAULT 'in_progress', "passed" boolean NOT NULL DEFAULT false, "certificateIssued" boolean NOT NULL DEFAULT false, "certificateId" character varying, "startedAt" TIMESTAMP NOT NULL, "completedAt" TIMESTAMP, "timeSpent" integer NOT NULL DEFAULT '0', "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_4eb6c7775e0a9c178ef7f4826f9" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "discussions" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "title" character varying NOT NULL, "content" text NOT NULL, "course_id" uuid NOT NULL, "lesson_id" uuid, "author_id" uuid NOT NULL, "parent_id" uuid, "is_pinned" boolean NOT NULL DEFAULT false, "is_resolved" boolean NOT NULL DEFAULT false, "reply_count" integer NOT NULL DEFAULT '0', "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_4b3d110d8e5d9077ddc0a0d1b4c" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "coupons" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "code" character varying NOT NULL, "type" "public"."coupons_type_enum" NOT NULL DEFAULT 'percentage', "value" numeric(10,2) NOT NULL, "min_purchase" numeric(10,2), "max_discount" numeric(10,2), "usage_limit" integer, "used_count" integer NOT NULL DEFAULT '0', "course_id" uuid, "created_by" uuid NOT NULL, "status" "public"."coupons_status_enum" NOT NULL DEFAULT 'active', "valid_from" TIMESTAMP, "valid_until" TIMESTAMP, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_e025109230e82925843f2a14c48" UNIQUE ("code"), CONSTRAINT "PK_d7ea8864a0150183770f3e9a8cb" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "cart" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "user_id" uuid NOT NULL, "course_id" uuid NOT NULL, "price" numeric(10,2), "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_c524ec48751b9b5bcfbf6e59be7" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "two_factor_auth" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "userId" uuid NOT NULL, "isEnabled" boolean NOT NULL DEFAULT false, "method" "public"."two_factor_auth_method_enum" NOT NULL DEFAULT 'totp', "secret" character varying, "backupCodes" text, "phoneNumber" character varying, "isVerified" boolean NOT NULL DEFAULT false, "verifiedAt" TIMESTAMP, "lastUsedAt" TIMESTAMP, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "UQ_ceebe2fe995d01aeff8cb013f53" UNIQUE ("userId"), CONSTRAINT "PK_ac930594b4dbe3771cf16cd108d" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "user_sessions" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "userId" uuid NOT NULL, "token" character varying NOT NULL, "deviceInfo" character varying, "ipAddress" character varying, "location" character varying, "status" "public"."user_sessions_status_enum" NOT NULL DEFAULT 'active', "expiresAt" TIMESTAMP NOT NULL, "lastActivityAt" TIMESTAMP, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_e93e031a5fed190d4789b6bfd83" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "assignments" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "title" character varying NOT NULL, "description" text NOT NULL, "course_id" uuid NOT NULL, "lesson_id" uuid, "created_by" uuid NOT NULL, "max_score" integer NOT NULL DEFAULT '100', "due_date" TIMESTAMP, "status" "public"."assignments_status_enum" NOT NULL DEFAULT 'draft', "allow_late_submission" boolean NOT NULL DEFAULT false, "instructions" text, "attachments" text, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_c54ca359535e0012b04dcbd80ee" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "assignment_submissions" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "assignment_id" uuid NOT NULL, "student_id" uuid NOT NULL, "content" text, "attachments" text, "status" "public"."assignment_submissions_status_enum" NOT NULL DEFAULT 'not_submitted', "score" integer, "feedback" text, "graded_by" uuid, "graded_at" TIMESTAMP, "submitted_at" TIMESTAMP, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_0caedc49d0357bedac05ca5a806" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "announcements" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "title" character varying NOT NULL, "content" text NOT NULL, "course_id" uuid, "author_id" uuid NOT NULL, "priority" "public"."announcements_priority_enum" NOT NULL DEFAULT 'medium', "is_pinned" boolean NOT NULL DEFAULT false, "is_published" boolean NOT NULL DEFAULT true, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_b3ad760876ff2e19d58e05dc8b0" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "certificates" ADD CONSTRAINT "FK_dd01ec6501540780943fe16cf75" FOREIGN KEY ("studentId") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "certificates" ADD CONSTRAINT "FK_e50e73bc3bdcfb0eb3d561f1494" FOREIGN KEY ("courseId") REFERENCES "courses"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "certificates" ADD CONSTRAINT "FK_23287b04f9c0072b935a2abd6fc" FOREIGN KEY ("enrollmentId") REFERENCES "enrollments"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "enrollments" ADD CONSTRAINT "FK_bf3ba3dfa95e2df7388eb4589fd" FOREIGN KEY ("studentId") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "enrollments" ADD CONSTRAINT "FK_60dd0ae4e21002e63a5fdefeec8" FOREIGN KEY ("courseId") REFERENCES "courses"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "lesson_progress" ADD CONSTRAINT "FK_5bc4ad7572c19f8c12a67fee6b1" FOREIGN KEY ("enrollmentId") REFERENCES "enrollments"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "lesson_progress" ADD CONSTRAINT "FK_df13299d2740b302dd44a368df9" FOREIGN KEY ("lessonId") REFERENCES "lessons"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "lessons" ADD CONSTRAINT "FK_1a9ff2409a84c76560ae8a92590" FOREIGN KEY ("courseId") REFERENCES "courses"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "reviews" ADD CONSTRAINT "FK_63a921d8859a586e1fc91ff4f5f" FOREIGN KEY ("studentId") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "reviews" ADD CONSTRAINT "FK_01ad76b89c3d4f612209556e2c3" FOREIGN KEY ("courseId") REFERENCES "courses"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "courses" ADD CONSTRAINT "FK_f921bd9bb6d061b90d386fa3721" FOREIGN KEY ("teacherId") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "courses" ADD CONSTRAINT "FK_c730473dfb837b3e62057cd9447" FOREIGN KEY ("categoryId") REFERENCES "categories"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "wishlists" ADD CONSTRAINT "FK_7e8bcc5c1ff10ae3aae0f551c95" FOREIGN KEY ("studentId") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "wishlists" ADD CONSTRAINT "FK_432a76f72b5d6a760bcaf469973" FOREIGN KEY ("courseId") REFERENCES "courses"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "resources" ADD CONSTRAINT "FK_65d16228cfa6e88403acc8d466a" FOREIGN KEY ("course_id") REFERENCES "courses"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "resources" ADD CONSTRAINT "FK_8f294aae89a7693f9cec1a6723a" FOREIGN KEY ("lesson_id") REFERENCES "lessons"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "resources" ADD CONSTRAINT "FK_9cf8aa3e8c65a062c8634306faa" FOREIGN KEY ("uploaded_by") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "quiz_attempts" ADD CONSTRAINT "FK_30ae16bcedd2b2663686edfc7a8" FOREIGN KEY ("studentId") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "quiz_attempts" ADD CONSTRAINT "FK_23f2bbe9288b221b1b377372782" FOREIGN KEY ("quizId") REFERENCES "quizzes"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "quizzes" ADD CONSTRAINT "FK_9021b7e89ea353c02a361a10b72" FOREIGN KEY ("courseId") REFERENCES "courses"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "quizzes" ADD CONSTRAINT "FK_eba9ff0775c843581aab6916b32" FOREIGN KEY ("lessonId") REFERENCES "lessons"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "payments" ADD CONSTRAINT "FK_b2731e10aef7f886a08c552290e" FOREIGN KEY ("studentId") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "payments" ADD CONSTRAINT "FK_00097d3b3147848e3585aabb433" FOREIGN KEY ("courseId") REFERENCES "courses"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "notifications" ADD CONSTRAINT "FK_692a909ee0fa9383e7859f9b406" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "notes" ADD CONSTRAINT "FK_c4b5e5ac09bb41db7967ccfe34d" FOREIGN KEY ("studentId") REFERENCES "users"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "notes" ADD CONSTRAINT "FK_a3fca84a5e23e9f5eb39e45fbbb" FOREIGN KEY ("courseId") REFERENCES "courses"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "notes" ADD CONSTRAINT "FK_30fe52bc8cca36dcb2156cba325" FOREIGN KEY ("lessonId") REFERENCES "lessons"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "exams" ADD CONSTRAINT "FK_3dcd9199b8cd801383e623c3d11" FOREIGN KEY ("courseId") REFERENCES "courses"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "exams" ADD CONSTRAINT "FK_698b8b125b1bf0e0d4a38bee303" FOREIGN KEY ("teacherId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "exam_attempts" ADD CONSTRAINT "FK_4eb0dd11d0191d842a8331e91d0" FOREIGN KEY ("examId") REFERENCES "exams"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "exam_attempts" ADD CONSTRAINT "FK_b3cfd8fad204570a1d448846892" FOREIGN KEY ("studentId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "discussions" ADD CONSTRAINT "FK_cedb0b583906c7f01fc7bd4972c" FOREIGN KEY ("author_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "discussions" ADD CONSTRAINT "FK_86f683d676a567be37cc9c06c88" FOREIGN KEY ("course_id") REFERENCES "courses"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "discussions" ADD CONSTRAINT "FK_79212043b84fa5438c38ce14380" FOREIGN KEY ("lesson_id") REFERENCES "lessons"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "discussions" ADD CONSTRAINT "FK_a2559be8d2f054ea1ca1430229e" FOREIGN KEY ("parent_id") REFERENCES "discussions"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "coupons" ADD CONSTRAINT "FK_cbfc36859d6d455581303e85088" FOREIGN KEY ("course_id") REFERENCES "courses"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "coupons" ADD CONSTRAINT "FK_dc1cf7573d95d72ac52fe10a976" FOREIGN KEY ("created_by") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "cart" ADD CONSTRAINT "FK_f091e86a234693a49084b4c2c86" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "cart" ADD CONSTRAINT "FK_ccbdf937aeec8a8e8fb3c454d60" FOREIGN KEY ("course_id") REFERENCES "courses"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "two_factor_auth" ADD CONSTRAINT "FK_ceebe2fe995d01aeff8cb013f53" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "user_sessions" ADD CONSTRAINT "FK_55fa4db8406ed66bc7044328427" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "assignments" ADD CONSTRAINT "FK_03fa66c20619cbc55aa4ebc69bd" FOREIGN KEY ("created_by") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "assignments" ADD CONSTRAINT "FK_33f833f305070d2d4e6305d8a0c" FOREIGN KEY ("course_id") REFERENCES "courses"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "assignments" ADD CONSTRAINT "FK_c0fda9de424e0e719787f6b5764" FOREIGN KEY ("lesson_id") REFERENCES "lessons"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "assignment_submissions" ADD CONSTRAINT "FK_0c62b946a9e40285ac33fe970bb" FOREIGN KEY ("assignment_id") REFERENCES "assignments"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "assignment_submissions" ADD CONSTRAINT "FK_45b95e9a93646e79972f824a93f" FOREIGN KEY ("student_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "assignment_submissions" ADD CONSTRAINT "FK_31312ce3e8a1d0ec00c7648e00c" FOREIGN KEY ("graded_by") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "announcements" ADD CONSTRAINT "FK_0a13cf0aa1f1a2666699ff473f0" FOREIGN KEY ("author_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "announcements" ADD CONSTRAINT "FK_e8f5ed3ae7b8b9e1f18fe9bb150" FOREIGN KEY ("course_id") REFERENCES "courses"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+    );
+  }
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`ALTER TABLE "announcements" DROP CONSTRAINT "FK_e8f5ed3ae7b8b9e1f18fe9bb150"`);
-        await queryRunner.query(`ALTER TABLE "announcements" DROP CONSTRAINT "FK_0a13cf0aa1f1a2666699ff473f0"`);
-        await queryRunner.query(`ALTER TABLE "assignment_submissions" DROP CONSTRAINT "FK_31312ce3e8a1d0ec00c7648e00c"`);
-        await queryRunner.query(`ALTER TABLE "assignment_submissions" DROP CONSTRAINT "FK_45b95e9a93646e79972f824a93f"`);
-        await queryRunner.query(`ALTER TABLE "assignment_submissions" DROP CONSTRAINT "FK_0c62b946a9e40285ac33fe970bb"`);
-        await queryRunner.query(`ALTER TABLE "assignments" DROP CONSTRAINT "FK_c0fda9de424e0e719787f6b5764"`);
-        await queryRunner.query(`ALTER TABLE "assignments" DROP CONSTRAINT "FK_33f833f305070d2d4e6305d8a0c"`);
-        await queryRunner.query(`ALTER TABLE "assignments" DROP CONSTRAINT "FK_03fa66c20619cbc55aa4ebc69bd"`);
-        await queryRunner.query(`ALTER TABLE "user_sessions" DROP CONSTRAINT "FK_55fa4db8406ed66bc7044328427"`);
-        await queryRunner.query(`ALTER TABLE "two_factor_auth" DROP CONSTRAINT "FK_ceebe2fe995d01aeff8cb013f53"`);
-        await queryRunner.query(`ALTER TABLE "cart" DROP CONSTRAINT "FK_ccbdf937aeec8a8e8fb3c454d60"`);
-        await queryRunner.query(`ALTER TABLE "cart" DROP CONSTRAINT "FK_f091e86a234693a49084b4c2c86"`);
-        await queryRunner.query(`ALTER TABLE "coupons" DROP CONSTRAINT "FK_dc1cf7573d95d72ac52fe10a976"`);
-        await queryRunner.query(`ALTER TABLE "coupons" DROP CONSTRAINT "FK_cbfc36859d6d455581303e85088"`);
-        await queryRunner.query(`ALTER TABLE "discussions" DROP CONSTRAINT "FK_a2559be8d2f054ea1ca1430229e"`);
-        await queryRunner.query(`ALTER TABLE "discussions" DROP CONSTRAINT "FK_79212043b84fa5438c38ce14380"`);
-        await queryRunner.query(`ALTER TABLE "discussions" DROP CONSTRAINT "FK_86f683d676a567be37cc9c06c88"`);
-        await queryRunner.query(`ALTER TABLE "discussions" DROP CONSTRAINT "FK_cedb0b583906c7f01fc7bd4972c"`);
-        await queryRunner.query(`ALTER TABLE "exam_attempts" DROP CONSTRAINT "FK_b3cfd8fad204570a1d448846892"`);
-        await queryRunner.query(`ALTER TABLE "exam_attempts" DROP CONSTRAINT "FK_4eb0dd11d0191d842a8331e91d0"`);
-        await queryRunner.query(`ALTER TABLE "exams" DROP CONSTRAINT "FK_698b8b125b1bf0e0d4a38bee303"`);
-        await queryRunner.query(`ALTER TABLE "exams" DROP CONSTRAINT "FK_3dcd9199b8cd801383e623c3d11"`);
-        await queryRunner.query(`ALTER TABLE "notes" DROP CONSTRAINT "FK_30fe52bc8cca36dcb2156cba325"`);
-        await queryRunner.query(`ALTER TABLE "notes" DROP CONSTRAINT "FK_a3fca84a5e23e9f5eb39e45fbbb"`);
-        await queryRunner.query(`ALTER TABLE "notes" DROP CONSTRAINT "FK_c4b5e5ac09bb41db7967ccfe34d"`);
-        await queryRunner.query(`ALTER TABLE "notifications" DROP CONSTRAINT "FK_692a909ee0fa9383e7859f9b406"`);
-        await queryRunner.query(`ALTER TABLE "payments" DROP CONSTRAINT "FK_00097d3b3147848e3585aabb433"`);
-        await queryRunner.query(`ALTER TABLE "payments" DROP CONSTRAINT "FK_b2731e10aef7f886a08c552290e"`);
-        await queryRunner.query(`ALTER TABLE "quizzes" DROP CONSTRAINT "FK_eba9ff0775c843581aab6916b32"`);
-        await queryRunner.query(`ALTER TABLE "quizzes" DROP CONSTRAINT "FK_9021b7e89ea353c02a361a10b72"`);
-        await queryRunner.query(`ALTER TABLE "quiz_attempts" DROP CONSTRAINT "FK_23f2bbe9288b221b1b377372782"`);
-        await queryRunner.query(`ALTER TABLE "quiz_attempts" DROP CONSTRAINT "FK_30ae16bcedd2b2663686edfc7a8"`);
-        await queryRunner.query(`ALTER TABLE "resources" DROP CONSTRAINT "FK_9cf8aa3e8c65a062c8634306faa"`);
-        await queryRunner.query(`ALTER TABLE "resources" DROP CONSTRAINT "FK_8f294aae89a7693f9cec1a6723a"`);
-        await queryRunner.query(`ALTER TABLE "resources" DROP CONSTRAINT "FK_65d16228cfa6e88403acc8d466a"`);
-        await queryRunner.query(`ALTER TABLE "wishlists" DROP CONSTRAINT "FK_432a76f72b5d6a760bcaf469973"`);
-        await queryRunner.query(`ALTER TABLE "wishlists" DROP CONSTRAINT "FK_7e8bcc5c1ff10ae3aae0f551c95"`);
-        await queryRunner.query(`ALTER TABLE "courses" DROP CONSTRAINT "FK_c730473dfb837b3e62057cd9447"`);
-        await queryRunner.query(`ALTER TABLE "courses" DROP CONSTRAINT "FK_f921bd9bb6d061b90d386fa3721"`);
-        await queryRunner.query(`ALTER TABLE "reviews" DROP CONSTRAINT "FK_01ad76b89c3d4f612209556e2c3"`);
-        await queryRunner.query(`ALTER TABLE "reviews" DROP CONSTRAINT "FK_63a921d8859a586e1fc91ff4f5f"`);
-        await queryRunner.query(`ALTER TABLE "lessons" DROP CONSTRAINT "FK_1a9ff2409a84c76560ae8a92590"`);
-        await queryRunner.query(`ALTER TABLE "lesson_progress" DROP CONSTRAINT "FK_df13299d2740b302dd44a368df9"`);
-        await queryRunner.query(`ALTER TABLE "lesson_progress" DROP CONSTRAINT "FK_5bc4ad7572c19f8c12a67fee6b1"`);
-        await queryRunner.query(`ALTER TABLE "enrollments" DROP CONSTRAINT "FK_60dd0ae4e21002e63a5fdefeec8"`);
-        await queryRunner.query(`ALTER TABLE "enrollments" DROP CONSTRAINT "FK_bf3ba3dfa95e2df7388eb4589fd"`);
-        await queryRunner.query(`ALTER TABLE "certificates" DROP CONSTRAINT "FK_23287b04f9c0072b935a2abd6fc"`);
-        await queryRunner.query(`ALTER TABLE "certificates" DROP CONSTRAINT "FK_e50e73bc3bdcfb0eb3d561f1494"`);
-        await queryRunner.query(`ALTER TABLE "certificates" DROP CONSTRAINT "FK_dd01ec6501540780943fe16cf75"`);
-        await queryRunner.query(`DROP TABLE "announcements"`);
-        await queryRunner.query(`DROP TABLE "assignment_submissions"`);
-        await queryRunner.query(`DROP TABLE "assignments"`);
-        await queryRunner.query(`DROP TABLE "user_sessions"`);
-        await queryRunner.query(`DROP TABLE "two_factor_auth"`);
-        await queryRunner.query(`DROP TABLE "cart"`);
-        await queryRunner.query(`DROP TABLE "coupons"`);
-        await queryRunner.query(`DROP TABLE "discussions"`);
-        await queryRunner.query(`DROP TABLE "exam_attempts"`);
-        await queryRunner.query(`DROP TABLE "exams"`);
-        await queryRunner.query(`DROP TABLE "notes"`);
-        await queryRunner.query(`DROP TABLE "notifications"`);
-        await queryRunner.query(`DROP TABLE "payments"`);
-        await queryRunner.query(`DROP TABLE "quizzes"`);
-        await queryRunner.query(`DROP TABLE "quiz_attempts"`);
-        await queryRunner.query(`DROP TABLE "resources"`);
-        await queryRunner.query(`DROP TABLE "wishlists"`);
-        await queryRunner.query(`DROP TABLE "courses"`);
-        await queryRunner.query(`DROP TABLE "reviews"`);
-        await queryRunner.query(`DROP TABLE "lessons"`);
-        await queryRunner.query(`DROP TABLE "lesson_progress"`);
-        await queryRunner.query(`DROP TABLE "enrollments"`);
-        await queryRunner.query(`DROP TABLE "certificates"`);
-        await queryRunner.query(`DROP TABLE "categories"`);
-        await queryRunner.query(`DROP TABLE "users"`);
-    }
-
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      `ALTER TABLE "announcements" DROP CONSTRAINT "FK_e8f5ed3ae7b8b9e1f18fe9bb150"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "announcements" DROP CONSTRAINT "FK_0a13cf0aa1f1a2666699ff473f0"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "assignment_submissions" DROP CONSTRAINT "FK_31312ce3e8a1d0ec00c7648e00c"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "assignment_submissions" DROP CONSTRAINT "FK_45b95e9a93646e79972f824a93f"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "assignment_submissions" DROP CONSTRAINT "FK_0c62b946a9e40285ac33fe970bb"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "assignments" DROP CONSTRAINT "FK_c0fda9de424e0e719787f6b5764"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "assignments" DROP CONSTRAINT "FK_33f833f305070d2d4e6305d8a0c"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "assignments" DROP CONSTRAINT "FK_03fa66c20619cbc55aa4ebc69bd"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "user_sessions" DROP CONSTRAINT "FK_55fa4db8406ed66bc7044328427"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "two_factor_auth" DROP CONSTRAINT "FK_ceebe2fe995d01aeff8cb013f53"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "cart" DROP CONSTRAINT "FK_ccbdf937aeec8a8e8fb3c454d60"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "cart" DROP CONSTRAINT "FK_f091e86a234693a49084b4c2c86"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "coupons" DROP CONSTRAINT "FK_dc1cf7573d95d72ac52fe10a976"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "coupons" DROP CONSTRAINT "FK_cbfc36859d6d455581303e85088"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "discussions" DROP CONSTRAINT "FK_a2559be8d2f054ea1ca1430229e"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "discussions" DROP CONSTRAINT "FK_79212043b84fa5438c38ce14380"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "discussions" DROP CONSTRAINT "FK_86f683d676a567be37cc9c06c88"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "discussions" DROP CONSTRAINT "FK_cedb0b583906c7f01fc7bd4972c"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "exam_attempts" DROP CONSTRAINT "FK_b3cfd8fad204570a1d448846892"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "exam_attempts" DROP CONSTRAINT "FK_4eb0dd11d0191d842a8331e91d0"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "exams" DROP CONSTRAINT "FK_698b8b125b1bf0e0d4a38bee303"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "exams" DROP CONSTRAINT "FK_3dcd9199b8cd801383e623c3d11"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "notes" DROP CONSTRAINT "FK_30fe52bc8cca36dcb2156cba325"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "notes" DROP CONSTRAINT "FK_a3fca84a5e23e9f5eb39e45fbbb"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "notes" DROP CONSTRAINT "FK_c4b5e5ac09bb41db7967ccfe34d"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "notifications" DROP CONSTRAINT "FK_692a909ee0fa9383e7859f9b406"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "payments" DROP CONSTRAINT "FK_00097d3b3147848e3585aabb433"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "payments" DROP CONSTRAINT "FK_b2731e10aef7f886a08c552290e"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "quizzes" DROP CONSTRAINT "FK_eba9ff0775c843581aab6916b32"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "quizzes" DROP CONSTRAINT "FK_9021b7e89ea353c02a361a10b72"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "quiz_attempts" DROP CONSTRAINT "FK_23f2bbe9288b221b1b377372782"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "quiz_attempts" DROP CONSTRAINT "FK_30ae16bcedd2b2663686edfc7a8"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "resources" DROP CONSTRAINT "FK_9cf8aa3e8c65a062c8634306faa"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "resources" DROP CONSTRAINT "FK_8f294aae89a7693f9cec1a6723a"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "resources" DROP CONSTRAINT "FK_65d16228cfa6e88403acc8d466a"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "wishlists" DROP CONSTRAINT "FK_432a76f72b5d6a760bcaf469973"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "wishlists" DROP CONSTRAINT "FK_7e8bcc5c1ff10ae3aae0f551c95"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "courses" DROP CONSTRAINT "FK_c730473dfb837b3e62057cd9447"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "courses" DROP CONSTRAINT "FK_f921bd9bb6d061b90d386fa3721"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "reviews" DROP CONSTRAINT "FK_01ad76b89c3d4f612209556e2c3"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "reviews" DROP CONSTRAINT "FK_63a921d8859a586e1fc91ff4f5f"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "lessons" DROP CONSTRAINT "FK_1a9ff2409a84c76560ae8a92590"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "lesson_progress" DROP CONSTRAINT "FK_df13299d2740b302dd44a368df9"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "lesson_progress" DROP CONSTRAINT "FK_5bc4ad7572c19f8c12a67fee6b1"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "enrollments" DROP CONSTRAINT "FK_60dd0ae4e21002e63a5fdefeec8"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "enrollments" DROP CONSTRAINT "FK_bf3ba3dfa95e2df7388eb4589fd"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "certificates" DROP CONSTRAINT "FK_23287b04f9c0072b935a2abd6fc"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "certificates" DROP CONSTRAINT "FK_e50e73bc3bdcfb0eb3d561f1494"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "certificates" DROP CONSTRAINT "FK_dd01ec6501540780943fe16cf75"`,
+    );
+    await queryRunner.query(`DROP TABLE "announcements"`);
+    await queryRunner.query(`DROP TABLE "assignment_submissions"`);
+    await queryRunner.query(`DROP TABLE "assignments"`);
+    await queryRunner.query(`DROP TABLE "user_sessions"`);
+    await queryRunner.query(`DROP TABLE "two_factor_auth"`);
+    await queryRunner.query(`DROP TABLE "cart"`);
+    await queryRunner.query(`DROP TABLE "coupons"`);
+    await queryRunner.query(`DROP TABLE "discussions"`);
+    await queryRunner.query(`DROP TABLE "exam_attempts"`);
+    await queryRunner.query(`DROP TABLE "exams"`);
+    await queryRunner.query(`DROP TABLE "notes"`);
+    await queryRunner.query(`DROP TABLE "notifications"`);
+    await queryRunner.query(`DROP TABLE "payments"`);
+    await queryRunner.query(`DROP TABLE "quizzes"`);
+    await queryRunner.query(`DROP TABLE "quiz_attempts"`);
+    await queryRunner.query(`DROP TABLE "resources"`);
+    await queryRunner.query(`DROP TABLE "wishlists"`);
+    await queryRunner.query(`DROP TABLE "courses"`);
+    await queryRunner.query(`DROP TABLE "reviews"`);
+    await queryRunner.query(`DROP TABLE "lessons"`);
+    await queryRunner.query(`DROP TABLE "lesson_progress"`);
+    await queryRunner.query(`DROP TABLE "enrollments"`);
+    await queryRunner.query(`DROP TABLE "certificates"`);
+    await queryRunner.query(`DROP TABLE "categories"`);
+    await queryRunner.query(`DROP TABLE "users"`);
+  }
 }

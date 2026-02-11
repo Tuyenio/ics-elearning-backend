@@ -4,49 +4,49 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
-} from 'typeorm'
+} from 'typeorm';
 
 @Entity('schedule_items')
 export class ScheduleItem {
   @PrimaryGeneratedColumn('uuid')
-  id: string
+  id: string;
 
   @Column()
-  title: string
+  title: string;
 
   @Column()
-  course: string
+  course: string;
 
   @Column()
-  type: 'lesson' | 'exam' | 'live'
+  type: 'lesson' | 'exam' | 'live';
 
   @Column()
-  status: 'todo' | 'in-progress' | 'completed'
+  status: 'todo' | 'in-progress' | 'completed';
 
   @Column()
-  time: string
+  time: string;
 
   @Column()
-  duration: string
+  duration: string;
 
   @Column({ nullable: true })
-  dueDate: string
+  dueDate: string;
 
   @Column({ default: false })
-  completed: boolean
+  completed: boolean;
 
   @Column({ nullable: true })
-  important: boolean
+  important: boolean;
 
   @Column({ type: 'text', nullable: true })
-  description: string
+  description: string;
 
   @Column({ type: 'json', nullable: true })
-  tags: string[]
+  tags: string[];
 
   @CreateDateColumn()
-  createdAt: Date
+  createdAt: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date
+  updatedAt: Date;
 }

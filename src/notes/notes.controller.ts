@@ -50,11 +50,12 @@ export class NotesController {
   async exportToExcel(@GetUser() user: User, @Response() res: any) {
     try {
       const fileBuffer = await this.notesService.exportToExcel(user.id);
-      
+
       // Set the response headers
       const fileName = `ghi-chu-${new Date().toISOString().split('T')[0]}.xlsx`;
       res.set({
-        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Type':
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': `attachment; filename="${fileName}"`,
         'Content-Length': fileBuffer.length,
       });
@@ -68,14 +69,22 @@ export class NotesController {
   @Get(':id/export/excel')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.STUDENT)
-  async exportSingleNoteToExcel(@Param('id') id: string, @GetUser() user: User, @Response() res: any) {
+  async exportSingleNoteToExcel(
+    @Param('id') id: string,
+    @GetUser() user: User,
+    @Response() res: any,
+  ) {
     try {
-      const fileBuffer = await this.notesService.exportSingleNoteToExcel(id, user.id);
-      
+      const fileBuffer = await this.notesService.exportSingleNoteToExcel(
+        id,
+        user.id,
+      );
+
       // Set the response headers
       const fileName = `ghi-chu-${new Date().toISOString().split('T')[0]}.xlsx`;
       res.set({
-        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'Content-Type':
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': `attachment; filename="${fileName}"`,
         'Content-Length': fileBuffer.length,
       });
@@ -124,7 +133,11 @@ export class NotesController {
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.STUDENT)
-  update(@Param('id') id: string, @Body() updateNoteDto: UpdateNoteDto, @GetUser() user: User) {
+  update(
+    @Param('id') id: string,
+    @Body() updateNoteDto: UpdateNoteDto,
+    @GetUser() user: User,
+  ) {
     return this.notesService.update(id, updateNoteDto, user);
   }
 

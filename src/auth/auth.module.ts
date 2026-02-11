@@ -15,7 +15,7 @@ import { TwoFactorAuthController } from './two-factor-auth.controller';
 import { TwoFactorAuth } from './entities/two-factor-auth.entity';
 import { User } from '../users/entities/user.entity';
 import { CacheModule } from '@nestjs/cache-manager';
-import { SystemSettingsModule } from "../system-settings/system-setting.module"
+import { SystemSettingsModule } from '../system-settings/system-setting.module';
 
 @Module({
   imports: [
@@ -36,7 +36,13 @@ import { SystemSettingsModule } from "../system-settings/system-setting.module"
     ConfigModule,
   ],
   controllers: [AuthController, TwoFactorAuthController],
-  providers: [AuthService, LocalStrategy, JwtStrategy, GoogleStrategy, TwoFactorAuthService],
+  providers: [
+    AuthService,
+    LocalStrategy,
+    JwtStrategy,
+    GoogleStrategy,
+    TwoFactorAuthService,
+  ],
   exports: [AuthService, TwoFactorAuthService],
 })
 export class AuthModule {}

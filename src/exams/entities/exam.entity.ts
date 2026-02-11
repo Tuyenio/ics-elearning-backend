@@ -110,4 +110,3 @@ export class Exam {
   @UpdateDateColumn()
   updatedAt: Date;
 }
-

@@ -8,7 +8,14 @@ import { Enrollment } from '../enrollments/entities/enrollment.entity';
 import { Exam } from '../exams/entities/exam.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Certificate, CertificateTemplate, Enrollment, Exam])],
+  imports: [
+    TypeOrmModule.forFeature([
+      Certificate,
+      CertificateTemplate,
+      Enrollment,
+      Exam,
+    ]),
+  ],
   controllers: [CertificatesController],
   providers: [CertificatesService],
   exports: [CertificatesService],
