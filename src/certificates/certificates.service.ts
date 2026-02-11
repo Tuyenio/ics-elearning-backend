@@ -1,10 +1,22 @@
-import { Injectable, NotFoundException, ConflictException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Certificate, CertificateStatus } from './entities/certificate.entity';
-import { CertificateTemplate, TemplateStatus } from './entities/certificate-template.entity';
+import {
+  CertificateTemplate,
+  TemplateStatus,
+} from './entities/certificate-template.entity';
 import { User } from '../users/entities/user.entity';
-import { Enrollment, EnrollmentStatus } from '../enrollments/entities/enrollment.entity';
+import {
+  Enrollment,
+  EnrollmentStatus,
+} from '../enrollments/entities/enrollment.entity';
 import { Exam, ExamType } from '../exams/entities/exam.entity';
 
 @Injectable()
@@ -31,7 +43,9 @@ export class CertificatesService {
     }
 
     if (enrollment.status !== EnrollmentStatus.COMPLETED) {
-      throw new ConflictException('Khóa học phải được hoàn thành để tạo chứng chỉ');
+      throw new ConflictException(
+        'Khóa học phải được hoàn thành để tạo chứng chỉ',
+      );
     }
 
     // Check if certificate already exists
@@ -102,7 +116,9 @@ export class CertificatesService {
     return certificate;
   }
 
-  async findByCertificateNumber(certificateNumber: string): Promise<Certificate> {
+  async findByCertificateNumber(
+    certificateNumber: string,
+  ): Promise<Certificate> {
     const certificate = await this.certificateRepository.findOne({
       where: { certificateNumber },
       relations: ['course', 'student', 'enrollment'],
@@ -146,7 +162,7 @@ export class CertificatesService {
 
   async createShareLink(certificateId: string, userId: string) {
     const certificate = await this.findOne(certificateId);
-    
+
     if (certificate.studentId !== userId) {
       throw new ForbiddenException('Bạn chỉ có thể chia sẻ chứng chỉ của mình');
     }
@@ -176,8 +192,10 @@ export class CertificatesService {
   }
 
   private generateShareId(): string {
-    return Math.random().toString(36).substring(2, 15) + 
-           Math.random().toString(36).substring(2, 15);
+    return (
+      Math.random().toString(36).substring(2, 15) +
+      Math.random().toString(36).substring(2, 15)
+    );
   }
 
   private generateCertificateNumber(): string {
@@ -187,8 +205,11 @@ export class CertificatesService {
   }
 
   // ==================== CERTIFICATE TEMPLATES ====================
-  
-  async createTemplate(teacherId: string, data: Partial<CertificateTemplate>): Promise<CertificateTemplate> {
+
+  async createTemplate(
+    teacherId: string,
+    data: Partial<CertificateTemplate>,
+  ): Promise<CertificateTemplate> {
     const template = this.templateRepository.create({
       ...data,
       teacherId,
@@ -197,7 +218,9 @@ export class CertificatesService {
     return this.templateRepository.save(template);
   }
 
-  async findTemplatesByTeacher(teacherId: string): Promise<CertificateTemplate[]> {
+  async findTemplatesByTeacher(
+    teacherId: string,
+  ): Promise<CertificateTemplate[]> {
     return this.templateRepository.find({
       where: { teacherId },
       relations: ['course'],
@@ -205,7 +228,9 @@ export class CertificatesService {
     });
   }
 
-  async findTemplatesForAdmin(status?: TemplateStatus): Promise<CertificateTemplate[]> {
+  async findTemplatesForAdmin(
+    status?: TemplateStatus,
+  ): Promise<CertificateTemplate[]> {
     return this.templateRepository.find({
       where: status ? { status } : {},
       relations: ['course', 'teacher'],
@@ -226,7 +251,11 @@ export class CertificatesService {
     return template;
   }
 
-  async updateTemplate(id: string, teacherId: string, data: Partial<CertificateTemplate>): Promise<CertificateTemplate> {
+  async updateTemplate(
+    id: string,
+    teacherId: string,
+    data: Partial<CertificateTemplate>,
+  ): Promise<CertificateTemplate> {
     const template = await this.findTemplateById(id);
 
     if (template.teacherId !== teacherId) {
@@ -247,7 +276,10 @@ export class CertificatesService {
     await this.templateRepository.remove(template);
   }
 
-  async submitTemplateForApproval(id: string, teacherId: string): Promise<CertificateTemplate> {
+  async submitTemplateForApproval(
+    id: string,
+    teacherId: string,
+  ): Promise<CertificateTemplate> {
     const template = await this.findTemplateById(id);
 
     if (template.teacherId !== teacherId) {
@@ -258,11 +290,16 @@ export class CertificatesService {
     return this.templateRepository.save(template);
   }
 
-  async approveTemplate(id: string, examId?: string): Promise<CertificateTemplate> {
+  async approveTemplate(
+    id: string,
+    examId?: string,
+  ): Promise<CertificateTemplate> {
     const template = await this.findTemplateById(id);
 
     if (template.status !== TemplateStatus.PENDING) {
-      throw new BadRequestException('Chỉ có thể duyệt mẫu chứng chỉ đang chờ duyệt');
+      throw new BadRequestException(
+        'Chỉ có thể duyệt mẫu chứng chỉ đang chờ duyệt',
+      );
     }
 
     if (examId) {
@@ -271,10 +308,14 @@ export class CertificatesService {
         throw new NotFoundException('Không tìm thấy bài thi');
       }
       if (exam.type !== ExamType.OFFICIAL) {
-        throw new BadRequestException('Chỉ có thể gắn mẫu chứng chỉ vào bài thi thật');
+        throw new BadRequestException(
+          'Chỉ có thể gắn mẫu chứng chỉ vào bài thi thật',
+        );
       }
       if (exam.courseId !== template.courseId) {
-        throw new BadRequestException('Bài thi phải thuộc cùng khóa học với mẫu chứng chỉ');
+        throw new BadRequestException(
+          'Bài thi phải thuộc cùng khóa học với mẫu chứng chỉ',
+        );
       }
       exam.certificateTemplateId = template.id;
       await this.examRepository.save(exam);
@@ -285,7 +326,10 @@ export class CertificatesService {
     return this.templateRepository.save(template);
   }
 
-  async rejectTemplate(id: string, reason: string): Promise<CertificateTemplate> {
+  async rejectTemplate(
+    id: string,
+    reason: string,
+  ): Promise<CertificateTemplate> {
     const template = await this.findTemplateById(id);
     template.status = TemplateStatus.REJECTED;
     template.rejectionReason = reason;

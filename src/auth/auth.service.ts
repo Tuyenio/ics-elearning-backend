@@ -7,7 +7,7 @@ import * as bcrypt from 'bcryptjs';
 import { UnauthorizedException, ConflictException } from '@nestjs/common';
 import { User, UserRole, UserStatus } from '../users/entities/user.entity';
 import { EmailService } from '../common/services/email.service';
-import { SystemSettingsService } from "../system-settings/system-setting.service"
+import { SystemSettingsService } from '../system-settings/system-setting.service';
 
 @Injectable()
 export class AuthService {
@@ -34,26 +34,35 @@ export class AuthService {
     }
 
     if (!user.emailVerified) {
-      throw new UnauthorizedException('Vui lòng xác thực email trước khi đăng nhập');
+      throw new UnauthorizedException(
+        'Vui lòng xác thực email trước khi đăng nhập',
+      );
     }
 
     if (user.status === UserStatus.INACTIVE || user.status === 'inactive') {
-      throw new UnauthorizedException('Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ với đội ngũ hỗ trợ để được kích hoạt lại.');
+      throw new UnauthorizedException(
+        'Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ với đội ngũ hỗ trợ để được kích hoạt lại.',
+      );
     }
 
     if (user.status !== UserStatus.ACTIVE) {
-      throw new UnauthorizedException('Tài khoản của bạn đã bị khóa. Vui lòng liên hệ với đội ngũ hỗ trợ để được kích hoạt lại.');
+      throw new UnauthorizedException(
+        'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ với đội ngũ hỗ trợ để được kích hoạt lại.',
+      );
     }
 
-    const maintenanceMode = await this.systemSettingsService.isMaintenanceMode();
+    const maintenanceMode =
+      await this.systemSettingsService.isMaintenanceMode();
     if (maintenanceMode && user.role !== UserRole.ADMIN) {
-      throw new UnauthorizedException('Hệ thống đang bảo trì. Vui lòng quay lại sau.');
+      throw new UnauthorizedException(
+        'Hệ thống đang bảo trì. Vui lòng quay lại sau.',
+      );
     }
 
-    const payload = { 
-      email: user.email, 
-      sub: user.id, 
-      role: user.role 
+    const payload = {
+      email: user.email,
+      sub: user.id,
+      role: user.role,
     };
 
     return {
@@ -72,29 +81,39 @@ export class AuthService {
 
   async register(createUserDto: CreateUserDto) {
     // Check if user already exists
-    const existingUser = await this.usersService.findByEmail(createUserDto.email);
+    const existingUser = await this.usersService.findByEmail(
+      createUserDto.email,
+    );
     if (existingUser) {
       throw new ConflictException('Email đã tồn tại');
     }
 
     // Create user
     const user = await this.usersService.create(createUserDto);
-    
+
     // Generate verification token
     const verificationToken = this.jwtService.sign(
       { email: user.email, type: 'email-verification' },
-      { expiresIn: '24h' }
+      { expiresIn: '24h' },
     );
 
     // Update user with verification token
-    await this.usersService.updateEmailVerificationToken(user.id, verificationToken);
+    await this.usersService.updateEmailVerificationToken(
+      user.id,
+      verificationToken,
+    );
 
     // Send verification email
-    await this.emailService.sendVerificationEmail(user.email, verificationToken);
-    
-    const { password, emailVerificationToken, passwordResetToken, ...result } = user;
+    await this.emailService.sendVerificationEmail(
+      user.email,
+      verificationToken,
+    );
+
+    const { password, emailVerificationToken, passwordResetToken, ...result } =
+      user;
     return {
-      message: 'User registered successfully. Please check your email for verification.',
+      message:
+        'User registered successfully. Please check your email for verification.',
       user: result,
     };
   }
@@ -114,11 +133,15 @@ export class AuthService {
   async forgotPassword(email: string) {
     const resetToken = this.jwtService.sign(
       { email: email, type: 'password-reset' },
-      { expiresIn: '1h' }
+      { expiresIn: '1h' },
     );
 
     const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-    await this.usersService.updatePasswordResetToken(email, resetToken, expires);
+    await this.usersService.updatePasswordResetToken(
+      email,
+      resetToken,
+      expires,
+    );
 
     // Send password reset email
     await this.emailService.sendPasswordResetEmail(email, resetToken);
@@ -136,10 +159,10 @@ export class AuthService {
   }
 
   async refreshToken(user: User) {
-    const payload = { 
-      email: user.email, 
-      sub: user.id, 
-      role: user.role 
+    const payload = {
+      email: user.email,
+      sub: user.id,
+      role: user.role,
     };
 
     return {
@@ -179,4 +202,3 @@ export class AuthService {
     return this.jwtService.sign(payload);
   }
 }
-

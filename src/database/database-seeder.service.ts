@@ -18,14 +18,16 @@ export class DatabaseSeederService implements OnModuleInit {
 
     // Only auto-seed in development or if AUTO_SEED_DB is explicitly set
     if (nodeEnv === 'production' && !autoSeed) {
-      this.logger.log('Skipping auto-seed in production (set AUTO_SEED_DB=true to enable)');
+      this.logger.log(
+        'Skipping auto-seed in production (set AUTO_SEED_DB=true to enable)',
+      );
       return;
     }
 
     try {
       // Check if database is empty (check users table)
       const userCount = await this.dataSource.query(
-        'SELECT COUNT(*) as count FROM users'
+        'SELECT COUNT(*) as count FROM users',
       );
 
       const count = parseInt(userCount[0].count);
@@ -35,12 +37,16 @@ export class DatabaseSeederService implements OnModuleInit {
         await seedDatabase(this.dataSource);
         this.logger.log('✅ Database seeded successfully!');
       } else {
-        this.logger.log(`📊 Database already has ${count} users, skipping seed`);
+        this.logger.log(
+          `📊 Database already has ${count} users, skipping seed`,
+        );
       }
     } catch (error) {
       // If table doesn't exist, migrations haven't run yet
       if (error.code === '42P01') {
-        this.logger.warn('⚠️  Tables not found. Waiting for migrations to complete...');
+        this.logger.warn(
+          '⚠️  Tables not found. Waiting for migrations to complete...',
+        );
         // Wait a bit and try again
         setTimeout(() => this.onModuleInit(), 2000);
       } else {

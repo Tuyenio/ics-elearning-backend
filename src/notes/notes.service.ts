@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
 import * as XLSX from 'xlsx';
@@ -74,7 +78,11 @@ export class NotesService {
     return note;
   }
 
-  async update(id: string, updateNoteDto: UpdateNoteDto, user: User): Promise<Note> {
+  async update(
+    id: string,
+    updateNoteDto: UpdateNoteDto,
+    user: User,
+  ): Promise<Note> {
     const note = await this.findOne(id, user.id);
 
     Object.assign(note, updateNoteDto);
@@ -96,8 +104,17 @@ export class NotesService {
     // Format data for Excel
     const data = notes.map((note, index) => [
       index + 1,
-      note.type === 'general' ? 'Ghi chú thường' : note.type === 'deadline' ? 'Deadline' : note.type === 'checklist' ? 'Checklist' : 'Lịch học',
-      note.content ? note.content.substring(0, 100) : `${note.items?.length || 0} mục` || `${note.schedule?.length || 0} lịch`,
+      note.type === 'general'
+        ? 'Ghi chú thường'
+        : note.type === 'deadline'
+          ? 'Deadline'
+          : note.type === 'checklist'
+            ? 'Checklist'
+            : 'Lịch học',
+      note.content
+        ? note.content.substring(0, 100)
+        : `${note.items?.length || 0} mục` ||
+          `${note.schedule?.length || 0} lịch`,
       note.course?.title || '-',
       note.lesson?.title || '-',
       new Date(note.createdAt).toLocaleDateString('vi-VN'),
@@ -109,7 +126,15 @@ export class NotesService {
       ['GHI CHÚ CỦA BẠN TẠI ICS LEARNING'],
       [`Ngày xuất: ${new Date().toLocaleDateString('vi-VN')}`],
       [],
-      ['STT', 'Loại', 'Ghi chú', 'Khóa học', 'Bài học', 'Ngày tạo', 'Lần chỉnh sửa gần nhất'],
+      [
+        'STT',
+        'Loại',
+        'Ghi chú',
+        'Khóa học',
+        'Bài học',
+        'Ngày tạo',
+        'Lần chỉnh sửa gần nhất',
+      ],
       ...data,
     ];
 
@@ -157,7 +182,15 @@ export class NotesService {
     }
 
     // Style header row (row 3)
-    const headers = ['STT', 'Loại', 'Ghi chú', 'Khóa học', 'Bài học', 'Ngày tạo', 'Lần chỉnh sửa gần nhất'];
+    const headers = [
+      'STT',
+      'Loại',
+      'Ghi chú',
+      'Khóa học',
+      'Bài học',
+      'Ngày tạo',
+      'Lần chỉnh sửa gần nhất',
+    ];
     for (let c = 0; c < headers.length; c++) {
       const cell = XLSX.utils.encode_cell({ r: 3, c });
       worksheet[cell] = {
@@ -180,12 +213,19 @@ export class NotesService {
     data.forEach((row, rowIndex) => {
       const isEvenRow = rowIndex % 2 === 0;
       row.forEach((cell, colIndex) => {
-        const cellRef = XLSX.utils.encode_cell({ r: 4 + rowIndex, c: colIndex });
+        const cellRef = XLSX.utils.encode_cell({
+          r: 4 + rowIndex,
+          c: colIndex,
+        });
         worksheet[cellRef] = {
           v: cell,
           s: {
             fill: { fgColor: { rgb: isEvenRow ? 'F2F2F2' : 'FFFFFF' } },
-            alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
+            alignment: {
+              horizontal: 'left',
+              vertical: 'center',
+              wrapText: true,
+            },
             border: {
               top: { style: 'thin', color: { rgb: 'CCCCCC' } },
               bottom: { style: 'thin', color: { rgb: 'CCCCCC' } },
@@ -205,7 +245,10 @@ export class NotesService {
     return XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer' });
   }
 
-  async exportSingleNoteToExcel(noteId: string, studentId: string): Promise<Buffer> {
+  async exportSingleNoteToExcel(
+    noteId: string,
+    studentId: string,
+  ): Promise<Buffer> {
     const note = await this.findOne(noteId, studentId);
 
     if (!note) {
@@ -219,17 +262,27 @@ export class NotesService {
     // Format data based on type
     if (note.type === 'general') {
       noteTypeLabel = 'Ghi chú thường';
-      headers = ['Tiêu đề', 'Nội dung', 'Khóa học', 'Bài học', 'Ngày tạo', 'Lần chỉnh sửa gần nhất'];
-      data = [[
-        note.content?.split('\n')[0] || 'Ghi chú',
-        note.content?.substring(0, 500) || '',
-        note.course?.title || '-',
-        note.lesson?.title || '-',
-        new Date(note.createdAt).toLocaleDateString('vi-VN'),
-        new Date(note.updatedAt).toLocaleDateString('vi-VN'),
-      ]];
+      headers = [
+        'Tiêu đề',
+        'Nội dung',
+        'Khóa học',
+        'Bài học',
+        'Ngày tạo',
+        'Lần chỉnh sửa gần nhất',
+      ];
+      data = [
+        [
+          note.content?.split('\n')[0] || 'Ghi chú',
+          note.content?.substring(0, 500) || '',
+          note.course?.title || '-',
+          note.lesson?.title || '-',
+          new Date(note.createdAt).toLocaleDateString('vi-VN'),
+          new Date(note.updatedAt).toLocaleDateString('vi-VN'),
+        ],
+      ];
     } else if (note.type === 'deadline' || note.type === 'checklist') {
-      noteTypeLabel = note.type === 'deadline' ? 'Deadline Tracker' : 'Checklist';
+      noteTypeLabel =
+        note.type === 'deadline' ? 'Deadline Tracker' : 'Checklist';
       headers = ['STT', 'Tiêu đề', 'Deadline', 'Mức độ ưu tiên', 'Hoàn thành'];
       data = (note.items || []).map((item, idx) => [
         idx + 1,
@@ -252,7 +305,9 @@ export class NotesService {
     // Build array of arrays: banner + empty row + headers + data
     const aoa = [
       ['GHI CHÚ CỦA BẠN TẠI ICS LEARNING'],
-      [`Loại: ${noteTypeLabel} | Ngày xuất: ${new Date().toLocaleDateString('vi-VN')}`],
+      [
+        `Loại: ${noteTypeLabel} | Ngày xuất: ${new Date().toLocaleDateString('vi-VN')}`,
+      ],
       [],
       headers,
       ...data,
@@ -263,12 +318,14 @@ export class NotesService {
 
     // Set column widths based on type
     const colCount = headers.length;
-    worksheet['!cols'] = Array(colCount).fill(null).map((_, i) => {
-      if (i === 0) return { wch: 5 };
-      if (note.type === 'general' && i === 1) return { wch: 30 };
-      if (note.type === 'general' && i === 2) return { wch: 35 };
-      return { wch: 20 };
-    });
+    worksheet['!cols'] = Array(colCount)
+      .fill(null)
+      .map((_, i) => {
+        if (i === 0) return { wch: 5 };
+        if (note.type === 'general' && i === 1) return { wch: 30 };
+        if (note.type === 'general' && i === 2) return { wch: 35 };
+        return { wch: 20 };
+      });
 
     // Merge cells for header banner
     worksheet['!merges'] = [
@@ -322,12 +379,19 @@ export class NotesService {
     data.forEach((row, rowIndex) => {
       const isEvenRow = rowIndex % 2 === 0;
       row.forEach((cell, colIndex) => {
-        const cellRef = XLSX.utils.encode_cell({ r: 4 + rowIndex, c: colIndex });
+        const cellRef = XLSX.utils.encode_cell({
+          r: 4 + rowIndex,
+          c: colIndex,
+        });
         worksheet[cellRef] = {
           v: cell,
           s: {
             fill: { fgColor: { rgb: isEvenRow ? 'F2F2F2' : 'FFFFFF' } },
-            alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
+            alignment: {
+              horizontal: 'left',
+              vertical: 'center',
+              wrapText: true,
+            },
             border: {
               top: { style: 'thin', color: { rgb: 'CCCCCC' } },
               bottom: { style: 'thin', color: { rgb: 'CCCCCC' } },

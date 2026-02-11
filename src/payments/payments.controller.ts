@@ -116,10 +116,7 @@ export class PaymentsController {
   @Post('admin/export')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  async exportPayments(
-    @Body() filters: any,
-    @Res() res: Response,
-  ) {
+  async exportPayments(@Body() filters: any, @Res() res: Response) {
     const csv = await this.paymentsService.exportToCSV(filters);
     res.header('Content-Type', 'text/csv');
     res.header('Content-Disposition', 'attachment; filename="payments.csv"');
@@ -140,14 +137,17 @@ export class PaymentsController {
     @Req() req: any,
     @Res() res: Response,
   ) {
-    const pdfBuffer = await this.paymentsService.generateInvoice(id, req.user.userId);
-    
+    const pdfBuffer = await this.paymentsService.generateInvoice(
+      id,
+      req.user.userId,
+    );
+
     res.set({
       'Content-Type': 'application/pdf',
       'Content-Disposition': `attachment; filename="invoice-${id}.pdf"`,
       'Content-Length': pdfBuffer.length,
     });
-    
+
     res.send(pdfBuffer);
   }
 
@@ -172,7 +172,8 @@ export class PaymentsController {
     @Req() req: Request,
   ) {
     const orderId = `VNPAY_${user.id}_${Date.now()}`;
-    const ipAddr = req.ip || req.headers['x-forwarded-for']?.toString() || '127.0.0.1';
+    const ipAddr =
+      req.ip || req.headers['x-forwarded-for']?.toString() || '127.0.0.1';
 
     const paymentUrl = this.vnpayService.createPaymentUrl({
       orderId,

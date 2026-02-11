@@ -27,7 +27,7 @@ export class Note {
   @Column({ nullable: true })
   courseId: string;
 
-  @ManyToOne(() => Course, course => course.notes, { nullable: true })
+  @ManyToOne(() => Course, (course) => course.notes, { nullable: true })
   @JoinColumn({ name: 'courseId' })
   course: Course;
 
@@ -48,7 +48,13 @@ export class Note {
   timestamp: number; // Video timestamp in seconds
 
   @Column({ type: 'json', nullable: true })
-  items: Array<{ id: string; title: string; deadline?: string; priority?: 'high' | 'medium' | 'low'; completed: boolean }>;
+  items: Array<{
+    id: string;
+    title: string;
+    deadline?: string;
+    priority?: 'high' | 'medium' | 'low';
+    completed: boolean;
+  }>;
 
   @Column({ type: 'json', nullable: true })
   schedule: Array<{ date: string; time: string; content: string }>;

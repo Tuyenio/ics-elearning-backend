@@ -43,7 +43,9 @@ export class Certificate {
   @Index()
   courseId: string;
 
-  @OneToOne(() => Enrollment, (enrollment) => enrollment.certificate, { onDelete: 'CASCADE' })
+  @OneToOne(() => Enrollment, (enrollment) => enrollment.certificate, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'enrollmentId' })
   enrollment: Enrollment;
 

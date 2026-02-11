@@ -7,7 +7,7 @@ import { Course } from '../courses/entities/course.entity';
 import { CacheModule } from '@nestjs/cache-manager';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Cart, Course]), CacheModule.register(),],
+  imports: [TypeOrmModule.forFeature([Cart, Course]), CacheModule.register()],
   controllers: [CartController],
   providers: [CartService],
   exports: [CartService],

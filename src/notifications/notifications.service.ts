@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Notification, NotificationType, NotificationStatus } from './entities/notification.entity';
+import {
+  Notification,
+  NotificationType,
+  NotificationStatus,
+} from './entities/notification.entity';
 
 @Injectable()
 export class NotificationsService {
@@ -27,7 +31,12 @@ export class NotificationsService {
     page = 1,
     limit = 20,
     status?: NotificationStatus,
-  ): Promise<{ data: Notification[]; total: number; page: number; totalPages: number }> {
+  ): Promise<{
+    data: Notification[];
+    total: number;
+    page: number;
+    totalPages: number;
+  }> {
     const where: any = { userId };
     if (status) {
       where.status = status;
@@ -78,7 +87,11 @@ export class NotificationsService {
   }
 
   // Helper methods for common notifications
-  async notifyEnrollment(userId: string, courseName: string, courseId: string): Promise<Notification> {
+  async notifyEnrollment(
+    userId: string,
+    courseName: string,
+    courseId: string,
+  ): Promise<Notification> {
     return this.create({
       userId,
       type: NotificationType.COURSE_ENROLLED,
@@ -89,7 +102,11 @@ export class NotificationsService {
     });
   }
 
-  async notifyPaymentSuccess(userId: string, amount: number, courseName: string): Promise<Notification> {
+  async notifyPaymentSuccess(
+    userId: string,
+    amount: number,
+    courseName: string,
+  ): Promise<Notification> {
     return this.create({
       userId,
       type: NotificationType.PAYMENT_SUCCESS,
@@ -99,7 +116,11 @@ export class NotificationsService {
     });
   }
 
-  async notifyCertificateIssued(userId: string, courseName: string, certificateId: string): Promise<Notification> {
+  async notifyCertificateIssued(
+    userId: string,
+    courseName: string,
+    certificateId: string,
+  ): Promise<Notification> {
     return this.create({
       userId,
       type: NotificationType.CERTIFICATE_ISSUED,
@@ -110,7 +131,11 @@ export class NotificationsService {
     });
   }
 
-  async notifyNewStudent(teacherId: string, studentName: string, courseName: string): Promise<Notification> {
+  async notifyNewStudent(
+    teacherId: string,
+    studentName: string,
+    courseName: string,
+  ): Promise<Notification> {
     return this.create({
       userId: teacherId,
       type: NotificationType.NEW_STUDENT,
@@ -120,7 +145,11 @@ export class NotificationsService {
     });
   }
 
-  async notifyNewReview(teacherId: string, courseName: string, rating: number): Promise<Notification> {
+  async notifyNewReview(
+    teacherId: string,
+    courseName: string,
+    rating: number,
+  ): Promise<Notification> {
     return this.create({
       userId: teacherId,
       type: NotificationType.NEW_REVIEW,
@@ -130,7 +159,11 @@ export class NotificationsService {
     });
   }
 
-  async notifyCourseApproved(teacherId: string, courseName: string, courseId: string): Promise<Notification> {
+  async notifyCourseApproved(
+    teacherId: string,
+    courseName: string,
+    courseId: string,
+  ): Promise<Notification> {
     return this.create({
       userId: teacherId,
       type: NotificationType.COURSE_APPROVED,
@@ -141,7 +174,11 @@ export class NotificationsService {
     });
   }
 
-  async notifyCourseRejected(teacherId: string, courseName: string, reason: string): Promise<Notification> {
+  async notifyCourseRejected(
+    teacherId: string,
+    courseName: string,
+    reason: string,
+  ): Promise<Notification> {
     return this.create({
       userId: teacherId,
       type: NotificationType.COURSE_REJECTED,
@@ -151,7 +188,12 @@ export class NotificationsService {
     });
   }
 
-  async notifyExamResult(userId: string, examName: string, score: number, passed: boolean): Promise<Notification> {
+  async notifyExamResult(
+    userId: string,
+    examName: string,
+    score: number,
+    passed: boolean,
+  ): Promise<Notification> {
     return this.create({
       userId,
       type: NotificationType.EXAM_RESULT,

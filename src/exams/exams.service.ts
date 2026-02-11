@@ -49,7 +49,9 @@ export class ExamsService {
     });
     if (!exam) throw new NotFoundException('Không tìm thấy bài thi');
     if (exam.status === ExamStatus.APPROVED) {
-      throw new BadRequestException('Không thể chỉnh sửa bài thi đã được duyệt');
+      throw new BadRequestException(
+        'Không thể chỉnh sửa bài thi đã được duyệt',
+      );
     }
 
     Object.assign(exam, updateExamDto);
@@ -253,13 +255,9 @@ export class ExamsService {
 
     const gradedAnswers = answers.map((answer) => {
       const question = exam.questions?.find((q) => q.id === answer.questionId);
-      if (!question)
-        return { ...answer, isCorrect: false, earnedPoints: 0 };
+      if (!question) return { ...answer, isCorrect: false, earnedPoints: 0 };
 
-      const isCorrect = this.checkAnswer(
-        question.correctAnswer,
-        answer.answer,
-      );
+      const isCorrect = this.checkAnswer(question.correctAnswer, answer.answer);
       const points = isCorrect ? question.points : 0;
       earnedPoints += points;
 
@@ -313,17 +311,12 @@ export class ExamsService {
       );
     }
 
-    if (
-      typeof correctAnswer === 'string' &&
-      typeof userAnswer === 'string'
-    ) {
+    if (typeof correctAnswer === 'string' && typeof userAnswer === 'string') {
       return (
-        correctAnswer.toLowerCase().trim() ===
-        userAnswer.toLowerCase().trim()
+        correctAnswer.toLowerCase().trim() === userAnswer.toLowerCase().trim()
       );
     }
 
     return false;
   }
 }
-

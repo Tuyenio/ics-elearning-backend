@@ -1,4 +1,16 @@
-import { IsString, IsNotEmpty, IsOptional, IsArray, IsNumber, IsBoolean, IsEnum, Min, Max, IsInt, IsUUID } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsArray,
+  IsNumber,
+  IsBoolean,
+  IsEnum,
+  Min,
+  Max,
+  IsInt,
+  IsUUID,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export enum ExamType {

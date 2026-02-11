@@ -20,7 +20,10 @@ import { Cart } from '../cart/entities/cart.entity';
 import { Coupon } from '../coupons/entities/coupon.entity';
 import { Announcement } from '../announcements/entities/announcement.entity';
 import { Discussion } from '../discussions/entities/discussion.entity';
-import { Assignment, AssignmentSubmission } from '../assignments/entities/assignment.entity';
+import {
+  Assignment,
+  AssignmentSubmission,
+} from '../assignments/entities/assignment.entity';
 import { Resource } from '../resources/entities/resource.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { SystemSetting } from '../system-settings/entities/system-setting.entity';
@@ -66,9 +69,9 @@ async function runSeed() {
   try {
     await AppDataSource.initialize();
     console.log('📦 Database connected');
-    
+
     await seedDatabase(AppDataSource);
-    
+
     await AppDataSource.destroy();
     console.log('👋 Database connection closed');
     process.exit(0);

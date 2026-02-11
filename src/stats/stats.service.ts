@@ -6,7 +6,11 @@ import { Course, CourseStatus } from '../courses/entities/course.entity';
 import { Enrollment } from '../enrollments/entities/enrollment.entity';
 import { Review } from '../reviews/entities/review.entity';
 import { Category } from '../categories/entities/category.entity';
-import { PublicStats, CategoryStat, FeaturedCourse } from './dto/public-stats.dto';
+import {
+  PublicStats,
+  CategoryStat,
+  FeaturedCourse,
+} from './dto/public-stats.dto';
 
 @Injectable()
 export class StatsService {
@@ -84,7 +88,7 @@ export class StatsService {
       .limit(6)
       .getRawMany();
 
-    return result.map(r => ({
+    return result.map((r) => ({
       id: r.id,
       name: r.name,
       courseCount: parseInt(r.courseCount) || 0,
@@ -120,7 +124,7 @@ export class StatsService {
       .limit(8)
       .getRawMany();
 
-    return result.map(r => ({
+    return result.map((r) => ({
       id: r.id,
       title: r.title,
       thumbnail: r.thumbnail,

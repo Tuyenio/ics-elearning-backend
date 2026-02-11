@@ -1,11 +1,19 @@
-import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import * as speakeasy from 'speakeasy';
 import * as QRCode from 'qrcode';
 import * as crypto from 'crypto';
-import { TwoFactorAuth, TwoFactorMethod } from './entities/two-factor-auth.entity';
+import {
+  TwoFactorAuth,
+  TwoFactorMethod,
+} from './entities/two-factor-auth.entity';
 import { User } from '../users/entities/user.entity';
 
 export interface SetupTOTPResult {
@@ -97,7 +105,10 @@ export class TwoFactorAuthService {
   /**
    * Verify TOTP code and enable 2FA
    */
-  async verifyAndEnableTOTP(userId: string, token: string): Promise<VerifyResult> {
+  async verifyAndEnableTOTP(
+    userId: string,
+    token: string,
+  ): Promise<VerifyResult> {
     const twoFactorAuth = await this.twoFactorAuthRepository.findOne({
       where: { user: { id: userId } },
     });
@@ -183,9 +194,14 @@ export class TwoFactorAuthService {
   /**
    * Verify backup code
    */
-  private async verifyBackupCode(twoFactorAuth: TwoFactorAuth, code: string): Promise<boolean> {
+  private async verifyBackupCode(
+    twoFactorAuth: TwoFactorAuth,
+    code: string,
+  ): Promise<boolean> {
     const hashedCode = crypto.createHash('sha256').update(code).digest('hex');
-    const codeIndex = twoFactorAuth.backupCodes.findIndex((bc) => bc === hashedCode);
+    const codeIndex = twoFactorAuth.backupCodes.findIndex(
+      (bc) => bc === hashedCode,
+    );
 
     if (codeIndex === -1) {
       return false;
@@ -206,7 +222,7 @@ export class TwoFactorAuthService {
    */
   async disable2FA(userId: string, token: string): Promise<VerifyResult> {
     const result = await this.verifyTOTP(userId, token);
-    
+
     if (!result.success) {
       return result;
     }
@@ -234,9 +250,12 @@ export class TwoFactorAuthService {
   /**
    * Generate new backup codes
    */
-  async regenerateBackupCodes(userId: string, token: string): Promise<string[]> {
+  async regenerateBackupCodes(
+    userId: string,
+    token: string,
+  ): Promise<string[]> {
     const result = await this.verifyTOTP(userId, token);
-    
+
     if (!result.success) {
       throw new BadRequestException('Invalid verification code');
     }
@@ -308,7 +327,7 @@ export class TwoFactorAuthService {
    */
   private generateBackupCodes(count: number = 10): string[] {
     const codes: string[] = [];
-    
+
     for (let i = 0; i < count; i++) {
       // Generate 8-character alphanumeric code
       const code = crypto.randomBytes(4).toString('hex').toUpperCase();
@@ -321,15 +340,23 @@ export class TwoFactorAuthService {
   /**
    * Setup SMS-based 2FA
    */
-  async setupSMS(userId: string, phoneNumber: string): Promise<{ message: string }> {
+  async setupSMS(
+    userId: string,
+    phoneNumber: string,
+  ): Promise<{ message: string }> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
     // Generate verification code
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const hashedCode = crypto.createHash('sha256').update(verificationCode).digest('hex');
+    const verificationCode = Math.floor(
+      100000 + Math.random() * 900000,
+    ).toString();
+    const hashedCode = crypto
+      .createHash('sha256')
+      .update(verificationCode)
+      .digest('hex');
 
     let twoFactorAuth = await this.twoFactorAuthRepository.findOne({
       where: { user: { id: userId } },
@@ -376,8 +403,13 @@ export class TwoFactorAuthService {
     }
 
     // Generate verification code
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const hashedCode = crypto.createHash('sha256').update(verificationCode).digest('hex');
+    const verificationCode = Math.floor(
+      100000 + Math.random() * 900000,
+    ).toString();
+    const hashedCode = crypto
+      .createHash('sha256')
+      .update(verificationCode)
+      .digest('hex');
 
     let twoFactorAuth = await this.twoFactorAuthRepository.findOne({
       where: { user: { id: userId } },

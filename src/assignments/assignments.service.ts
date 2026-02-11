@@ -1,9 +1,17 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
 import { UpdateAssignmentDto } from './dto/update-assignment.dto';
-import { Assignment, AssignmentSubmission, SubmissionStatus } from './entities/assignment.entity';
+import {
+  Assignment,
+  AssignmentSubmission,
+  SubmissionStatus,
+} from './entities/assignment.entity';
 
 @Injectable()
 export class AssignmentsService {
@@ -62,7 +70,12 @@ export class AssignmentsService {
   }
 
   // Submission methods
-  async submitAssignment(assignmentId: string, content: string, attachments: string[], userId: string) {
+  async submitAssignment(
+    assignmentId: string,
+    content: string,
+    attachments: string[],
+    userId: string,
+  ) {
     const assignment = await this.findOne(assignmentId);
 
     // Check if already submitted
@@ -77,7 +90,7 @@ export class AssignmentsService {
     // Check due date
     const now = new Date();
     const isLate = assignment.dueDate && now > assignment.dueDate;
-    
+
     if (isLate && !assignment.allowLateSubmission) {
       throw new BadRequestException('Hạn nộp bài tập đã hết');
     }
@@ -109,7 +122,12 @@ export class AssignmentsService {
     });
   }
 
-  async gradeSubmission(submissionId: string, score: number, feedback: string, userId: string) {
+  async gradeSubmission(
+    submissionId: string,
+    score: number,
+    feedback: string,
+    userId: string,
+  ) {
     const submission = await this.submissionRepo.findOne({
       where: { id: submissionId },
       relations: ['assignment'],
@@ -120,7 +138,9 @@ export class AssignmentsService {
     }
 
     if (score > submission.assignment.maxScore) {
-      throw new BadRequestException(`Điểm số không thể vượt quá điểm tối đa ${submission.assignment.maxScore}`);
+      throw new BadRequestException(
+        `Điểm số không thể vượt quá điểm tối đa ${submission.assignment.maxScore}`,
+      );
     }
 
     submission.score = score;

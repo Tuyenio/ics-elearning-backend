@@ -1,5 +1,5 @@
 import { DataSource } from 'typeorm';
- import { exit } from 'process';
+import { exit } from 'process';
 
 const AppDataSource = new DataSource({
   type: 'postgres',
@@ -17,7 +17,7 @@ async function dropAllTables() {
     console.log('✅ Đã kết nối database\n');
 
     const queryRunner = AppDataSource.createQueryRunner();
-    
+
     // Get all table names
     const tables = await queryRunner.query(`
       SELECT tablename 
@@ -33,14 +33,15 @@ async function dropAllTables() {
 
     // Drop all tables
     console.log('🗑️  Đang xóa các bảng...\n');
-    
+
     for (const table of tables) {
       const tableName = table.tablename;
       try {
         await queryRunner.query(`DROP TABLE IF EXISTS "${tableName}" CASCADE`);
         console.log(`   ✓ Đã xóa: ${tableName}`);
       } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         console.log(`   ✗ Lỗi khi xóa ${tableName}:`, errorMessage);
       }
     }
@@ -50,7 +51,6 @@ async function dropAllTables() {
     await queryRunner.release();
     await AppDataSource.destroy();
     console.log('👋 Đã đóng kết nối database\n');
-
   } catch (error) {
     console.error('❌ Lỗi:', error);
     exit(1);

@@ -1,5 +1,22 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Req, ForbiddenException } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+  UseGuards,
+  Req,
+  ForbiddenException,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { DiscussionsService } from './discussions.service';
 import { CreateDiscussionDto } from './dto/create-discussion.dto';
 import { UpdateDiscussionDto } from './dto/update-discussion.dto';
@@ -38,11 +55,17 @@ export class DiscussionsController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Cập nhật thảo luận' })
-  async update(@Param('id') id: string, @Body() updateDiscussionDto: UpdateDiscussionDto, @Req() req: any) {
+  async update(
+    @Param('id') id: string,
+    @Body() updateDiscussionDto: UpdateDiscussionDto,
+    @Req() req: any,
+  ) {
     // Kiểm tra quyền sở hữu
     const discussion = await this.discussionsService.findOne(id);
     if (discussion.authorId !== req.user.userId) {
-      throw new ForbiddenException('Bạn không có quyền chỉnh sửa thảo luận này');
+      throw new ForbiddenException(
+        'Bạn không có quyền chỉnh sửa thảo luận này',
+      );
     }
     return this.discussionsService.update(id, updateDiscussionDto);
   }
@@ -65,7 +88,11 @@ export class DiscussionsController {
     @Body() createDiscussionDto: CreateDiscussionDto,
     @Req() req: any,
   ) {
-    return this.discussionsService.createReply(id, createDiscussionDto, req.user.userId);
+    return this.discussionsService.createReply(
+      id,
+      createDiscussionDto,
+      req.user.userId,
+    );
   }
 
   @Patch(':id/resolve')

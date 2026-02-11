@@ -1,7 +1,18 @@
-import { Injectable, NotFoundException, ConflictException, Logger, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  Logger,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Payment, PaymentStatus, PaymentMethod } from './entities/payment.entity';
+import {
+  Payment,
+  PaymentStatus,
+  PaymentMethod,
+} from './entities/payment.entity';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { User } from '../users/entities/user.entity';
 import { Course, CourseStatus } from '../courses/entities/course.entity';
@@ -27,7 +38,10 @@ export class PaymentsService {
     private readonly lessonProgressRepository: Repository<LessonProgress>,
   ) {}
 
-  async create(createPaymentDto: CreatePaymentDto, student: User): Promise<Payment> {
+  async create(
+    createPaymentDto: CreatePaymentDto,
+    student: User,
+  ): Promise<Payment> {
     const course = await this.courseRepository.findOne({
       where: { id: createPaymentDto.courseId },
     });
@@ -55,15 +69,16 @@ export class PaymentsService {
 
     // ✅ Calculate expected amount
     const expectedAmount = course.discountPrice || course.price || 0;
-    
+
     // ✅ Validate amount
     if (createPaymentDto.amount !== expectedAmount) {
       throw new BadRequestException(
-        `Số tiền không hợp lệ. Mong đợi: ${expectedAmount} VND, nhận được: ${createPaymentDto.amount} VND`
+        `Số tiền không hợp lệ. Mong đợi: ${expectedAmount} VND, nhận được: ${createPaymentDto.amount} VND`,
       );
     }
 
-    const transactionId = createPaymentDto.transactionId || this.generateTransactionId();
+    const transactionId =
+      createPaymentDto.transactionId || this.generateTransactionId();
 
     const payment = this.paymentRepository.create({
       ...createPaymentDto,
@@ -72,12 +87,18 @@ export class PaymentsService {
       status: PaymentStatus.PENDING,
     });
 
-    this.logger.log(`Created payment ${transactionId} for course ${createPaymentDto.courseId}`);
+    this.logger.log(
+      `Created payment ${transactionId} for course ${createPaymentDto.courseId}`,
+    );
 
     return this.paymentRepository.save(payment);
   }
 
-  async processPayment(paymentId: string, success: boolean, reason?: string): Promise<Payment> {
+  async processPayment(
+    paymentId: string,
+    success: boolean,
+    reason?: string,
+  ): Promise<Payment> {
     const payment = await this.paymentRepository.findOne({
       where: { id: paymentId },
     });
@@ -99,7 +120,9 @@ export class PaymentsService {
       }
     }
 
-    this.logger.log(`Processed payment ${payment.id}: ${success ? 'SUCCESS' : 'FAILED'}`);
+    this.logger.log(
+      `Processed payment ${payment.id}: ${success ? 'SUCCESS' : 'FAILED'}`,
+    );
 
     return this.paymentRepository.save(payment);
   }
@@ -114,13 +137,17 @@ export class PaymentsService {
     });
 
     if (!payment) {
-      this.logger.warn(`Thanh toán không tìm thấy cho giao dịch: ${transactionId}`);
+      this.logger.warn(
+        `Thanh toán không tìm thấy cho giao dịch: ${transactionId}`,
+      );
       throw new NotFoundException('Thanh toán không tìm thấy');
     }
 
     // Skip if already processed
     if (payment.status !== PaymentStatus.PENDING) {
-      this.logger.log(`Payment ${transactionId} already processed: ${payment.status}`);
+      this.logger.log(
+        `Payment ${transactionId} already processed: ${payment.status}`,
+      );
       return payment;
     }
 
@@ -137,7 +164,9 @@ export class PaymentsService {
       payment.status = PaymentStatus.FAILED;
     }
 
-    this.logger.log(`Processed payment by transaction ${transactionId}: ${success ? 'SUCCESS' : 'FAILED'}`);
+    this.logger.log(
+      `Processed payment by transaction ${transactionId}: ${success ? 'SUCCESS' : 'FAILED'}`,
+    );
 
     return this.paymentRepository.save(payment);
   }
@@ -155,7 +184,9 @@ export class PaymentsService {
         });
 
         if (existing) {
-          this.logger.log(`Enrollment already exists for student ${payment.studentId}`);
+          this.logger.log(
+            `Enrollment already exists for student ${payment.studentId}`,
+          );
           return;
         }
 
@@ -164,7 +195,7 @@ export class PaymentsService {
           courseId: payment.courseId,
         });
         const savedEnrollment = await manager.save(Enrollment, enrollment);
-        
+
         // Create lesson progress entries for all lessons in the course
         const lessons = await manager.find(Lesson, {
           where: { courseId: payment.courseId },
@@ -180,13 +211,18 @@ export class PaymentsService {
         if (progressEntries.length > 0) {
           await manager.save(LessonProgress, progressEntries);
         }
-        
-        this.logger.log(`Created enrollment for student ${payment.studentId} in course ${payment.courseId} with ${lessons.length} lessons`);
+
+        this.logger.log(
+          `Created enrollment for student ${payment.studentId} in course ${payment.courseId} with ${lessons.length} lessons`,
+        );
       });
     } catch (error) {
       // ✅ Handle duplicate key error gracefully
-      if (error.code === '23505') { // PostgreSQL unique violation
-        this.logger.log(`Duplicate enrollment prevented for student ${payment.studentId}`);
+      if (error.code === '23505') {
+        // PostgreSQL unique violation
+        this.logger.log(
+          `Duplicate enrollment prevented for student ${payment.studentId}`,
+        );
         return;
       }
       throw error;
@@ -238,24 +274,34 @@ export class PaymentsService {
     const limit = options?.limit || 10;
     const skip = (page - 1) * limit;
 
-    const queryBuilder = this.paymentRepository.createQueryBuilder('payment')
+    const queryBuilder = this.paymentRepository
+      .createQueryBuilder('payment')
       .leftJoinAndSelect('payment.course', 'course')
       .leftJoinAndSelect('payment.student', 'student')
       .orderBy('payment.createdAt', 'DESC');
 
     if (options?.status) {
-      queryBuilder.andWhere('payment.status = :status', { status: options.status });
+      queryBuilder.andWhere('payment.status = :status', {
+        status: options.status,
+      });
     }
 
     if (options?.startDate) {
-      queryBuilder.andWhere('payment.createdAt >= :startDate', { startDate: options.startDate });
+      queryBuilder.andWhere('payment.createdAt >= :startDate', {
+        startDate: options.startDate,
+      });
     }
 
     if (options?.endDate) {
-      queryBuilder.andWhere('payment.createdAt <= :endDate', { endDate: options.endDate });
+      queryBuilder.andWhere('payment.createdAt <= :endDate', {
+        endDate: options.endDate,
+      });
     }
 
-    const [data, total] = await queryBuilder.skip(skip).take(limit).getManyAndCount();
+    const [data, total] = await queryBuilder
+      .skip(skip)
+      .take(limit)
+      .getManyAndCount();
 
     return { data, total, page, limit };
   }
@@ -271,8 +317,18 @@ export class PaymentsService {
     endDate?: string;
     search?: string;
   }) {
-    const { page, limit, status, userId, courseId, teacherId, startDate, endDate, search } = filters;
-    
+    const {
+      page,
+      limit,
+      status,
+      userId,
+      courseId,
+      teacherId,
+      startDate,
+      endDate,
+      search,
+    } = filters;
+
     const query = this.paymentRepository
       .createQueryBuilder('payment')
       .leftJoinAndSelect('payment.student', 'student')
@@ -296,17 +352,21 @@ export class PaymentsService {
     }
 
     if (startDate) {
-      query.andWhere('payment.createdAt >= :startDate', { startDate: new Date(startDate) });
+      query.andWhere('payment.createdAt >= :startDate', {
+        startDate: new Date(startDate),
+      });
     }
 
     if (endDate) {
-      query.andWhere('payment.createdAt <= :endDate', { endDate: new Date(endDate) });
+      query.andWhere('payment.createdAt <= :endDate', {
+        endDate: new Date(endDate),
+      });
     }
 
     if (search) {
       query.andWhere(
         '(student.name ILIKE :search OR student.email ILIKE :search OR course.title ILIKE :search OR payment.transactionId ILIKE :search)',
-        { search: `%${search}%` }
+        { search: `%${search}%` },
       );
     }
 
@@ -331,18 +391,31 @@ export class PaymentsService {
     const query = this.paymentRepository.createQueryBuilder('payment');
 
     if (startDate) {
-      query.andWhere('payment.createdAt >= :startDate', { startDate: new Date(startDate) });
+      query.andWhere('payment.createdAt >= :startDate', {
+        startDate: new Date(startDate),
+      });
     }
 
     if (endDate) {
-      query.andWhere('payment.createdAt <= :endDate', { endDate: new Date(endDate) });
+      query.andWhere('payment.createdAt <= :endDate', {
+        endDate: new Date(endDate),
+      });
     }
 
     const [total, completed, pending, failed] = await Promise.all([
       query.getCount(),
-      query.clone().where('payment.status = :status', { status: PaymentStatus.COMPLETED }).getCount(),
-      query.clone().where('payment.status = :status', { status: PaymentStatus.PENDING }).getCount(),
-      query.clone().where('payment.status = :status', { status: PaymentStatus.FAILED }).getCount(),
+      query
+        .clone()
+        .where('payment.status = :status', { status: PaymentStatus.COMPLETED })
+        .getCount(),
+      query
+        .clone()
+        .where('payment.status = :status', { status: PaymentStatus.PENDING })
+        .getCount(),
+      query
+        .clone()
+        .where('payment.status = :status', { status: PaymentStatus.FAILED })
+        .getCount(),
     ]);
 
     const revenue = await this.paymentRepository
@@ -367,8 +440,18 @@ export class PaymentsService {
       ...filters,
     });
 
-    const headers = ['Transaction ID', 'Student Name', 'Student Email', 'Course Title', 'Amount', 'Final Amount', 'Status', 'Payment Method', 'Date'];
-    const rows = data.map(p => [
+    const headers = [
+      'Transaction ID',
+      'Student Name',
+      'Student Email',
+      'Course Title',
+      'Amount',
+      'Final Amount',
+      'Status',
+      'Payment Method',
+      'Date',
+    ];
+    const rows = data.map((p) => [
       p.transactionId,
       p.student?.name || 'N/A',
       p.student?.email || 'N/A',
@@ -380,10 +463,9 @@ export class PaymentsService {
       p.createdAt.toISOString(),
     ]);
 
-    const csv = [
-      headers.join(','),
-      ...rows.map(row => row.join(',')),
-    ].join('\n');
+    const csv = [headers.join(','), ...rows.map((row) => row.join(','))].join(
+      '\n',
+    );
 
     return csv;
   }
@@ -426,16 +508,10 @@ export class PaymentsService {
         .text(`Status: ${payment.status}`, 50, 135);
 
       // Line separator
-      doc
-        .moveTo(50, 160)
-        .lineTo(550, 160)
-        .stroke();
+      doc.moveTo(50, 160).lineTo(550, 160).stroke();
 
       // Bill To
-      doc
-        .fontSize(12)
-        .font('Helvetica-Bold')
-        .text('BILL TO:', 50, 180);
+      doc.fontSize(12).font('Helvetica-Bold').text('BILL TO:', 50, 180);
 
       doc
         .fontSize(10)
@@ -444,10 +520,7 @@ export class PaymentsService {
         .text(payment.student.email, 50, 215);
 
       // Course Details
-      doc
-        .fontSize(12)
-        .font('Helvetica-Bold')
-        .text('COURSE DETAILS:', 50, 250);
+      doc.fontSize(12).font('Helvetica-Bold').text('COURSE DETAILS:', 50, 250);
 
       doc
         .fontSize(10)
@@ -457,14 +530,11 @@ export class PaymentsService {
         .text(`Payment Method: ${payment.paymentMethod}`, 50, 300);
 
       // Line separator
-      doc
-        .moveTo(50, 330)
-        .lineTo(550, 330)
-        .stroke();
+      doc.moveTo(50, 330).lineTo(550, 330).stroke();
 
       // Payment Details Table
       const tableTop = 350;
-      
+
       doc
         .fontSize(10)
         .font('Helvetica-Bold')
@@ -479,27 +549,40 @@ export class PaymentsService {
       doc
         .font('Helvetica')
         .text('Course Enrollment', 50, tableTop + 25)
-        .text(`${payment.amount.toLocaleString('vi-VN')} VND`, 400, tableTop + 25, { align: 'right' });
+        .text(
+          `${payment.amount.toLocaleString('vi-VN')} VND`,
+          400,
+          tableTop + 25,
+          { align: 'right' },
+        );
 
       if (payment.discountAmount > 0) {
         doc
           .text('Discount', 50, tableTop + 45)
-          .text(`-${payment.discountAmount.toLocaleString('vi-VN')} VND`, 400, tableTop + 45, { align: 'right' });
+          .text(
+            `-${payment.discountAmount.toLocaleString('vi-VN')} VND`,
+            400,
+            tableTop + 45,
+            { align: 'right' },
+          );
       }
 
       // Total
-      const totalTop = payment.discountAmount > 0 ? tableTop + 70 : tableTop + 50;
-      
-      doc
-        .moveTo(50, totalTop)
-        .lineTo(550, totalTop)
-        .stroke();
+      const totalTop =
+        payment.discountAmount > 0 ? tableTop + 70 : tableTop + 50;
+
+      doc.moveTo(50, totalTop).lineTo(550, totalTop).stroke();
 
       doc
         .fontSize(12)
         .font('Helvetica-Bold')
         .text('TOTAL', 50, totalTop + 10)
-        .text(`${payment.finalAmount.toLocaleString('vi-VN')} VND`, 400, totalTop + 10, { align: 'right' });
+        .text(
+          `${payment.finalAmount.toLocaleString('vi-VN')} VND`,
+          400,
+          totalTop + 10,
+          { align: 'right' },
+        );
 
       doc
         .moveTo(50, totalTop + 30)
@@ -510,8 +593,15 @@ export class PaymentsService {
       doc
         .fontSize(8)
         .font('Helvetica')
-        .text('Thank you for your purchase!', 50, totalTop + 60, { align: 'center' })
-        .text('For questions about this invoice, please contact support@icslearning.com', 50, totalTop + 75, { align: 'center' });
+        .text('Thank you for your purchase!', 50, totalTop + 60, {
+          align: 'center',
+        })
+        .text(
+          'For questions about this invoice, please contact support@icslearning.com',
+          50,
+          totalTop + 75,
+          { align: 'center' },
+        );
 
       doc.end();
     });

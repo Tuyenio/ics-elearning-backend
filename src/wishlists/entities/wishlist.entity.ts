@@ -24,7 +24,9 @@ export class Wishlist {
   @Index()
   studentId: string;
 
-  @ManyToOne(() => Course, (course) => course.wishlists, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Course, (course) => course.wishlists, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'courseId' })
   course: Course;
 

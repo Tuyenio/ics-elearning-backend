@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like, In } from 'typeorm';
 import { User, UserStatus, UserRole } from './entities/user.entity';
@@ -7,7 +11,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import * as bcrypt from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
 import { EmailService } from '../common/services/email.service';
-import { SystemSettingsService } from "../system-settings/system-setting.service"
+import { SystemSettingsService } from '../system-settings/system-setting.service';
 
 @Injectable()
 export class UsersService {
@@ -24,7 +28,7 @@ export class UsersService {
     if (!createUserDto.avatar && createUserDto.name) {
       createUserDto.avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(createUserDto.name)}&background=random&size=200`;
     }
-    
+
     const user = this.usersRepository.create(createUserDto);
     return await this.usersRepository.save(user);
   }
@@ -48,16 +52,16 @@ export class UsersService {
       emailVerified: true, // Đã xác thực luôn
       emailVerifiedAt: new Date(),
     });
-    
+
     const savedUser = await this.usersRepository.save(user);
 
     // Gửi email cho user với thông tin tài khoản và mật khẩu
     await this.emailService.sendAdminCreatedUserEmail(
       savedUser.email,
       savedUser.name,
-      createUserDto.password // Mật khẩu tạm admin đặt
+      createUserDto.password, // Mật khẩu tạm admin đặt
     );
-    
+
     return savedUser;
   }
 
@@ -78,9 +82,16 @@ export class UsersService {
     total: number;
     page: number;
     totalPages: number;
-    stats: { total: number; active: number; inactive: number; teachers: number; students: number };
+    stats: {
+      total: number;
+      active: number;
+      inactive: number;
+      teachers: number;
+      students: number;
+    };
   }> {
-    const maintenanceMode = await this.systemSettingsService.isMaintenanceMode();
+    const maintenanceMode =
+      await this.systemSettingsService.isMaintenanceMode();
 
     const queryBuilder = this.usersRepository.createQueryBuilder('user');
 
@@ -120,8 +131,12 @@ export class UsersService {
         return { ...u, status: UserStatus.INACTIVE } as User;
       });
 
-      const nonAdminCount = transformed.filter((u) => u.role !== UserRole.ADMIN).length;
-      const adminActive = transformed.filter((u) => u.role === UserRole.ADMIN && u.status === UserStatus.ACTIVE).length;
+      const nonAdminCount = transformed.filter(
+        (u) => u.role !== UserRole.ADMIN,
+      ).length;
+      const adminActive = transformed.filter(
+        (u) => u.role === UserRole.ADMIN && u.status === UserStatus.ACTIVE,
+      ).length;
 
       return {
         data: transformed,
@@ -153,14 +168,15 @@ export class UsersService {
     students: number;
     admins: number;
   }> {
-    const [total, active, inactive, teachers, students, admins] = await Promise.all([
-      this.usersRepository.count(),
-      this.usersRepository.count({ where: { status: UserStatus.ACTIVE } }),
-      this.usersRepository.count({ where: { status: UserStatus.INACTIVE } }),
-      this.usersRepository.count({ where: { role: UserRole.TEACHER } }),
-      this.usersRepository.count({ where: { role: UserRole.STUDENT } }),
-      this.usersRepository.count({ where: { role: UserRole.ADMIN } }),
-    ]);
+    const [total, active, inactive, teachers, students, admins] =
+      await Promise.all([
+        this.usersRepository.count(),
+        this.usersRepository.count({ where: { status: UserStatus.ACTIVE } }),
+        this.usersRepository.count({ where: { status: UserStatus.INACTIVE } }),
+        this.usersRepository.count({ where: { role: UserRole.TEACHER } }),
+        this.usersRepository.count({ where: { role: UserRole.STUDENT } }),
+        this.usersRepository.count({ where: { role: UserRole.ADMIN } }),
+      ]);
 
     return { total, active, inactive, teachers, students, admins };
   }
@@ -239,7 +255,10 @@ export class UsersService {
   }
 
   async updateEmailVerificationToken(id: string, token: string): Promise<void> {
-    await this.usersRepository.update({ id }, { emailVerificationToken: token });
+    await this.usersRepository.update(
+      { id },
+      { emailVerificationToken: token },
+    );
   }
 
   async verifyEmail(token: string): Promise<User | null> {
@@ -248,12 +267,15 @@ export class UsersService {
     });
 
     if (user) {
-      await this.usersRepository.update({ id: user.id }, {
-        emailVerified: true,
-        emailVerifiedAt: new Date(),
-        emailVerificationToken: undefined,
-        status: UserStatus.ACTIVE,
-      });
+      await this.usersRepository.update(
+        { id: user.id },
+        {
+          emailVerified: true,
+          emailVerifiedAt: new Date(),
+          emailVerificationToken: undefined,
+          status: UserStatus.ACTIVE,
+        },
+      );
       return await this.findOne(user.id);
     }
 
@@ -267,28 +289,38 @@ export class UsersService {
   ): Promise<User | null> {
     const user = await this.findByEmail(email);
     if (user) {
-      await this.usersRepository.update({ id: user.id }, {
-        passwordResetToken: token,
-        passwordResetExpires: expires,
-      });
+      await this.usersRepository.update(
+        { id: user.id },
+        {
+          passwordResetToken: token,
+          passwordResetExpires: expires,
+        },
+      );
       return user;
     }
     return null;
   }
 
-  async resetPassword(token: string, newPassword: string): Promise<User | null> {
+  async resetPassword(
+    token: string,
+    newPassword: string,
+  ): Promise<User | null> {
     const user = await this.usersRepository.findOne({
       where: { passwordResetToken: token },
     });
 
-    if (user && user.passwordResetExpires && user.passwordResetExpires > new Date()) {
+    if (
+      user &&
+      user.passwordResetExpires &&
+      user.passwordResetExpires > new Date()
+    ) {
       // Hash the new password manually
       const hashedPassword = await bcrypt.hash(newPassword, 12);
-      
+
       user.password = hashedPassword;
       user.passwordResetToken = null;
       user.passwordResetExpires = null;
-      
+
       return await this.usersRepository.save(user);
     }
 
@@ -313,7 +345,7 @@ export class UsersService {
         emailVerifiedAt: user.emailVerifiedAt,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
-      }
+      },
     };
   }
 

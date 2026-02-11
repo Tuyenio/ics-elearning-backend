@@ -121,7 +121,12 @@ export class User {
     // Set default avatar if not provided
     if (!this.avatar && this.name) {
       // Generate a default avatar URL based on user initials
-      const initials = this.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+      const initials = this.name
+        .split(' ')
+        .map((n) => n[0])
+        .join('')
+        .substring(0, 2)
+        .toUpperCase();
       // Use a default avatar service or generate a colored placeholder
       this.avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(this.name)}&background=random&size=200`;
     }

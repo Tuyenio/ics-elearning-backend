@@ -13,7 +13,13 @@ import { MomoService } from './momo.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Payment, Course, Enrollment, Lesson, LessonProgress]),
+    TypeOrmModule.forFeature([
+      Payment,
+      Course,
+      Enrollment,
+      Lesson,
+      LessonProgress,
+    ]),
     ConfigModule,
   ],
   controllers: [PaymentsController],

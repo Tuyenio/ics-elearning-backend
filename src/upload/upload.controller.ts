@@ -28,13 +28,13 @@ export class UploadController {
   @UseInterceptors(
     FileInterceptor('file', {
       dest: './uploads/images',
-    })
+    }),
   )
   async uploadImage(@UploadedFile() file: Express.Multer.File) {
     this.uploadService.validateFile(file);
-    
+
     const url = this.uploadService.generateFileUrl(file.filename, 'image');
-    
+
     return {
       message: 'Đã tải lên hình ảnh thành công',
       url,
@@ -49,13 +49,13 @@ export class UploadController {
   @UseInterceptors(
     FileInterceptor('file', {
       dest: './uploads/videos',
-    })
+    }),
   )
   async uploadVideo(@UploadedFile() file: Express.Multer.File) {
     this.uploadService.validateFile(file);
-    
+
     const url = this.uploadService.generateFileUrl(file.filename, 'video');
-    
+
     return {
       message: 'Đã tải lên video thành công',
       url,
@@ -70,13 +70,13 @@ export class UploadController {
   @UseInterceptors(
     FileInterceptor('file', {
       dest: './uploads/documents',
-    })
+    }),
   )
   async uploadDocument(@UploadedFile() file: Express.Multer.File) {
     this.uploadService.validateFile(file);
-    
+
     const url = this.uploadService.generateFileUrl(file.filename, 'document');
-    
+
     return {
       message: 'Đã tải lên tài liệu thành công',
       url,
@@ -103,7 +103,7 @@ export class UploadController {
         }
         callback(null, true);
       },
-    })
+    }),
   )
   async uploadAvatar(
     @UploadedFile() file: Express.Multer.File,
@@ -112,14 +112,14 @@ export class UploadController {
     if (!file) {
       throw new BadRequestException('Không có file được tải lên');
     }
-    
+
     this.uploadService.validateFile(file, 'image');
-    
+
     const url = this.uploadService.generateFileUrl(file.filename, 'avatar');
 
     // Update user's avatar URL in database (req.user.id contains the user ID from JWT)
     await this.usersService.updateUserAvatar(req.user.id, url);
-    
+
     return {
       success: true,
       message: 'Đã tải lên ảnh đại diện thành công',

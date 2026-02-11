@@ -1,4 +1,10 @@
-import { IsString, IsOptional, IsEnum, IsBoolean, IsUUID } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsEnum,
+  IsBoolean,
+  IsUUID,
+} from 'class-validator';
 import { AnnouncementPriority } from '../entities/announcement.entity';
 
 export class CreateAnnouncementDto {

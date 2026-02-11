@@ -7,10 +7,14 @@ import { Payment, PaymentStatus } from '../payments/entities/payment.entity';
 import { Enrollment } from '../enrollments/entities/enrollment.entity';
 import { Category } from '../categories/entities/category.entity';
 import { Review } from '../reviews/entities/review.entity';
-import { DashboardStats, GrowthStats, CategoryDistribution } from './dto/dashboard-stats.dto';
-import { 
-  RevenueReport, 
-  UserReport, 
+import {
+  DashboardStats,
+  GrowthStats,
+  CategoryDistribution,
+} from './dto/dashboard-stats.dto';
+import {
+  RevenueReport,
+  UserReport,
   PerformanceReport,
   MonthlyRevenue,
   TeacherRevenue,
@@ -21,7 +25,7 @@ import {
   TopTeacher,
   CoursePerformance,
   CompletionRate,
-  EngagementMetrics
+  EngagementMetrics,
 } from './dto/admin-reports.dto';
 
 @Injectable()
@@ -57,32 +61,59 @@ export class AdminService {
     const completedPayments = await this.paymentRepo.find({
       where: { status: PaymentStatus.COMPLETED },
     });
-    const totalRevenue = completedPayments.reduce((sum, p) => sum + Number(p.finalAmount || 0), 0);
+    const totalRevenue = completedPayments.reduce(
+      (sum, p) => sum + Number(p.finalAmount || 0),
+      0,
+    );
 
     const recentRevenue = completedPayments
-      .filter(p => p.createdAt >= thirtyDaysAgo)
+      .filter((p) => p.createdAt >= thirtyDaysAgo)
       .reduce((sum, p) => sum + Number(p.finalAmount || 0), 0);
     const oldRevenue = completedPayments
-      .filter(p => p.createdAt >= sixtyDaysAgo && p.createdAt < thirtyDaysAgo)
+      .filter((p) => p.createdAt >= sixtyDaysAgo && p.createdAt < thirtyDaysAgo)
       .reduce((sum, p) => sum + Number(p.finalAmount || 0), 0);
-    const revenueGrowth = oldRevenue > 0 ? ((recentRevenue - oldRevenue) / oldRevenue) * 100 : 0;
+    const revenueGrowth =
+      oldRevenue > 0 ? ((recentRevenue - oldRevenue) / oldRevenue) * 100 : 0;
 
     // Growth calculations
     const [recentTeachers, recentStudents, recentCourses] = await Promise.all([
-      this.userRepo.count({ where: { role: UserRole.TEACHER, createdAt: MoreThan(thirtyDaysAgo) } }),
-      this.userRepo.count({ where: { role: UserRole.STUDENT, createdAt: MoreThan(thirtyDaysAgo) } }),
+      this.userRepo.count({
+        where: { role: UserRole.TEACHER, createdAt: MoreThan(thirtyDaysAgo) },
+      }),
+      this.userRepo.count({
+        where: { role: UserRole.STUDENT, createdAt: MoreThan(thirtyDaysAgo) },
+      }),
       this.courseRepo.count({ where: { createdAt: MoreThan(thirtyDaysAgo) } }),
     ]);
 
     const [oldTeachers, oldStudents, oldCourses] = await Promise.all([
-      this.userRepo.count({ where: { role: UserRole.TEACHER, createdAt: Between(sixtyDaysAgo, thirtyDaysAgo) } }),
-      this.userRepo.count({ where: { role: UserRole.STUDENT, createdAt: Between(sixtyDaysAgo, thirtyDaysAgo) } }),
-      this.courseRepo.count({ where: { createdAt: Between(sixtyDaysAgo, thirtyDaysAgo) } }),
+      this.userRepo.count({
+        where: {
+          role: UserRole.TEACHER,
+          createdAt: Between(sixtyDaysAgo, thirtyDaysAgo),
+        },
+      }),
+      this.userRepo.count({
+        where: {
+          role: UserRole.STUDENT,
+          createdAt: Between(sixtyDaysAgo, thirtyDaysAgo),
+        },
+      }),
+      this.courseRepo.count({
+        where: { createdAt: Between(sixtyDaysAgo, thirtyDaysAgo) },
+      }),
     ]);
 
-    const teacherGrowth = oldTeachers > 0 ? ((recentTeachers - oldTeachers) / oldTeachers) * 100 : 0;
-    const studentGrowth = oldStudents > 0 ? ((recentStudents - oldStudents) / oldStudents) * 100 : 0;
-    const courseGrowth = oldCourses > 0 ? ((recentCourses - oldCourses) / oldCourses) * 100 : 0;
+    const teacherGrowth =
+      oldTeachers > 0
+        ? ((recentTeachers - oldTeachers) / oldTeachers) * 100
+        : 0;
+    const studentGrowth =
+      oldStudents > 0
+        ? ((recentStudents - oldStudents) / oldStudents) * 100
+        : 0;
+    const courseGrowth =
+      oldCourses > 0 ? ((recentCourses - oldCourses) / oldCourses) * 100 : 0;
 
     // Revenue chart (last 7 days)
     const revenueChart = await this.getRevenueChart(12);
@@ -136,9 +167,14 @@ export class AdminService {
         .andWhere('payment.createdAt < :end', { end: nextDate })
         .getMany();
 
-      const total = monthRevenue.reduce((sum, p) => sum + Number(p.finalAmount || 0), 0);
+      const total = monthRevenue.reduce(
+        (sum, p) => sum + Number(p.finalAmount || 0),
+        0,
+      );
 
-      labels.push(date.toLocaleDateString('vi-VN', { month: 'short', year: 'numeric' }));
+      labels.push(
+        date.toLocaleDateString('vi-VN', { month: 'short', year: 'numeric' }),
+      );
       data.push(total);
     }
 
@@ -160,9 +196,11 @@ export class AdminService {
       .limit(limit)
       .getRawMany();
 
-    courses = courses.sort((a, b) => parseFloat(b.revenue || 0) - parseFloat(a.revenue || 0));
+    courses = courses.sort(
+      (a, b) => parseFloat(b.revenue || 0) - parseFloat(a.revenue || 0),
+    );
 
-    return courses.map(c => ({
+    return courses.map((c) => ({
       id: c.id,
       title: c.title,
       thumbnail: c.thumbnail,
@@ -178,7 +216,7 @@ export class AdminService {
       take: limit,
     });
 
-    return transactions.map(t => ({
+    return transactions.map((t) => ({
       id: t.id,
       studentName: t.student.name,
       courseName: t.course.title,
@@ -189,7 +227,8 @@ export class AdminService {
   }
 
   private async getWeeklyStats() {
-    const stats: { day: string; activeUsers: number; newSignups: number }[] = [];
+    const stats: { day: string; activeUsers: number; newSignups: number }[] =
+      [];
     const now = new Date();
 
     for (let i = 6; i >= 0; i--) {
@@ -200,8 +239,12 @@ export class AdminService {
       end.setDate(start.getDate() + 1);
 
       const [activeUsers, newSignups] = await Promise.all([
-        this.enrollmentRepo.count({ where: { createdAt: Between(start, end) } }),
-        this.userRepo.count({ where: { createdAt: Between(start, end), role: UserRole.STUDENT } }),
+        this.enrollmentRepo.count({
+          where: { createdAt: Between(start, end) },
+        }),
+        this.userRepo.count({
+          where: { createdAt: Between(start, end), role: UserRole.STUDENT },
+        }),
       ]);
 
       stats.push({
@@ -219,14 +262,14 @@ export class AdminService {
     const studentsByMonth = await this.getUserGrowthByMonth(UserRole.STUDENT);
 
     const monthSet = new Set<string>();
-    teachersByMonth.forEach(item => monthSet.add(item.month));
-    studentsByMonth.forEach(item => monthSet.add(item.month));
+    teachersByMonth.forEach((item) => monthSet.add(item.month));
+    studentsByMonth.forEach((item) => monthSet.add(item.month));
 
     const months = Array.from(monthSet).sort();
 
-    return months.map(month => {
-      const teacherItem = teachersByMonth.find(t => t.month === month);
-      const studentItem = studentsByMonth.find(s => s.month === month);
+    return months.map((month) => {
+      const teacherItem = teachersByMonth.find((t) => t.month === month);
+      const studentItem = studentsByMonth.find((s) => s.month === month);
       return {
         month,
         teachers: teacherItem?.count || 0,
@@ -256,7 +299,7 @@ export class AdminService {
       .limit(12)
       .getRawMany();
 
-    return users.map(u => ({
+    return users.map((u) => ({
       month: u.month,
       count: parseInt(u.count),
     }));
@@ -264,7 +307,7 @@ export class AdminService {
 
   async getCategoryDistribution(): Promise<CategoryDistribution[]> {
     const total = await this.courseRepo.count();
-    
+
     const distribution = await this.courseRepo
       .createQueryBuilder('course')
       .leftJoin('course.category', 'category')
@@ -274,10 +317,13 @@ export class AdminService {
       .orderBy('COUNT(course.id)', 'DESC')
       .getRawMany();
 
-    return distribution.map(d => ({
+    return distribution.map((d) => ({
       categoryName: d.categoryName,
       courseCount: parseInt(d.courseCount),
-      percentage: total > 0 ? Math.round((parseInt(d.courseCount) / total) * 100 * 10) / 10 : 0,
+      percentage:
+        total > 0
+          ? Math.round((parseInt(d.courseCount) / total) * 100 * 10) / 10
+          : 0,
     }));
   }
 
@@ -288,7 +334,9 @@ export class AdminService {
       relations: ['course', 'course.teacher', 'course.category'],
     });
 
-    const totalRevenue = Math.round(completedPayments.reduce((sum, p) => sum + Number(p.finalAmount || 0), 0));
+    const totalRevenue = Math.round(
+      completedPayments.reduce((sum, p) => sum + Number(p.finalAmount || 0), 0),
+    );
     const platformRevenue = Math.round(totalRevenue * 0.3);
     const teacherRevenue = Math.round(totalRevenue * 0.7);
 
@@ -302,12 +350,20 @@ export class AdminService {
     const revenueByCategory = await this.getRevenueByCategory();
 
     // Average order value
-    const averageOrderValue = completedPayments.length > 0 ? Math.round(totalRevenue / completedPayments.length) : 0;
+    const averageOrderValue =
+      completedPayments.length > 0
+        ? Math.round(totalRevenue / completedPayments.length)
+        : 0;
 
     // Refund rate
-    const refundedPayments = await this.paymentRepo.count({ where: { status: PaymentStatus.REFUNDED } });
+    const refundedPayments = await this.paymentRepo.count({
+      where: { status: PaymentStatus.REFUNDED },
+    });
     const totalPayments = await this.paymentRepo.count();
-    const refundRate = totalPayments > 0 ? Math.round((refundedPayments / totalPayments) * 1000) / 10 : 0;
+    const refundRate =
+      totalPayments > 0
+        ? Math.round((refundedPayments / totalPayments) * 1000) / 10
+        : 0;
 
     return {
       totalRevenue,
@@ -336,8 +392,13 @@ export class AdminService {
     const monthlyData = result.map((r, index) => {
       const nextMonth = result[index + 1];
       const currentRevenue = Math.round(parseFloat(r.revenue) || 0);
-      const prevRevenue = nextMonth ? Math.round(parseFloat(nextMonth.revenue) || 0) : currentRevenue;
-      const growth = prevRevenue > 0 ? ((currentRevenue - prevRevenue) / prevRevenue) * 100 : 0;
+      const prevRevenue = nextMonth
+        ? Math.round(parseFloat(nextMonth.revenue) || 0)
+        : currentRevenue;
+      const growth =
+        prevRevenue > 0
+          ? ((currentRevenue - prevRevenue) / prevRevenue) * 100
+          : 0;
 
       return {
         month: r.month,
@@ -367,9 +428,12 @@ export class AdminService {
       .addGroupBy('teacher.email')
       .getRawMany();
 
-    result = result.sort((a, b) => parseFloat(b.totalRevenue || 0) - parseFloat(a.totalRevenue || 0))
+    result = result.sort(
+      (a, b) =>
+        parseFloat(b.totalRevenue || 0) - parseFloat(a.totalRevenue || 0),
+    );
 
-    return result.map(r => ({
+    return result.map((r) => ({
       teacherId: r.teacherId,
       teacherName: r.teacherName,
       teacherEmail: r.teacherEmail,
@@ -399,15 +463,18 @@ export class AdminService {
       .groupBy('category.name')
       .getRawMany();
 
-    result = result.sort((a, b) => parseFloat(b.revenue || 0) - parseFloat(a.revenue || 0));
+    result = result.sort(
+      (a, b) => parseFloat(b.revenue || 0) - parseFloat(a.revenue || 0),
+    );
 
-    return result.map(r => {
+    return result.map((r) => {
       const revenue = Math.round(parseFloat(r.revenue) || 0);
       return {
         categoryName: r.categoryName,
         revenue,
         orderCount: parseInt(r.orderCount),
-        percentage: total > 0 ? Math.round((revenue / total) * 100 * 10) / 10 : 0,
+        percentage:
+          total > 0 ? Math.round((revenue / total) * 100 * 10) / 10 : 0,
       };
     });
   }
@@ -420,11 +487,11 @@ export class AdminService {
     const totalUsers = await this.userRepo.count();
     // For activeUsers, we count users who created accounts or enrolled in courses recently
     // In a real app, you'd track lastLoginAt field
-    const activeUsers = await this.userRepo.count({ 
-      where: { createdAt: MoreThan(thirtyDaysAgo) } 
+    const activeUsers = await this.userRepo.count({
+      where: { createdAt: MoreThan(thirtyDaysAgo) },
     });
-    const newUsers = await this.userRepo.count({ 
-      where: { createdAt: MoreThan(thirtyDaysAgo) } 
+    const newUsers = await this.userRepo.count({
+      where: { createdAt: MoreThan(thirtyDaysAgo) },
     });
 
     const usersByRole = await this.getUsersByRole();
@@ -445,7 +512,7 @@ export class AdminService {
 
   private async getUsersByRole(): Promise<RoleDistribution[]> {
     const total = await this.userRepo.count();
-    
+
     const result = await this.userRepo
       .createQueryBuilder('user')
       .select('user.role', 'role')
@@ -453,10 +520,11 @@ export class AdminService {
       .groupBy('user.role')
       .getRawMany();
 
-    return result.map(r => ({
+    return result.map((r) => ({
       role: r.role,
       count: parseInt(r.count),
-      percentage: total > 0 ? Math.round((parseInt(r.count) / total) * 100 * 10) / 10 : 0,
+      percentage:
+        total > 0 ? Math.round((parseInt(r.count) / total) * 100 * 10) / 10 : 0,
     }));
   }
 
@@ -472,7 +540,7 @@ export class AdminService {
 
     // For activeUsers, we would need a lastLoginAt field tracked properly
     // For now, returning newUsers data
-    return result.reverse().map(r => ({
+    return result.reverse().map((r) => ({
       period: r.period,
       newUsers: parseInt(r.newUsers),
       activeUsers: parseInt(r.newUsers), // Placeholder
@@ -492,8 +560,8 @@ export class AdminService {
       .addSelect('COUNT(DISTINCT payment.courseId)', 'coursesEnrolled')
       .addSelect('COALESCE(SUM(payment.finalAmount), 0)', 'totalSpent')
       .addSelect(
-        "COALESCE(ROUND(SUM(CASE WHEN enrollment.completedAt IS NOT NULL THEN 1 ELSE 0 END)::numeric / NULLIF(COUNT(enrollment.id), 0) * 100, 1), 0)",
-        'completionRate'
+        'COALESCE(ROUND(SUM(CASE WHEN enrollment.completedAt IS NOT NULL THEN 1 ELSE 0 END)::numeric / NULLIF(COUNT(enrollment.id), 0) * 100, 1), 0)',
+        'completionRate',
       )
       .where('payment.status = :status', { status: PaymentStatus.COMPLETED })
       .groupBy('student.id')
@@ -502,9 +570,11 @@ export class AdminService {
       .limit(10)
       .getRawMany();
 
-    result = result.sort((a, b) => parseFloat(b.totalSpent || 0) - parseFloat(a.totalSpent || 0));
+    result = result.sort(
+      (a, b) => parseFloat(b.totalSpent || 0) - parseFloat(a.totalSpent || 0),
+    );
 
-    return result.map(r => ({
+    return result.map((r) => ({
       studentId: r.studentId,
       studentName: r.studentName,
       studentEmail: r.studentEmail,
@@ -535,9 +605,12 @@ export class AdminService {
       .limit(10)
       .getRawMany();
 
-    result = result.sort((a, b) => parseFloat(b.totalRevenue || 0) - parseFloat(a.totalRevenue || 0))
+    result = result.sort(
+      (a, b) =>
+        parseFloat(b.totalRevenue || 0) - parseFloat(a.totalRevenue || 0),
+    );
 
-    return result.map(r => ({
+    return result.map((r) => ({
       teacherId: r.teacherId,
       teacherName: r.teacherName,
       teacherEmail: r.teacherEmail,
@@ -563,7 +636,10 @@ export class AdminService {
     };
   }
 
-  private async getCoursePerformance(order: 'ASC' | 'DESC', limit: number): Promise<CoursePerformance[]> {
+  private async getCoursePerformance(
+    order: 'ASC' | 'DESC',
+    limit: number,
+  ): Promise<CoursePerformance[]> {
     const result = await this.courseRepo
       .createQueryBuilder('course')
       .leftJoin('course.teacher', 'teacher')
@@ -578,7 +654,7 @@ export class AdminService {
       .addSelect('COALESCE(AVG(review.rating), 0)', 'averageRating')
       .addSelect(
         'ROUND(COUNT(DISTINCT CASE WHEN enrollment.completedAt IS NOT NULL THEN enrollment.id END)::numeric / NULLIF(COUNT(DISTINCT enrollment.id), 0) * 100)',
-        'completionRate'
+        'completionRate',
       )
       .where('payment.status = :status', { status: PaymentStatus.COMPLETED })
       .groupBy('course.id')
@@ -588,7 +664,7 @@ export class AdminService {
       .limit(limit)
       .getRawMany();
 
-    return result.map(r => ({
+    return result.map((r) => ({
       courseId: r.courseId,
       courseTitle: r.courseTitle,
       teacherName: r.teacherName,
@@ -606,11 +682,14 @@ export class AdminService {
       .leftJoin('course.category', 'category')
       .select('category.name', 'categoryName')
       .addSelect('COUNT(*)', 'totalEnrollments')
-      .addSelect('COUNT(CASE WHEN enrollment.completedAt IS NOT NULL THEN 1 END)', 'completedEnrollments')
+      .addSelect(
+        'COUNT(CASE WHEN enrollment.completedAt IS NOT NULL THEN 1 END)',
+        'completedEnrollments',
+      )
       .groupBy('category.name')
       .getRawMany();
 
-    return result.map(r => {
+    return result.map((r) => {
       const total = parseInt(r.totalEnrollments);
       const completed = parseInt(r.completedEnrollments);
       const rate = total > 0 ? (completed / total) * 100 : 0;

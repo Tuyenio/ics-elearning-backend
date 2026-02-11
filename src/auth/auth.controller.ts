@@ -11,7 +11,12 @@ import {
   Res,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from '../users/dto/create-user.dto';
@@ -70,7 +75,10 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Throttle({ short: { limit: 3, ttl: 60000 } }) // 3 attempts per minute
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
-    return this.authService.resetPassword(resetPasswordDto.token, resetPasswordDto.password);
+    return this.authService.resetPassword(
+      resetPasswordDto.token,
+      resetPasswordDto.password,
+    );
   }
 
   @UseGuards(JwtAuthGuard)
@@ -123,16 +131,17 @@ export class AuthController {
     try {
       const user = req.user;
       const frontendUrl = this.configService.get<string>('FRONTEND_URL');
-      
+
       // Kiểm tra status và emailVerified
       if (user.status !== 'active') {
-        const errorMessage = user.status === 'inactive' 
-          ? 'Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ với đội ngũ hỗ trợ để được kích hoạt lại.'
-          : 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ với đội ngũ hỗ trợ để được kích hoạt lại.';
+        const errorMessage =
+          user.status === 'inactive'
+            ? 'Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ với đội ngũ hỗ trợ để được kích hoạt lại.'
+            : 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ với đội ngũ hỗ trợ để được kích hoạt lại.';
         const loginUrl = `${frontendUrl}/login?error=account_locked&message=${encodeURIComponent(errorMessage)}`;
         return res.redirect(loginUrl);
       }
-      
+
       if (!user.emailVerified) {
         const errorMessage = 'Vui lòng xác thực email trước khi đăng nhập';
         const loginUrl = `${frontendUrl}/login?error=email_not_verified&message=${encodeURIComponent(errorMessage)}`;
@@ -146,16 +155,16 @@ export class AuthController {
       };
 
       const access_token = this.authService.generateToken(payload);
-      
+
       // Chuyển hướng về frontend với token
       const redirectUrl = `${frontendUrl}/auth/google/callback?token=${access_token}&user=${encodeURIComponent(JSON.stringify(user))}`;
       res.redirect(redirectUrl);
     } catch (error) {
       const frontendUrl = this.configService.get<string>('FRONTEND_URL');
-      const errorMessage = error instanceof Error ? error.message : 'Đăng nhập thất bại';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Đăng nhập thất bại';
       const loginUrl = `${frontendUrl}/login?error=auth_failed&message=${encodeURIComponent(errorMessage)}`;
       res.redirect(loginUrl);
     }
   }
 }
-

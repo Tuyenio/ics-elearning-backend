@@ -89,4 +89,3 @@ export class ExamAttempt {
   @UpdateDateColumn()
   updatedAt: Date;
 }
-

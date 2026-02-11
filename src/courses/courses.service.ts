@@ -10,7 +10,11 @@ import { Course, CourseStatus } from './entities/course.entity';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { User, UserRole } from '../users/entities/user.entity';
-import { CourseFilters, FilterOption, PriceRange } from './dto/course-filters.dto';
+import {
+  CourseFilters,
+  FilterOption,
+  PriceRange,
+} from './dto/course-filters.dto';
 import { Category } from '../categories/entities/category.entity';
 
 @Injectable()
@@ -22,8 +26,12 @@ export class CoursesService {
     private readonly categoryRepository: Repository<Category>,
   ) {}
 
-  async create(createCourseDto: CreateCourseDto, teacher: User): Promise<Course> {
-    const slug = createCourseDto.slug || this.generateSlug(createCourseDto.title);
+  async create(
+    createCourseDto: CreateCourseDto,
+    teacher: User,
+  ): Promise<Course> {
+    const slug =
+      createCourseDto.slug || this.generateSlug(createCourseDto.title);
 
     const existingCourse = await this.courseRepository.findOne({
       where: { slug },
@@ -50,7 +58,13 @@ export class CoursesService {
     limit?: number;
     sortBy?: string;
     sortOrder?: 'ASC' | 'DESC';
-  }): Promise<{ data: Course[]; total: number; page: number; limit: number; totalPages: number }> {
+  }): Promise<{
+    data: Course[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
     const page = options?.page || 1;
     const limit = options?.limit || 20;
     const skip = (page - 1) * limit;
@@ -69,7 +83,9 @@ export class CoursesService {
     }
 
     if (options?.categoryId) {
-      queryBuilder.andWhere('course.categoryId = :categoryId', { categoryId: options.categoryId });
+      queryBuilder.andWhere('course.categoryId = :categoryId', {
+        categoryId: options.categoryId,
+      });
     }
 
     if (options?.level) {
@@ -195,7 +211,10 @@ export class CoursesService {
     const reviewCount = publishedReviews.length;
 
     if (reviewCount > 0) {
-      const totalRating = publishedReviews.reduce((sum, r) => sum + r.rating, 0);
+      const totalRating = publishedReviews.reduce(
+        (sum, r) => sum + r.rating,
+        0,
+      );
       course.rating = totalRating / reviewCount;
       course.reviewCount = reviewCount;
     } else {
@@ -207,7 +226,11 @@ export class CoursesService {
   }
 
   async incrementEnrollmentCount(courseId: string): Promise<void> {
-    await this.courseRepository.increment({ id: courseId }, 'enrollmentCount', 1);
+    await this.courseRepository.increment(
+      { id: courseId },
+      'enrollmentCount',
+      1,
+    );
   }
 
   async findByStatus(status: string): Promise<Course[]> {
@@ -256,7 +279,7 @@ export class CoursesService {
       .orderBy('count', 'DESC')
       .getRawMany();
 
-    const categories: FilterOption[] = categoriesData.map(c => ({
+    const categories: FilterOption[] = categoriesData.map((c) => ({
       value: c.value,
       label: c.label,
       count: parseInt(c.count) || 0,
@@ -272,7 +295,7 @@ export class CoursesService {
       .groupBy('course.level')
       .getRawMany();
 
-    const levels: FilterOption[] = levelsData.map(l => ({
+    const levels: FilterOption[] = levelsData.map((l) => ({
       value: l.value,
       label: this.formatLevel(l.value),
       count: parseInt(l.count) || 0,
@@ -292,9 +315,11 @@ export class CoursesService {
         .createQueryBuilder('course')
         .where('course.isPublished = :published', { published: true })
         .andWhere('course.price >= :min', { min: range.min })
-        .andWhere('course.price < :max', { max: range.max === 0 ? 1 : range.max })
+        .andWhere('course.price < :max', {
+          max: range.max === 0 ? 1 : range.max,
+        })
         .getCount();
-      
+
       range.count = count;
     }
 
@@ -308,7 +333,7 @@ export class CoursesService {
       .groupBy('course.language')
       .getRawMany();
 
-    const languages: FilterOption[] = languagesData.map(l => ({
+    const languages: FilterOption[] = languagesData.map((l) => ({
       value: l.value,
       label: this.formatLanguage(l.value),
       count: parseInt(l.count) || 0,
@@ -326,9 +351,11 @@ export class CoursesService {
       const count = await this.courseRepository
         .createQueryBuilder('course')
         .where('course.isPublished = :published', { published: true })
-        .andWhere('course.rating >= :rating', { rating: parseFloat(rating.value) })
+        .andWhere('course.rating >= :rating', {
+          rating: parseFloat(rating.value),
+        })
         .getCount();
-      
+
       rating.count = count;
     }
 

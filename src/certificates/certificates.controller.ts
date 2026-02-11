@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Param, UseGuards, Patch, Body, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  UseGuards,
+  Patch,
+  Body,
+  Delete,
+} from '@nestjs/common';
 import { CertificatesService } from './certificates.service';
 import { TemplateStatus } from './entities/certificate-template.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -38,6 +47,27 @@ export class CertificatesController {
     return this.certificatesService.findAllForAdmin();
   }
 
+<<<<<<< HEAD
+=======
+  @Get(':id')
+  @UseGuards(JwtAuthGuard)
+  findOne(@Param('id') id: string) {
+    return this.certificatesService.findOne(id);
+  }
+
+  @Get('number/:certificateNumber')
+  findByCertificateNumber(
+    @Param('certificateNumber') certificateNumber: string,
+  ) {
+    return this.certificatesService.findByCertificateNumber(certificateNumber);
+  }
+
+  @Get('verify/:certificateNumber')
+  verifyCertificate(@Param('certificateNumber') certificateNumber: string) {
+    return this.certificatesService.verifyCertificate(certificateNumber);
+  }
+
+>>>>>>> 39ea081ddc66b9350f164ad8dcd5f9ceae80fa83
   // Admin endpoints
   @Get('admin/pending')
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -73,6 +103,7 @@ export class CertificatesController {
   }
 
   // ==================== CERTIFICATE TEMPLATES ====================
+<<<<<<< HEAD
   
   @Get('templates')
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -80,6 +111,8 @@ export class CertificatesController {
   getTemplates(@GetUser() user: User) {
     return this.certificatesService.findTemplatesForAdmin();
   }
+=======
+>>>>>>> 39ea081ddc66b9350f164ad8dcd5f9ceae80fa83
 
   @Get('templates/my')
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -109,7 +142,9 @@ export class CertificatesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   getPendingTemplatesForAdmin() {
-    return this.certificatesService.findTemplatesForAdmin(TemplateStatus.PENDING);
+    return this.certificatesService.findTemplatesForAdmin(
+      TemplateStatus.PENDING,
+    );
   }
 
   @Get('templates/:id')
@@ -121,7 +156,11 @@ export class CertificatesController {
   @Patch('templates/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
-  updateTemplate(@Param('id') id: string, @GetUser() user: User, @Body() data: any) {
+  updateTemplate(
+    @Param('id') id: string,
+    @GetUser() user: User,
+    @Body() data: any,
+  ) {
     return this.certificatesService.updateTemplate(id, user.id, data);
   }
 

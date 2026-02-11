@@ -8,9 +8,7 @@ import { Payment } from '../payments/entities/payment.entity';
 import { Review } from '../reviews/entities/review.entity';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Course, Enrollment, Payment, Review]),
-  ],
+  imports: [TypeOrmModule.forFeature([Course, Enrollment, Payment, Review])],
   providers: [TeacherService],
   controllers: [TeacherController],
 })

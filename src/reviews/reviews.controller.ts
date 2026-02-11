@@ -10,7 +10,12 @@ import {
   Req,
   Query,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { ReviewsService } from './reviews.service';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { UpdateReviewDto } from './dto/update-review.dto';
@@ -100,6 +105,10 @@ export class ReviewsController {
     @Body() replyDto: ReplyReviewDto,
     @Req() req: any,
   ) {
-    return this.reviewsService.replyToReview(id, replyDto.reply, req.user.userId);
+    return this.reviewsService.replyToReview(
+      id,
+      replyDto.reply,
+      req.user.userId,
+    );
   }
 }

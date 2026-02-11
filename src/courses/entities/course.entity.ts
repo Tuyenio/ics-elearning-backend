@@ -59,8 +59,8 @@ export class Course {
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   discountPrice: number;
-  
-  @OneToMany(() => Payment, payment => payment.course)
+
+  @OneToMany(() => Payment, (payment) => payment.course)
   payments: Payment[];
 
   @Column({
@@ -118,7 +118,9 @@ export class Course {
   @Index()
   teacherId: string;
 
-  @ManyToOne(() => Category, (category) => category.courses, { onDelete: 'SET NULL' })
+  @ManyToOne(() => Category, (category) => category.courses, {
+    onDelete: 'SET NULL',
+  })
   @JoinColumn({ name: 'categoryId' })
   category: Category;
 

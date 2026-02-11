@@ -58,10 +58,22 @@ export class VNPayService {
   constructor(private configService: ConfigService) {
     this.config = {
       tmnCode: this.configService.get<string>('VNPAY_TMN_CODE', 'DEMO'),
-      hashSecret: this.configService.get<string>('VNPAY_HASH_SECRET', 'VNPAY_HASH_SECRET_KEY'),
-      vnpUrl: this.configService.get<string>('VNPAY_URL', 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html'),
-      returnUrl: this.configService.get<string>('VNPAY_RETURN_URL', 'http://localhost:3000/enrollment/success'),
-      apiUrl: this.configService.get<string>('VNPAY_API_URL', 'https://sandbox.vnpayment.vn/merchant_webapi/api/transaction'),
+      hashSecret: this.configService.get<string>(
+        'VNPAY_HASH_SECRET',
+        'VNPAY_HASH_SECRET_KEY',
+      ),
+      vnpUrl: this.configService.get<string>(
+        'VNPAY_URL',
+        'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html',
+      ),
+      returnUrl: this.configService.get<string>(
+        'VNPAY_RETURN_URL',
+        'http://localhost:3000/enrollment/success',
+      ),
+      apiUrl: this.configService.get<string>(
+        'VNPAY_API_URL',
+        'https://sandbox.vnpayment.vn/merchant_webapi/api/transaction',
+      ),
     };
   }
 
@@ -71,7 +83,9 @@ export class VNPayService {
   createPaymentUrl(params: CreatePaymentParams): string {
     const date = new Date();
     const createDate = this.formatDate(date);
-    const expireDate = this.formatDate(new Date(date.getTime() + 15 * 60 * 1000)); // 15 minutes expire
+    const expireDate = this.formatDate(
+      new Date(date.getTime() + 15 * 60 * 1000),
+    ); // 15 minutes expire
 
     let vnpParams: Record<string, string> = {
       vnp_Version: '2.1.0',
@@ -104,9 +118,9 @@ export class VNPayService {
     vnpParams['vnp_SecureHash'] = signed;
 
     const paymentUrl = `${this.config.vnpUrl}?${querystring.stringify(vnpParams, { encode: false })}`;
-    
+
     this.logger.log(`Created VNPay payment URL for order: ${params.orderId}`);
-    
+
     return paymentUrl;
   }
 
@@ -115,12 +129,14 @@ export class VNPayService {
    */
   verifyReturnUrl(vnpParams: VNPayReturnData): PaymentResult {
     const secureHash = vnpParams.vnp_SecureHash;
-    
+
     // Remove hash params for verification - create new object without these properties
     const { vnp_SecureHash, vnp_SecureHashType, ...verifyParams } = vnpParams;
 
     // Sort and create signature
-    const sortedParams = this.sortObject(verifyParams as Record<string, string>);
+    const sortedParams = this.sortObject(
+      verifyParams as Record<string, string>,
+    );
     const signData = querystring.stringify(sortedParams, { encode: false });
     const hmac = crypto.createHmac('sha512', this.config.hashSecret);
     const signed = hmac.update(Buffer.from(signData, 'utf-8')).digest('hex');
@@ -154,8 +170,10 @@ export class VNPayService {
     }
 
     const errorMessage = this.getResponseMessage(responseCode);
-    this.logger.warn(`Payment failed for order: ${vnpParams.vnp_TxnRef}, code: ${responseCode}`);
-    
+    this.logger.warn(
+      `Payment failed for order: ${vnpParams.vnp_TxnRef}, code: ${responseCode}`,
+    );
+
     return {
       success: false,
       code: responseCode,
@@ -168,7 +186,7 @@ export class VNPayService {
    */
   verifyIpn(vnpParams: VNPayReturnData): { rspCode: string; message: string } {
     const result = this.verifyReturnUrl(vnpParams);
-    
+
     if (!result.success && result.code === '97') {
       return { rspCode: '97', message: 'Chữ ký không hợp lệ' };
     }
@@ -189,9 +207,14 @@ export class VNPayService {
   /**
    * Query transaction status
    */
-  async queryTransaction(orderId: string, transDate: string, ipAddr: string): Promise<any> {
+  async queryTransaction(
+    orderId: string,
+    transDate: string,
+    ipAddr: string,
+  ): Promise<any> {
     const date = new Date();
-    const requestId = this.formatDate(date) + Math.random().toString(36).substring(2, 8);
+    const requestId =
+      this.formatDate(date) + Math.random().toString(36).substring(2, 8);
 
     const data: Record<string, string> = {
       vnp_RequestId: requestId,
@@ -208,7 +231,9 @@ export class VNPayService {
     // Create signature
     const signData = `${data.vnp_RequestId}|${data.vnp_Version}|${data.vnp_Command}|${data.vnp_TmnCode}|${data.vnp_TxnRef}|${data.vnp_TransDate}|${data.vnp_CreateDate}|${data.vnp_IpAddr}|${data.vnp_OrderInfo}`;
     const hmac = crypto.createHmac('sha512', this.config.hashSecret);
-    data.vnp_SecureHash = hmac.update(Buffer.from(signData, 'utf-8')).digest('hex');
+    data.vnp_SecureHash = hmac
+      .update(Buffer.from(signData, 'utf-8'))
+      .digest('hex');
 
     try {
       const response = await fetch(this.config.apiUrl!, {
@@ -238,7 +263,8 @@ export class VNPayService {
     user: string,
   ): Promise<any> {
     const date = new Date();
-    const requestId = this.formatDate(date) + Math.random().toString(36).substring(2, 8);
+    const requestId =
+      this.formatDate(date) + Math.random().toString(36).substring(2, 8);
 
     const data: Record<string, string> = {
       vnp_RequestId: requestId,
@@ -258,7 +284,9 @@ export class VNPayService {
     // Create signature
     const signData = `${data.vnp_RequestId}|${data.vnp_Version}|${data.vnp_Command}|${data.vnp_TmnCode}|${data.vnp_TransactionType}|${data.vnp_TxnRef}|${data.vnp_Amount}|${data.vnp_TransDate}|${data.vnp_CreateBy}|${data.vnp_CreateDate}|${data.vnp_IpAddr}|${data.vnp_OrderInfo}`;
     const hmac = crypto.createHmac('sha512', this.config.hashSecret);
-    data.vnp_SecureHash = hmac.update(Buffer.from(signData, 'utf-8')).digest('hex');
+    data.vnp_SecureHash = hmac
+      .update(Buffer.from(signData, 'utf-8'))
+      .digest('hex');
 
     try {
       const response = await fetch(this.config.apiUrl!, {
@@ -281,7 +309,7 @@ export class VNPayService {
    */
   private formatDate(date: Date): string {
     const pad = (n: number) => n.toString().padStart(2, '0');
-    
+
     return (
       date.getFullYear().toString() +
       pad(date.getMonth() + 1) +
@@ -298,11 +326,11 @@ export class VNPayService {
   private sortObject(obj: Record<string, string>): Record<string, string> {
     const sorted: Record<string, string> = {};
     const keys = Object.keys(obj).sort();
-    
+
     for (const key of keys) {
       sorted[key] = encodeURIComponent(obj[key]).replace(/%20/g, '+');
     }
-    
+
     return sorted;
   }
 

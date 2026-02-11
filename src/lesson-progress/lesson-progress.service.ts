@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { LessonProgress } from './entities/lesson-progress.entity';
@@ -65,7 +69,11 @@ export class LessonProgressService {
     return savedProgress;
   }
 
-  async getProgress(enrollmentId: string, lessonId: string, user: User): Promise<LessonProgress> {
+  async getProgress(
+    enrollmentId: string,
+    lessonId: string,
+    user: User,
+  ): Promise<LessonProgress> {
     // Verify enrollment belongs to user
     const enrollment = await this.enrollmentRepository.findOne({
       where: { id: enrollmentId },
@@ -94,7 +102,10 @@ export class LessonProgressService {
     return progress;
   }
 
-  async getEnrollmentProgress(enrollmentId: string, user: User): Promise<LessonProgress[]> {
+  async getEnrollmentProgress(
+    enrollmentId: string,
+    user: User,
+  ): Promise<LessonProgress[]> {
     // Verify enrollment belongs to user
     const enrollment = await this.enrollmentRepository.findOne({
       where: { id: enrollmentId },

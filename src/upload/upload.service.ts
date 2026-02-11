@@ -8,7 +8,16 @@ export class UploadService {
   // Allowed file types
   private readonly imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
   private readonly videoExtensions = ['.mp4', '.webm', '.mov', '.avi'];
-  private readonly documentExtensions = ['.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx', '.txt'];
+  private readonly documentExtensions = [
+    '.pdf',
+    '.doc',
+    '.docx',
+    '.ppt',
+    '.pptx',
+    '.xls',
+    '.xlsx',
+    '.txt',
+  ];
 
   // Max file sizes (in bytes)
   private readonly maxImageSize = 5 * 1024 * 1024; // 5MB
@@ -24,7 +33,8 @@ export class UploadService {
       storage: diskStorage({
         destination: uploadPath,
         filename: (req, file, callback) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          const uniqueSuffix =
+            Date.now() + '-' + Math.round(Math.random() * 1e9);
           const ext = extname(file.originalname);
           const filename = `${file.fieldname}-${uniqueSuffix}${ext}`;
           callback(null, filename);
@@ -35,9 +45,9 @@ export class UploadService {
         if (!allowedExtensions.includes(ext)) {
           return callback(
             new BadRequestException(
-              `Loại tập tin không hợp lệ. Các loại cho phép: ${allowedExtensions.join(', ')}`
+              `Loại tập tin không hợp lệ. Các loại cho phép: ${allowedExtensions.join(', ')}`,
             ),
-            false
+            false,
           );
         }
         callback(null, true);
@@ -48,7 +58,9 @@ export class UploadService {
     };
   }
 
-  private getAllowedExtensions(fileType: 'image' | 'video' | 'document'): string[] {
+  private getAllowedExtensions(
+    fileType: 'image' | 'video' | 'document',
+  ): string[] {
     switch (fileType) {
       case 'image':
         return this.imageExtensions;
@@ -70,7 +82,10 @@ export class UploadService {
     }
   }
 
-  generateFileUrl(filename: string, fileType: 'image' | 'video' | 'document' | 'avatar'): string {
+  generateFileUrl(
+    filename: string,
+    fileType: 'image' | 'video' | 'document' | 'avatar',
+  ): string {
     const baseUrl = process.env.BASE_URL || 'http://localhost:5001';
     if (fileType === 'avatar') {
       return `${baseUrl}/uploads/avatars/${filename}`;
@@ -78,24 +93,27 @@ export class UploadService {
     return `${baseUrl}/uploads/${fileType}s/${filename}`;
   }
 
-  validateFile(file: Express.Multer.File, fileType: 'image' | 'video' | 'document' = 'image'): void {
+  validateFile(
+    file: Express.Multer.File,
+    fileType: 'image' | 'video' | 'document' = 'image',
+  ): void {
     if (!file) {
       throw new BadRequestException('Chưa tải lên tập tin');
     }
 
     const ext = extname(file.originalname).toLowerCase();
     const allowedExtensions = this.getAllowedExtensions(fileType);
-    
+
     if (!allowedExtensions.includes(ext)) {
       throw new BadRequestException(
-        `Loại tập tin không hợp lệ. Các loại cho phép: ${allowedExtensions.join(', ')}`
+        `Loại tập tin không hợp lệ. Các loại cho phép: ${allowedExtensions.join(', ')}`,
       );
     }
 
     const maxSize = this.getMaxFileSize(fileType);
     if (file.size > maxSize) {
       throw new BadRequestException(
-        `Kích thước tập tin quá lớn. Tối đa: ${maxSize / (1024 * 1024)}MB`
+        `Kích thước tập tin quá lớn. Tối đa: ${maxSize / (1024 * 1024)}MB`,
       );
     }
   }

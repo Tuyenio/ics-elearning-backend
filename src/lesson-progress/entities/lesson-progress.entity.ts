@@ -17,7 +17,9 @@ export class LessonProgress {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => Enrollment, (enrollment) => enrollment.lessonProgress, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Enrollment, (enrollment) => enrollment.lessonProgress, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'enrollmentId' })
   enrollment: Enrollment;
 

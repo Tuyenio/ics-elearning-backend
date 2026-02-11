@@ -61,9 +61,13 @@ export class DiscussionsService {
     return { message: 'Đã xoá cuộc thảo luận thành công' };
   }
 
-  async createReply(parentId: string, createDiscussionDto: CreateDiscussionDto, userId: string) {
+  async createReply(
+    parentId: string,
+    createDiscussionDto: CreateDiscussionDto,
+    userId: string,
+  ) {
     const parent = await this.findOne(parentId);
-    
+
     const reply = this.discussionRepo.create({
       ...createDiscussionDto,
       parentId,
