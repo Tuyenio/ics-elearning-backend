@@ -47,27 +47,6 @@ export class CertificatesController {
     return this.certificatesService.findAllForAdmin();
   }
 
-<<<<<<< HEAD
-=======
-  @Get(':id')
-  @UseGuards(JwtAuthGuard)
-  findOne(@Param('id') id: string) {
-    return this.certificatesService.findOne(id);
-  }
-
-  @Get('number/:certificateNumber')
-  findByCertificateNumber(
-    @Param('certificateNumber') certificateNumber: string,
-  ) {
-    return this.certificatesService.findByCertificateNumber(certificateNumber);
-  }
-
-  @Get('verify/:certificateNumber')
-  verifyCertificate(@Param('certificateNumber') certificateNumber: string) {
-    return this.certificatesService.verifyCertificate(certificateNumber);
-  }
-
->>>>>>> 39ea081ddc66b9350f164ad8dcd5f9ceae80fa83
   // Admin endpoints
   @Get('admin/pending')
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -103,16 +82,12 @@ export class CertificatesController {
   }
 
   // ==================== CERTIFICATE TEMPLATES ====================
-<<<<<<< HEAD
-  
   @Get('templates')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   getTemplates(@GetUser() user: User) {
     return this.certificatesService.findTemplatesForAdmin();
   }
-=======
->>>>>>> 39ea081ddc66b9350f164ad8dcd5f9ceae80fa83
 
   @Get('templates/my')
   @UseGuards(JwtAuthGuard, RolesGuard)

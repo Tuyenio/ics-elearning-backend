@@ -49,17 +49,12 @@ export class ExamsController {
   @Patch(':id')
   @UseGuards(RolesGuard)
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
-<<<<<<< HEAD
-  update(@Param('id') id: string, @Body() updateExamDto: UpdateExamDto, @Request() req) {
-    return this.examsService.updateAny(id, updateExamDto);
-=======
   update(
     @Param('id') id: string,
     @Body() updateExamDto: UpdateExamDto,
     @Request() req,
   ) {
-    return this.examsService.update(id, updateExamDto, req.user.id);
->>>>>>> 39ea081ddc66b9350f164ad8dcd5f9ceae80fa83
+    return this.examsService.updateAny(id, updateExamDto);
   }
 
   @Delete(':id')
