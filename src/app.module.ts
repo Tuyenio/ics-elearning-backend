@@ -9,7 +9,6 @@ import { join } from 'path';
 import configuration from './config/configuration';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { DatabaseSeederService } from './database/database-seeder.service';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { CategoriesModule } from './categories/categories.module';
@@ -93,9 +92,9 @@ import { ScheduleModule } from './schedule/schedule.module';
         type: 'postgres',
         url: configService.get('DATABASE_URL'),
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        migrations: [__dirname + '/database/migrations/*{.ts,.js}'],
-        synchronize: configService.get('NODE_ENV') === 'development', // Auto-sync in development
-        migrationsRun: false, // Disable auto-run migrations (use scripts instead)
+        migrations: [join(__dirname, '..', 'migrations', '*{.ts,.js}')],
+        synchronize: false,
+        migrationsRun: true,
         logging: configService.get('NODE_ENV') === 'development',
         ssl:
           configService.get('DATABASE_SSL') === 'true'
@@ -103,14 +102,18 @@ import { ScheduleModule } from './schedule/schedule.module';
                 rejectUnauthorized: false,
               }
             : false,
-        extra:
-          configService.get('DATABASE_SSL') === 'true'
+        extra: {
+          // Set search_path so that "learning" schema is resolved first, then "public"
+          // Safe even before "learning" schema exists (PG skips non-existent schemas)
+          options: '-c search_path=learning,public',
+          ...(configService.get('DATABASE_SSL') === 'true'
             ? {
                 ssl: {
                   rejectUnauthorized: false,
                 },
               }
-            : undefined,
+            : {}),
+        },
       }),
     }),
     AuthModule,
@@ -144,7 +147,6 @@ import { ScheduleModule } from './schedule/schedule.module';
   controllers: [AppController],
   providers: [
     AppService,
-    DatabaseSeederService,
     // Apply rate limiting globally
     {
       provide: APP_GUARD,

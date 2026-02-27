@@ -15,7 +15,7 @@ export enum SessionStatus {
   REVOKED = 'revoked',
 }
 
-@Entity('user_sessions')
+@Entity('user_sessions', { schema: 'learning' })
 export class UserSession {
   @PrimaryGeneratedColumn('uuid')
   id: string;

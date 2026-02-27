@@ -1,6 +1,6 @@
 import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
 
-@Entity('system_settings')
+@Entity('system_settings', { schema: 'learning' })
 export class SystemSetting {
   @PrimaryGeneratedColumn()
   id: number;

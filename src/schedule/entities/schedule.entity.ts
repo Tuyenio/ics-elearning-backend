@@ -6,7 +6,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-@Entity('schedule_items')
+@Entity('schedule_items', { schema: 'learning' })
 export class ScheduleItem {
   @PrimaryGeneratedColumn('uuid')
   id: string;

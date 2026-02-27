@@ -11,7 +11,7 @@ import {
 import { User } from '../../users/entities/user.entity';
 import { Course } from '../../courses/entities/course.entity';
 
-@Entity('cart')
+@Entity('cart', { schema: 'learning' })
 @Index(['userId', 'courseId'], { unique: true })
 export class Cart {
   @PrimaryGeneratedColumn('uuid')

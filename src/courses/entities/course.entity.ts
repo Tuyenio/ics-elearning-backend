@@ -31,7 +31,7 @@ export enum CourseStatus {
   ARCHIVED = 'archived',
 }
 
-@Entity('courses')
+@Entity('courses', { schema: 'learning' })
 export class Course {
   @PrimaryGeneratedColumn('uuid')
   id: string;

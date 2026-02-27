@@ -32,7 +32,7 @@ export enum NotificationStatus {
   ARCHIVED = 'archived',
 }
 
-@Entity('notifications')
+@Entity('notifications', { schema: 'learning' })
 @Index(['userId', 'status'])
 export class Notification {
   @PrimaryGeneratedColumn('uuid')

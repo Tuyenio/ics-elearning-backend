@@ -18,7 +18,7 @@ export enum AnnouncementPriority {
   URGENT = 'urgent',
 }
 
-@Entity('announcements')
+@Entity('announcements', { schema: 'learning' })
 export class Announcement {
   @PrimaryGeneratedColumn('uuid')
   id: string;

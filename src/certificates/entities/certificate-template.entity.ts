@@ -18,7 +18,7 @@ export enum TemplateStatus {
   REJECTED = 'rejected',
 }
 
-@Entity('certificate_templates')
+@Entity('certificate_templates', { schema: 'learning' })
 export class CertificateTemplate {
   @PrimaryGeneratedColumn('uuid')
   id: string;
