@@ -22,7 +22,7 @@ export enum EnrollmentStatus {
   CANCELLED = 'cancelled',
 }
 
-@Entity('enrollments')
+@Entity('enrollments', { schema: 'learning' })
 @Index(['studentId', 'courseId'], { unique: true })
 export class Enrollment {
   @PrimaryGeneratedColumn('uuid')

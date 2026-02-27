@@ -32,7 +32,7 @@ export enum PaymentMethod {
   MOMO = 'momo',
 }
 
-@Entity('payments')
+@Entity('payments', { schema: 'learning' })
 export class Payment {
   @PrimaryGeneratedColumn('uuid')
   id: string;

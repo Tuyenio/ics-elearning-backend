@@ -19,7 +19,7 @@ export enum CertificateStatus {
   REJECTED = 'rejected',
 }
 
-@Entity('certificates')
+@Entity('certificates', { schema: 'learning' })
 export class Certificate {
   @PrimaryGeneratedColumn('uuid')
   id: string;

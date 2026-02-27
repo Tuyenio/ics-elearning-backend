@@ -34,7 +34,7 @@ export interface ExamQuestion {
   explanation?: string;
 }
 
-@Entity('exams')
+@Entity('exams', { schema: 'learning' })
 export class Exam {
   @PrimaryGeneratedColumn('uuid')
   id: string;

@@ -15,7 +15,7 @@ export enum TwoFactorMethod {
   EMAIL = 'email',
 }
 
-@Entity('two_factor_auth')
+@Entity('two_factor_auth', { schema: 'learning' })
 export class TwoFactorAuth {
   @PrimaryGeneratedColumn('uuid')
   id: string;

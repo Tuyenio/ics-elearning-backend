@@ -22,7 +22,7 @@ export enum CouponStatus {
   EXPIRED = 'expired',
 }
 
-@Entity('coupons')
+@Entity('coupons', { schema: 'learning' })
 export class Coupon {
   @PrimaryGeneratedColumn('uuid')
   id: string;

@@ -24,7 +24,7 @@ export interface QuestionAnswer {
   earnedPoints?: number;
 }
 
-@Entity('exam_attempts')
+@Entity('exam_attempts', { schema: 'learning' })
 export class ExamAttempt {
   @PrimaryGeneratedColumn('uuid')
   id: string;

@@ -11,7 +11,7 @@ import {
 import { Enrollment } from '../../enrollments/entities/enrollment.entity';
 import { Lesson } from '../../lessons/entities/lesson.entity';
 
-@Entity('lesson_progress')
+@Entity('lesson_progress', { schema: 'learning' })
 @Index(['enrollmentId', 'lessonId'], { unique: true })
 export class LessonProgress {
   @PrimaryGeneratedColumn('uuid')

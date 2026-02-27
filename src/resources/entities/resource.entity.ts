@@ -21,7 +21,7 @@ export enum ResourceType {
   OTHER = 'other',
 }
 
-@Entity('resources')
+@Entity('resources', { schema: 'learning' })
 export class Resource {
   @PrimaryGeneratedColumn('uuid')
   id: string;

@@ -67,6 +67,9 @@ const AppDataSource = new DataSource({
   ssl: {
     rejectUnauthorized: false,
   },
+  extra: {
+    options: '-c search_path=learning,public',
+  },
 });
 
 const getArgValue = (name: string): string | undefined => {

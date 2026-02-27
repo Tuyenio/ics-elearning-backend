@@ -12,7 +12,7 @@ import { User } from '../../users/entities/user.entity';
 import { Course } from '../../courses/entities/course.entity';
 import { Lesson } from '../../lessons/entities/lesson.entity';
 
-@Entity('notes')
+@Entity('notes', { schema: 'learning' })
 export class Note {
   @PrimaryGeneratedColumn('uuid')
   id: string;

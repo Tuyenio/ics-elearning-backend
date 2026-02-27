@@ -13,7 +13,7 @@ import { User } from '../../users/entities/user.entity';
 import { Course } from '../../courses/entities/course.entity';
 import { Lesson } from '../../lessons/entities/lesson.entity';
 
-@Entity('discussions')
+@Entity('discussions', { schema: 'learning' })
 @Index(['courseId', 'lessonId'])
 export class Discussion {
   @PrimaryGeneratedColumn('uuid')

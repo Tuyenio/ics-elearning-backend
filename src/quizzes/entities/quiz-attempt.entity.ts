@@ -17,7 +17,7 @@ export enum AttemptStatus {
   EXPIRED = 'expired',
 }
 
-@Entity('quiz_attempts')
+@Entity('quiz_attempts', { schema: 'learning' })
 export class QuizAttempt {
   @PrimaryGeneratedColumn('uuid')
   id: string;

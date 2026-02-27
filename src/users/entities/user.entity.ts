@@ -22,7 +22,7 @@ export enum UserStatus {
   PENDING = 'pending',
 }
 
-@Entity('users')
+@Entity('users', { schema: 'learning' })
 export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;

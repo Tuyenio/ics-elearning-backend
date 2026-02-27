@@ -25,7 +25,7 @@ export enum SubmissionStatus {
   LATE = 'late',
 }
 
-@Entity('assignments')
+@Entity('assignments', { schema: 'learning' })
 export class Assignment {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -92,7 +92,7 @@ export class Assignment {
   lesson: Lesson;
 }
 
-@Entity('assignment_submissions')
+@Entity('assignment_submissions', { schema: 'learning' })
 export class AssignmentSubmission {
   @PrimaryGeneratedColumn('uuid')
   id: string;

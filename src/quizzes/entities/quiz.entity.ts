@@ -13,7 +13,7 @@ import { Course } from '../../courses/entities/course.entity';
 import { Lesson } from '../../lessons/entities/lesson.entity';
 import { QuizAttempt } from './quiz-attempt.entity';
 
-@Entity('quizzes')
+@Entity('quizzes', { schema: 'learning' })
 export class Quiz {
   @PrimaryGeneratedColumn('uuid')
   id: string;

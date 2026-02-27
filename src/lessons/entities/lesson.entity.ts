@@ -20,7 +20,7 @@ export enum LessonType {
   RESOURCE = 'resource',
 }
 
-@Entity('lessons')
+@Entity('lessons', { schema: 'learning' })
 export class Lesson {
   @PrimaryGeneratedColumn('uuid')
   id: string;

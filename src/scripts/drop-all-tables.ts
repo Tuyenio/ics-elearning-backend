@@ -6,6 +6,9 @@ const AppDataSource = new DataSource({
   url: 'postgresql://postgres.mmmhqscxluurkgudarcq:Minhlanhim1511@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres',
   synchronize: false,
   logging: true,
+  extra: {
+    options: '-c search_path=learning,public',
+  },
 });
 
 async function dropAllTables() {
@@ -18,11 +21,11 @@ async function dropAllTables() {
 
     const queryRunner = AppDataSource.createQueryRunner();
 
-    // Get all table names
+    // Get all table names from learning schema
     const tables = await queryRunner.query(`
       SELECT tablename 
       FROM pg_tables 
-      WHERE schemaname = 'public'
+      WHERE schemaname = 'learning'
     `);
 
     console.log(`📊 Tìm thấy ${tables.length} bảng:\n`);
@@ -37,7 +40,7 @@ async function dropAllTables() {
     for (const table of tables) {
       const tableName = table.tablename;
       try {
-        await queryRunner.query(`DROP TABLE IF EXISTS "${tableName}" CASCADE`);
+        await queryRunner.query(`DROP TABLE IF EXISTS "learning"."${tableName}" CASCADE`);
         console.log(`   ✓ Đã xóa: ${tableName}`);
       } catch (error: unknown) {
         const errorMessage =
