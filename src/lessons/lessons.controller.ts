@@ -73,6 +73,14 @@ export class LessonsController {
     return this.lessonsService.remove(id, user);
   }
 
+  @Patch(':id/publish')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.TEACHER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Toggle publish bài học (Teacher/Admin)' })
+  togglePublish(@Param('id') id: string, @GetUser() user: User) {
+    return this.lessonsService.togglePublish(id, user);
+  }
+
   @Post('course/:courseId/reorder')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.TEACHER, UserRole.ADMIN)

@@ -141,6 +141,26 @@ export class LessonsService {
     await this.lessonRepository.remove(lesson);
   }
 
+  async togglePublish(id: string, user: User): Promise<Lesson> {
+    const lesson = await this.lessonRepository.findOne({
+      where: { id },
+      relations: ['course'],
+    });
+
+    if (!lesson) {
+      throw new NotFoundException('Bài học không tìm thấy');
+    }
+
+    if (user.role !== UserRole.ADMIN && lesson.course.teacherId !== user.id) {
+      throw new ForbiddenException(
+        'Bạn chỉ có thể cập nhật bài học trong khóa học của bạn',
+      );
+    }
+
+    lesson.isPublished = !lesson.isPublished;
+    return this.lessonRepository.save(lesson);
+  }
+
   async reorder(
     courseId: string,
     lessonIds: string[],

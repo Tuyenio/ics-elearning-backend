@@ -119,6 +119,64 @@ export class CoursesService {
     });
   }
 
+  async findAllAdmin(options?: {
+    status?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<{ data: Course[]; total: number; page: number; limit: number; totalPages: number }> {
+    const page = options?.page || 1;
+    const limit = options?.limit || 20;
+    const skip = (page - 1) * limit;
+
+    const qb = this.courseRepository
+      .createQueryBuilder('course')
+      .leftJoinAndSelect('course.teacher', 'teacher')
+      .leftJoinAndSelect('course.category', 'category')
+      .leftJoinAndSelect('course.lessons', 'lessons');
+
+    if (options?.status && options.status !== 'all') {
+      qb.andWhere('course.status = :status', { status: options.status });
+    }
+
+    if (options?.search) {
+      qb.andWhere(
+        '(course.title ILIKE :search OR course.description ILIKE :search)',
+        { search: `%${options.search}%` },
+      );
+    }
+
+    qb.orderBy('course.createdAt', 'DESC');
+
+    const [data, total] = await qb.skip(skip).take(limit).getManyAndCount();
+
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+  }
+
+  async findAllByTeacher(
+    teacherId: string,
+    options?: { status?: string; search?: string },
+  ): Promise<Course[]> {
+    const qb = this.courseRepository
+      .createQueryBuilder('course')
+      .leftJoinAndSelect('course.category', 'category')
+      .leftJoinAndSelect('course.lessons', 'lessons')
+      .where('course.teacherId = :teacherId', { teacherId });
+
+    if (options?.status && options.status !== 'all') {
+      qb.andWhere('course.status = :status', { status: options.status });
+    }
+
+    if (options?.search) {
+      qb.andWhere('course.title ILIKE :search', {
+        search: `%${options.search}%`,
+      });
+    }
+
+    qb.orderBy('course.createdAt', 'DESC');
+    return qb.getMany();
+  }
+
   async findBestsellers(): Promise<Course[]> {
     return this.courseRepository.find({
       where: { isBestseller: true, status: CourseStatus.PUBLISHED },
