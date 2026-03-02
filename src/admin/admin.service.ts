@@ -703,6 +703,41 @@ export class AdminService {
     });
   }
 
+  async getCourses() {
+    const courses = await this.courseRepo.find({
+      relations: ['teacher', 'category', 'enrollments', 'lessons', 'reviews'],
+      order: { createdAt: 'DESC' },
+    });
+
+    return courses.map(course => ({
+      id: course.id,
+      title: course.title,
+      description: course.description,
+      price: course.price,
+      status: course.status,
+      createdAt: course.createdAt,
+      thumbnail: course.thumbnail,
+      teacher: course.teacher ? {
+        id: course.teacher.id,
+        firstName: course.teacher.name.split(' ')[0] || '',
+        lastName: course.teacher.name.split(' ').slice(1).join(' ') || '',
+        email: course.teacher.email,
+      } : null,
+      category: course.category ? {
+        id: course.category.id,
+        name: course.category.name,
+      } : null,
+      enrollmentCount: course.enrollments?.length || 0,
+      lessonCount: course.lessons?.length || 0,
+      averageRating: course.reviews?.length > 0 
+        ? course.reviews.reduce((sum, r) => sum + r.rating, 0) / course.reviews.length 
+        : 0,
+      reviewCount: course.reviews?.length || 0,
+      revenue: 0, // TODO: calculate from payments
+      rejectionReason: course.rejectionReason,
+    }));
+  }
+
   private async getEngagementMetrics(): Promise<EngagementMetrics> {
     // These are placeholder calculations - would need tracking data for accurate metrics
     const avgRating = await this.reviewRepo

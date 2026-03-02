@@ -8,6 +8,8 @@ import { Payment } from '../payments/entities/payment.entity';
 import { Enrollment } from '../enrollments/entities/enrollment.entity';
 import { Category } from '../categories/entities/category.entity';
 import { Review } from '../reviews/entities/review.entity';
+import { CertificatesModule } from '../certificates/certificates.module';
+import { ExamsModule } from '../exams/exams.module';
 
 @Module({
   imports: [
@@ -19,6 +21,8 @@ import { Review } from '../reviews/entities/review.entity';
       Category,
       Review,
     ]),
+    CertificatesModule,
+    ExamsModule,
   ],
   providers: [AdminService],
   controllers: [AdminController],

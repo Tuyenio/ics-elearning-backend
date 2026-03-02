@@ -249,7 +249,7 @@ export class CoursesService {
   async remove(id: string, user: User): Promise<void> {
     const course = await this.findOne(id);
 
-    // Check permissions
+    // Check permissions - admin can delete any course
     if (user.role !== UserRole.ADMIN && course.teacherId !== user.id) {
       throw new ForbiddenException('Bạn chỉ có thể xóa khóa học của bạn');
     }
