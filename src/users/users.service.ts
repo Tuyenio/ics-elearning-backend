@@ -26,7 +26,7 @@ export class UsersService {
   async create(createUserDto: CreateUserDto): Promise<User> {
     // Set default avatar if not provided
     if (!createUserDto.avatar && createUserDto.name) {
-      createUserDto.avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(createUserDto.name)}&background=random&size=200`;
+      createUserDto.avatar = `https://ui-avatars.com/?name=${encodeURIComponent(createUserDto.name)}&background=random&size=200`;
     }
 
     const user = this.usersRepository.create(createUserDto);
@@ -42,7 +42,7 @@ export class UsersService {
 
     // Set default avatar if not provided
     if (!createUserDto.avatar && createUserDto.name) {
-      createUserDto.avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(createUserDto.name)}&background=random&size=200`;
+      createUserDto.avatar = `https://ui-avatars.com/?name=${encodeURIComponent(createUserDto.name)}&background=random&size=200`;
     }
 
     // Tạo user với status=active và emailVerified=true (không cần xác thực)

@@ -20,7 +20,7 @@ export class MaintenanceGuard implements CanActivate {
     const path = request.path || request.url || '';
 
     // Chỉ kiểm tra các route API
-    if (!path.startsWith('/api')) {
+    if (!path.startsWith('')) {
       return true;
     }
 
@@ -32,10 +32,10 @@ export class MaintenanceGuard implements CanActivate {
 
     // Cho phép các endpoint cần thiết để admin tắt bảo trì hoặc user đăng xuất
     const allowList = [
-      '/api/system-settings',
-      '/api/auth/login',
-      '/api/auth/logout',
-      '/api/auth/refresh',
+      '/system-settings',
+      '/auth/login',
+      '/auth/logout',
+      '/auth/refresh',
     ];
     if (allowList.some((prefix) => path.startsWith(prefix))) {
       return true;

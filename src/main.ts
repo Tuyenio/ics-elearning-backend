@@ -136,7 +136,7 @@ async function bootstrap() {
     });
 
     logger.log(
-      `📖 Swagger docs available at: http://localhost:${port}/api/docs`,
+      `📖 Swagger docs available at: http://localhost:${port}/docs`,
     );
   }
 
@@ -145,6 +145,6 @@ async function bootstrap() {
   logger.log(`🚀 Server running on: http://localhost:${port}`);
   logger.log(`📝 Environment: ${nodeEnv}`);
   logger.log(`🌐 Frontend URL: ${frontendUrl}`);
-  logger.log(`🔧 API Prefix: /api`);
+  logger.log(`🔧 API Prefix: `);
 }
 bootstrap();

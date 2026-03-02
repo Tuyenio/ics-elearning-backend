@@ -128,7 +128,7 @@ export class User {
         .substring(0, 2)
         .toUpperCase();
       // Use a default avatar service or generate a colored placeholder
-      this.avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(this.name)}&background=random&size=200`;
+      this.avatar = `https://ui-avatars.com/?name=${encodeURIComponent(this.name)}&background=random&size=200`;
     }
   }
 

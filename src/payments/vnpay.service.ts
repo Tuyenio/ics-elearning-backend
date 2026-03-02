@@ -72,7 +72,7 @@ export class VNPayService {
       ),
       apiUrl: this.configService.get<string>(
         'VNPAY_API_URL',
-        'https://sandbox.vnpayment.vn/merchant_webapi/api/transaction',
+        'https://sandbox.vnpayment.vn/merchant_webapi/transaction',
       ),
     };
   }

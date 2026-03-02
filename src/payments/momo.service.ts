@@ -81,7 +81,7 @@ export class MomoService {
       ),
       endpoint: this.configService.get<string>(
         'MOMO_ENDPOINT',
-        'https://test-payment.momo.vn/v2/gateway/api',
+        'https://test-payment.momo.vn/v2/gateway',
       ),
       returnUrl: this.configService.get<string>(
         'MOMO_RETURN_URL',
@@ -89,7 +89,7 @@ export class MomoService {
       ),
       notifyUrl: this.configService.get<string>(
         'MOMO_NOTIFY_URL',
-        'http://localhost:5000/api/payments/momo/ipn',
+        'http://localhost:5000/payments/momo/ipn',
       ),
     };
   }
