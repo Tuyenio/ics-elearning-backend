@@ -56,6 +56,9 @@ export class Lesson {
   @Column({ default: 0 })
   order: number;
 
+  @Column({ nullable: true })
+  sectionTitle: string; // Frontend section grouping label
+
   @Column({ default: false })
   isFree: boolean;
 

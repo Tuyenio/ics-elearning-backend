@@ -49,6 +49,10 @@ export class CreateLessonDto {
   @IsOptional()
   order?: number;
 
+  @IsString()
+  @IsOptional()
+  sectionTitle?: string;
+
   @IsBoolean()
   @IsOptional()
   isFree?: boolean;
