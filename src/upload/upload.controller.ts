@@ -8,6 +8,8 @@ import {
   Request,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
 import { UploadService } from './upload.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -27,11 +29,17 @@ export class UploadController {
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   @UseInterceptors(
     FileInterceptor('file', {
-      dest: './uploads/images',
+      storage: diskStorage({
+        destination: './uploads/images',
+        filename: (req, file, cb) => {
+          const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          cb(null, `file-${unique}${extname(file.originalname)}`);
+        },
+      }),
     }),
   )
   async uploadImage(@UploadedFile() file: Express.Multer.File) {
-    this.uploadService.validateFile(file);
+    this.uploadService.validateFile(file, 'image');
 
     const url = this.uploadService.generateFileUrl(file.filename, 'image');
 
@@ -48,11 +56,17 @@ export class UploadController {
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   @UseInterceptors(
     FileInterceptor('file', {
-      dest: './uploads/videos',
+      storage: diskStorage({
+        destination: './uploads/videos',
+        filename: (req, file, cb) => {
+          const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          cb(null, `file-${unique}${extname(file.originalname)}`);
+        },
+      }),
     }),
   )
   async uploadVideo(@UploadedFile() file: Express.Multer.File) {
-    this.uploadService.validateFile(file);
+    this.uploadService.validateFile(file, 'video');
 
     const url = this.uploadService.generateFileUrl(file.filename, 'video');
 
@@ -69,11 +83,17 @@ export class UploadController {
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   @UseInterceptors(
     FileInterceptor('file', {
-      dest: './uploads/documents',
+      storage: diskStorage({
+        destination: './uploads/documents',
+        filename: (req, file, cb) => {
+          const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          cb(null, `file-${unique}${extname(file.originalname)}`);
+        },
+      }),
     }),
   )
   async uploadDocument(@UploadedFile() file: Express.Multer.File) {
-    this.uploadService.validateFile(file);
+    this.uploadService.validateFile(file, 'document');
 
     const url = this.uploadService.generateFileUrl(file.filename, 'document');
 
@@ -90,7 +110,13 @@ export class UploadController {
   @Roles(UserRole.ADMIN, UserRole.TEACHER, UserRole.STUDENT)
   @UseInterceptors(
     FileInterceptor('file', {
-      dest: './uploads/avatars',
+      storage: diskStorage({
+        destination: './uploads/avatars',
+        filename: (req, file, cb) => {
+          const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          cb(null, `file-${unique}${extname(file.originalname)}`);
+        },
+      }),
       limits: {
         fileSize: 5 * 1024 * 1024, // 5MB
       },

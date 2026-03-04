@@ -76,7 +76,7 @@ import { ScheduleModule } from './schedule/schedule.module';
     ]),
     // Static file serving for uploads
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'uploads'),
+      rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
     }),
     // Cache configuration
