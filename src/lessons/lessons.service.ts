@@ -20,6 +20,18 @@ export class LessonsService {
     private readonly courseRepository: Repository<Course>,
   ) {}
 
+  // Helper to ensure resources is properly formatted
+  private formatLesson(lesson: Lesson): Lesson {
+    if (lesson && lesson.resources && typeof lesson.resources === 'string') {
+      try {
+        lesson.resources = JSON.parse(lesson.resources);
+      } catch (e) {
+        lesson.resources = [];
+      }
+    }
+    return lesson;
+  }
+
   async create(createLessonDto: CreateLessonDto, user: User): Promise<Lesson> {
     const course = await this.courseRepository.findOne({
       where: { id: createLessonDto.courseId },
@@ -50,7 +62,8 @@ export class LessonsService {
     }
 
     const lesson = this.lessonRepository.create(createLessonDto);
-    return this.lessonRepository.save(lesson);
+    const saved = await this.lessonRepository.save(lesson);
+    return this.formatLesson(saved);
   }
 
   async findByCourse(
@@ -75,7 +88,7 @@ export class LessonsService {
     });
 
     return {
-      data,
+      data: data.map(lesson => this.formatLesson(lesson)),
       total,
       page,
       limit,
@@ -93,7 +106,7 @@ export class LessonsService {
       throw new NotFoundException('Bài học không tìm thấy');
     }
 
-    return lesson;
+    return this.formatLesson(lesson);
   }
 
   async update(
@@ -118,7 +131,8 @@ export class LessonsService {
     }
 
     Object.assign(lesson, updateLessonDto);
-    return this.lessonRepository.save(lesson);
+    const updated = await this.lessonRepository.save(lesson);
+    return this.formatLesson(updated);
   }
 
   async remove(id: string, user: User): Promise<void> {
@@ -158,7 +172,8 @@ export class LessonsService {
     }
 
     lesson.isPublished = !lesson.isPublished;
-    return this.lessonRepository.save(lesson);
+      const saved = await this.lessonRepository.save(lesson);
+      return this.formatLesson(saved);
   }
 
   async reorder(
