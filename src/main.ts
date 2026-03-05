@@ -75,6 +75,10 @@ async function bootstrap() {
   app.use(passport.initialize());
   app.use(passport.session());
 
+  // Increase body size limit to handle quiz payloads with embedded images (base64 data URLs)
+  app.use(require('express').json({ limit: '50mb' }));
+  app.use(require('express').urlencoded({ limit: '50mb', extended: true }));
+
   // Global filters
   app.useGlobalFilters(new GlobalExceptionFilter());
 
