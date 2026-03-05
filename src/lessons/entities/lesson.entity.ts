@@ -50,7 +50,7 @@ export class Lesson {
   @Column({ type: 'text', nullable: true })
   content: string; // For article type
 
-  @Column({ type: 'simple-json', nullable: true })
+  @Column({ type: 'jsonb', nullable: true })
   resources: any[]; // Downloadable resources
 
   @Column({ default: 0 })
