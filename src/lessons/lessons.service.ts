@@ -10,6 +10,7 @@ import { CreateLessonDto } from './dto/create-lesson.dto';
 import { UpdateLessonDto } from './dto/update-lesson.dto';
 import { User, UserRole } from '../users/entities/user.entity';
 import { Course } from '../courses/entities/course.entity';
+import { Resource, ResourceType } from '../resources/entities/resource.entity';
 
 @Injectable()
 export class LessonsService {
@@ -18,6 +19,8 @@ export class LessonsService {
     private readonly lessonRepository: Repository<Lesson>,
     @InjectRepository(Course)
     private readonly courseRepository: Repository<Course>,
+    @InjectRepository(Resource)
+    private readonly resourceRepository: Repository<Resource>,
   ) {}
 
   // Helper to ensure resources is properly formatted
@@ -30,6 +33,14 @@ export class LessonsService {
       }
     }
     return lesson;
+  }
+
+  private mapResourcesToLesson(resourceRows: Resource[]): Lesson['resources'] {
+    return resourceRows.map((resource) => ({
+      name: resource.title,
+      url: resource.url,
+      type: resource.type,
+    }));
   }
 
   async create(createLessonDto: CreateLessonDto, user: User): Promise<Lesson> {
@@ -63,6 +74,28 @@ export class LessonsService {
 
     const lesson = this.lessonRepository.create(createLessonDto);
     const saved = await this.lessonRepository.save(lesson);
+
+    if (Array.isArray(createLessonDto.resources) && createLessonDto.resources.length) {
+      const resourcesToSave = createLessonDto.resources
+        .filter((item) => item && item.url)
+        .map((item) => {
+          const type = item.type as ResourceType;
+          return this.resourceRepository.create({
+            title: item.name || 'Tai lieu',
+            type: type || ResourceType.DOCUMENT,
+            url: item.url,
+            courseId: saved.courseId,
+            lessonId: saved.id,
+            uploadedBy: user.id,
+            isPublic: false,
+          });
+        });
+
+      if (resourcesToSave.length) {
+        await this.resourceRepository.save(resourcesToSave);
+      }
+    }
+
     return this.formatLesson(saved);
   }
 
@@ -87,8 +120,34 @@ export class LessonsService {
       take: limit,
     });
 
+    const lessonIds = data.map((lesson) => lesson.id);
+    const resourceRows = lessonIds.length
+      ? await this.resourceRepository.find({
+          where: { lessonId: In(lessonIds) },
+          order: { createdAt: 'DESC' },
+        })
+      : [];
+
+    const resourceByLesson = resourceRows.reduce<Record<string, Resource[]>>(
+      (acc, resource) => {
+        if (!acc[resource.lessonId]) {
+          acc[resource.lessonId] = [];
+        }
+        acc[resource.lessonId].push(resource);
+        return acc;
+      },
+      {},
+    );
+
     return {
-      data: data.map(lesson => this.formatLesson(lesson)),
+      data: data.map((lesson) => {
+        const formatted = this.formatLesson(lesson);
+        const linkedResources = resourceByLesson[lesson.id];
+        if (linkedResources?.length) {
+          formatted.resources = this.mapResourcesToLesson(linkedResources);
+        }
+        return formatted;
+      }),
       total,
       page,
       limit,
@@ -106,7 +165,15 @@ export class LessonsService {
       throw new NotFoundException('Bài học không tìm thấy');
     }
 
-    return this.formatLesson(lesson);
+    const formatted = this.formatLesson(lesson);
+    const resourceRows = await this.resourceRepository.find({
+      where: { lessonId: id },
+      order: { createdAt: 'DESC' },
+    });
+    if (resourceRows.length) {
+      formatted.resources = this.mapResourcesToLesson(resourceRows);
+    }
+    return formatted;
   }
 
   async update(
@@ -130,8 +197,32 @@ export class LessonsService {
       );
     }
 
-    Object.assign(lesson, updateLessonDto);
+    const { resources, ...lessonUpdates } = updateLessonDto;
+    Object.assign(lesson, lessonUpdates);
     const updated = await this.lessonRepository.save(lesson);
+
+    if (Array.isArray(resources)) {
+      await this.resourceRepository.delete({ lessonId: id });
+      const resourcesToSave = resources
+        .filter((item) => item && item.url)
+        .map((item) => {
+          const type = item.type as ResourceType;
+          return this.resourceRepository.create({
+            title: item.name || 'Tai lieu',
+            type: type || ResourceType.DOCUMENT,
+            url: item.url,
+            courseId: lesson.courseId,
+            lessonId: lesson.id,
+            uploadedBy: user.id,
+            isPublic: false,
+          });
+        });
+
+      if (resourcesToSave.length) {
+        await this.resourceRepository.save(resourcesToSave);
+      }
+    }
+
     return this.formatLesson(updated);
   }
 
