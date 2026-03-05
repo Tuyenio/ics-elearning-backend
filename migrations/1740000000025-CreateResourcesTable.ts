@@ -4,7 +4,7 @@ export class CreateResourcesTable1740000000025 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "resources" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
         "title" varchar NOT NULL,
         "description" text,
         "type" "resources_type_enum" NOT NULL,

@@ -4,7 +4,7 @@ export class CreatePaymentsTable1740000000011 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "payments" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
         "transactionId" varchar NOT NULL,
         "studentId" uuid,
         "courseId" uuid,

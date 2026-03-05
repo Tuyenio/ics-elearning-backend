@@ -4,7 +4,7 @@ export class CreateLessonsTable1740000000008 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "lessons" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
         "title" varchar NOT NULL,
         "description" text,
         "type" "lessons_type_enum" NOT NULL DEFAULT 'video'::lessons_type_enum,

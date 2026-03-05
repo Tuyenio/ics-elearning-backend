@@ -4,7 +4,7 @@ export class CreateDiscussionsTable1740000000019 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "discussions" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
         "title" varchar NOT NULL,
         "content" text NOT NULL,
         "course_id" uuid NOT NULL,

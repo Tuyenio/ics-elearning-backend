@@ -4,7 +4,7 @@ export class CreateAssignmentSubmissionsTable1740000000021 implements MigrationI
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "assignment_submissions" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
         "assignment_id" uuid NOT NULL,
         "student_id" uuid NOT NULL,
         "content" text,

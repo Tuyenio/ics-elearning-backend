@@ -4,7 +4,7 @@ export class CreateCertificateTemplatesTable1740000000012 implements MigrationIn
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "certificate_templates" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
         "title" varchar NOT NULL,
         "description" text NOT NULL,
         "courseId" uuid NOT NULL,

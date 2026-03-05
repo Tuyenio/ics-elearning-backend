@@ -21,6 +21,7 @@
     "seed": "ts-node -r tsconfig-paths/register src/scripts/seed-runner.ts",
     "seed:test-course": "ts-node -r tsconfig-paths/register src/scripts/seed-test-course.ts",
     "seed:learning": "ts-node -r tsconfig-paths/register src/scripts/seed-learning-data.ts",
+    "seed:fresh": "ts-node -r tsconfig-paths/register src/scripts/seed-fresh-data.ts",
     "db:cleanup-public": "ts-node -r tsconfig-paths/register src/scripts/cleanup-public-schema.ts",
     "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli",
     "migration:generate": "npm run typeorm -- migration:generate -d data-source.ts",

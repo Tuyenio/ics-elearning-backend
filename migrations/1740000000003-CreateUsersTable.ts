@@ -4,7 +4,7 @@ export class CreateUsersTable1740000000003 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "users" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
         "email" varchar NOT NULL,
         "password" varchar NOT NULL,
         "name" varchar NOT NULL,

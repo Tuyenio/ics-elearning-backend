@@ -4,7 +4,7 @@ export class CreateCouponsTable1740000000027 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "coupons" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
         "code" varchar NOT NULL,
         "type" "coupons_type_enum" NOT NULL DEFAULT 'percentage'::coupons_type_enum,
         "value" numeric NOT NULL,

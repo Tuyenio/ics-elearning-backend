@@ -2,6 +2,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class CreateSystemSettingsTable1740000000005 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`CREATE SEQUENCE IF NOT EXISTS "system_settings_id_seq"`);
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "system_settings" (
         "id" integer NOT NULL DEFAULT nextval('system_settings_id_seq'::regclass),

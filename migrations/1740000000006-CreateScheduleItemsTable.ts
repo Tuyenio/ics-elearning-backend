@@ -4,7 +4,7 @@ export class CreateScheduleItemsTable1740000000006 implements MigrationInterface
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "schedule_items" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
         "title" varchar NOT NULL,
         "course" varchar NOT NULL,
         "type" varchar NOT NULL,

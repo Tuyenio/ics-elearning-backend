@@ -4,7 +4,7 @@ export class CreateWishlistsTable1740000000028 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "wishlists" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
         "studentId" uuid NOT NULL,
         "courseId" uuid NOT NULL,
         "createdAt" timestamp NOT NULL DEFAULT now(),

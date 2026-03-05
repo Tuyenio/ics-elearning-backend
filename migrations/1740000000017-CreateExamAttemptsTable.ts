@@ -4,7 +4,7 @@ export class CreateExamAttemptsTable1740000000017 implements MigrationInterface 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "exam_attempts" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
         "examId" uuid NOT NULL,
         "studentId" uuid NOT NULL,
         "answers" text,

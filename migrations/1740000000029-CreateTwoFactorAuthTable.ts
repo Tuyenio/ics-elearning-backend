@@ -4,7 +4,7 @@ export class CreateTwoFactorAuthTable1740000000029 implements MigrationInterface
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "two_factor_auth" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
         "userId" uuid NOT NULL,
         "isEnabled" boolean NOT NULL DEFAULT false,
         "method" "two_factor_auth_method_enum" NOT NULL DEFAULT 'totp'::two_factor_auth_method_enum,

@@ -4,7 +4,7 @@ export class CreateLessonProgressTable1740000000010 implements MigrationInterfac
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "lesson_progress" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
         "enrollmentId" uuid NOT NULL,
         "lessonId" uuid NOT NULL,
         "isCompleted" boolean NOT NULL DEFAULT false,

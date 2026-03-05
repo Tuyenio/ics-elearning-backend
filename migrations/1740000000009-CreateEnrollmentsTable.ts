@@ -4,7 +4,7 @@ export class CreateEnrollmentsTable1740000000009 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "enrollments" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
         "studentId" uuid NOT NULL,
         "courseId" uuid NOT NULL,
         "status" "enrollments_status_enum" NOT NULL DEFAULT 'active'::enrollments_status_enum,
