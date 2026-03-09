@@ -149,6 +149,5 @@ async function bootstrap() {
   logger.log(`🚀 Server running on: http://localhost:${port}`);
   logger.log(`📝 Environment: ${nodeEnv}`);
   logger.log(`🌐 Frontend URL: ${frontendUrl}`);
-  logger.log(`🔧 API Prefix: `);
 }
 bootstrap();
