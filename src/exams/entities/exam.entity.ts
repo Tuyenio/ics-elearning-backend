@@ -28,6 +28,7 @@ export interface ExamQuestion {
   id: string;
   type: 'multiple_choice' | 'true_false' | 'fill_in';
   question: string;
+  image?: string;
   options?: string[];
   correctAnswer: string | string[];
   points: number;

@@ -7,7 +7,39 @@ import {
   IsBoolean,
   Min,
   Max,
+  ValidateNested,
+  IsInt,
+  IsIn,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+
+class QuizQuestionDto {
+  @IsString()
+  @IsNotEmpty()
+  question: string;
+
+  @IsString()
+  @IsOptional()
+  image?: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsNotEmpty()
+  options: string[];
+
+  @IsString()
+  @IsIn(['multiple-choice', 'multiple-select', 'true-false'])
+  type: 'multiple-choice' | 'multiple-select' | 'true-false';
+
+  @IsInt()
+  @IsOptional()
+  correctAnswer?: number;
+
+  @IsArray()
+  @IsInt({ each: true })
+  @IsOptional()
+  correctAnswers?: number[];
+}
 
 export class CreateQuizDto {
   @IsString()
@@ -19,8 +51,10 @@ export class CreateQuizDto {
   description?: string;
 
   @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => QuizQuestionDto)
   @IsNotEmpty()
-  questions: any[];
+  questions: QuizQuestionDto[];
 
   @IsNumber()
   @Min(1)
