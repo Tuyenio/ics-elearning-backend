@@ -11,7 +11,6 @@ import {
 } from '@nestjs/common';
 import { ExamsService } from './exams.service';
 import { CreateExamDto } from './dto/create-exam.dto';
-import { UpdateExamDto } from './dto/update-exam.dto';
 import { SubmitExamDto } from './dto/submit-exam.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -51,7 +50,7 @@ export class ExamsController {
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   update(
     @Param('id') id: string,
-    @Body() updateExamDto: UpdateExamDto,
+    @Body() updateExamDto: any,
     @Request() req,
   ) {
     return this.examsService.updateAny(id, updateExamDto);
@@ -99,6 +98,13 @@ export class ExamsController {
   @Roles(UserRole.ADMIN)
   reject(@Param('id') id: string, @Body() body: { reason: string }) {
     return this.examsService.reject(id, body.reason);
+  }
+
+  @Delete(':id/admin')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  adminRemove(@Param('id') id: string) {
+    return this.examsService.adminDelete(id);
   }
 
   // ==================== STUDENT ENDPOINTS ====================

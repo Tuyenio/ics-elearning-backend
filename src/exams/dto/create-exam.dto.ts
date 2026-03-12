@@ -57,6 +57,10 @@ export class CreateExamDto {
 
   @IsBoolean()
   @IsOptional()
+  shuffleAnswers?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
   showCorrectAnswers?: boolean;
 
   @IsUUID()

@@ -61,7 +61,7 @@ export class Exam {
   })
   status: ExamStatus;
 
-  @Column({ type: 'simple-json' })
+  @Column({ type: 'json', nullable: true })
   questions: ExamQuestion[];
 
   @Column({ type: 'int', default: 60 })
@@ -75,6 +75,9 @@ export class Exam {
 
   @Column({ default: true })
   shuffleQuestions: boolean;
+
+  @Column({ default: false })
+  shuffleAnswers: boolean;
 
   @Column({ default: true })
   showCorrectAnswers: boolean; // Hiển thị đáp án sau khi thi
