@@ -16,6 +16,7 @@ import {
   PriceRange,
 } from './dto/course-filters.dto';
 import { Category } from '../categories/entities/category.entity';
+import { InstructorSubscriptionsService } from '../instructor-subscriptions/instructor-subscriptions.service';
 
 @Injectable()
 export class CoursesService {
@@ -24,12 +25,19 @@ export class CoursesService {
     private readonly courseRepository: Repository<Course>,
     @InjectRepository(Category)
     private readonly categoryRepository: Repository<Category>,
+    private readonly instructorSubscriptionsService: InstructorSubscriptionsService,
   ) {}
 
   async create(
     createCourseDto: CreateCourseDto,
     teacher: User,
   ): Promise<Course> {
+    if (teacher.role === UserRole.TEACHER) {
+      await this.instructorSubscriptionsService.enforceTeacherCourseLimit(
+        teacher.id,
+      );
+    }
+
     const slug =
       createCourseDto.slug || this.generateSlug(createCourseDto.title);
 

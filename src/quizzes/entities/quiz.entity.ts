@@ -12,6 +12,7 @@ import {
 import { Course } from '../../courses/entities/course.entity';
 import { Lesson } from '../../lessons/entities/lesson.entity';
 import { QuizAttempt } from './quiz-attempt.entity';
+import { QuizQuestion } from './quiz-question.entity';
 
 @Entity('quizzes', { schema: 'learning' })
 export class Quiz {
@@ -60,6 +61,9 @@ export class Quiz {
 
   @OneToMany(() => QuizAttempt, (attempt) => attempt.quiz)
   attempts: QuizAttempt[];
+
+  @OneToMany(() => QuizQuestion, (question) => question.quiz)
+  quizQuestions: QuizQuestion[];
 
   @CreateDateColumn()
   createdAt: Date;

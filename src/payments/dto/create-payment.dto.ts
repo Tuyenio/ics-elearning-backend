@@ -42,6 +42,10 @@ export class CreatePaymentDto {
 
   @IsString()
   @IsOptional()
+  couponCode?: string;
+
+  @IsString()
+  @IsOptional()
   paymentGatewayId?: string;
 
   @IsOptional()

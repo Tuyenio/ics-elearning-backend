@@ -1,4 +1,12 @@
-import { Controller, Get, Patch, Param, Body, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Patch,
+  Param,
+  Body,
+  UseGuards,
+  ParseUUIDPipe,
+} from '@nestjs/common';
 import { LessonProgressService } from './lesson-progress.service';
 import { UpdateProgressDto } from './dto/update-progress.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -28,24 +36,24 @@ export class LessonProgressController {
     );
   }
 
-  @Get(':enrollmentId/:lessonId')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.STUDENT)
-  getProgress(
-    @Param('enrollmentId') enrollmentId: string,
-    @Param('lessonId') lessonId: string,
-    @GetUser() user: User,
-  ) {
-    return this.lessonProgressService.getProgress(enrollmentId, lessonId, user);
-  }
-
   @Get('enrollment/:enrollmentId')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.STUDENT)
   getEnrollmentProgress(
-    @Param('enrollmentId') enrollmentId: string,
+    @Param('enrollmentId', new ParseUUIDPipe()) enrollmentId: string,
     @GetUser() user: User,
   ) {
     return this.lessonProgressService.getEnrollmentProgress(enrollmentId, user);
+  }
+
+  @Get(':enrollmentId/:lessonId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.STUDENT)
+  getProgress(
+    @Param('enrollmentId', new ParseUUIDPipe()) enrollmentId: string,
+    @Param('lessonId', new ParseUUIDPipe()) lessonId: string,
+    @GetUser() user: User,
+  ) {
+    return this.lessonProgressService.getProgress(enrollmentId, lessonId, user);
   }
 }

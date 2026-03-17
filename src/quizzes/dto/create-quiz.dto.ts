@@ -10,13 +10,36 @@ import {
   ValidateNested,
   IsInt,
   IsIn,
+  IsObject,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-class QuizQuestionDto {
+class QuizAnswerDto {
   @IsString()
   @IsNotEmpty()
-  question: string;
+  content: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isCorrect?: boolean;
+}
+
+class QuizQuestionDto {
+  @IsString()
+  @IsOptional()
+  question?: string;
+
+  @IsString()
+  @IsOptional()
+  content?: string;
+
+  @IsString()
+  @IsOptional()
+  contentHtml?: string;
+
+  @IsString()
+  @IsOptional()
+  content_html?: string;
 
   @IsString()
   @IsOptional()
@@ -24,12 +47,19 @@ class QuizQuestionDto {
 
   @IsArray()
   @IsString({ each: true })
-  @IsNotEmpty()
-  options: string[];
+  @IsOptional()
+  options?: string[];
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => QuizAnswerDto)
+  @IsOptional()
+  answers?: QuizAnswerDto[];
 
   @IsString()
   @IsIn(['multiple-choice', 'multiple-select', 'true-false'])
-  type: 'multiple-choice' | 'multiple-select' | 'true-false';
+  @IsOptional()
+  type?: 'multiple-choice' | 'multiple-select' | 'true-false';
 
   @IsInt()
   @IsOptional()
@@ -39,6 +69,26 @@ class QuizQuestionDto {
   @IsInt({ each: true })
   @IsOptional()
   correctAnswers?: number[];
+
+  @IsNumber()
+  @IsOptional()
+  difficulty?: number;
+
+  @IsString()
+  @IsOptional()
+  topic?: string;
+
+  @IsString()
+  @IsOptional()
+  learningObj?: string;
+
+  @IsString()
+  @IsOptional()
+  globalObj?: string;
+
+  @IsObject()
+  @IsOptional()
+  metadata?: Record<string, unknown>;
 }
 
 export class CreateQuizDto {

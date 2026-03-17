@@ -28,26 +28,57 @@ async function bootstrap() {
   );
   const nodeEnv = configService.get<string>('nodeEnv', 'development');
 
-  // Enable CORS with multiple origins support
-  const allowedOrigins = [
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'http://127.0.0.1:3000',
-    'http://127.0.0.1:3001',
-    frontendUrl,
-  ].filter((url, index, self) => self.indexOf(url) === index); // Remove duplicates
-
+  // Enable CORS with dynamic origin support for both localhost and network IPs
   app.enableCors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, Postman, curl)
-      if (!origin) return callback(null, true);
+      // Allow requests with no origin (like mobile apps, Postman, curl requests)
+      if (!origin) {
+        logger.debug('Request without origin detected (mobile app or curl)');
+        return callback(null, true);
+      }
+
+      // In development mode, allow all localhost and private IP ranges
+      if (nodeEnv === 'development') {
+        // Allow localhost (port 3000, 3001, or any port)
+        if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+          logger.debug(`Allowed localhost origin: ${origin}`);
+          return callback(null, true);
+        }
+
+        // Allow private IP ranges (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+        if (
+          origin.match(/http:\/\/(192\.168|10|172\.(1[6-9]|2[0-9]|3[01]))\.\d+\.\d+:\d+/) ||
+          origin.match(/http:\/\/[a-zA-Z0-9\-]+\.local:\d+/) // Allow *.local (mDNS)
+        ) {
+          logger.debug(`Allowed private IP origin: ${origin}`);
+          return callback(null, true);
+        }
+
+        // In development, also allow explicitly configured frontend URL
+        if (frontendUrl && origin === frontendUrl) {
+          logger.debug(`Allowed configured frontend URL: ${origin}`);
+          return callback(null, true);
+        }
+
+        // Allow all origins in development mode (last resort)
+        logger.warn(`Development mode: Allowing origin: ${origin}`);
+        return callback(null, true);
+      }
+
+      // In production, be strict
+      const allowedOrigins = [
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+        frontendUrl,
+      ].filter(Boolean);
 
       if (allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        logger.warn(`CORS blocked request from origin: ${origin}`);
-        callback(null, true); // Still allow in development
+        logger.debug(`Allowed production origin: ${origin}`);
+        return callback(null, true);
       }
+
+      logger.warn(`CORS blocked request from origin: ${origin}`);
+      return callback(new Error(`CORS policy: origin not allowed`));
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -144,9 +175,10 @@ async function bootstrap() {
     );
   }
 
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
 
-  logger.log(`🚀 Server running on: http://localhost:${port}`);
+  logger.log(`🚀 Server running on: http://0.0.0.0:${port}`);
+  logger.log(`🌐 Network URL: http://192.168.1.10:${port}`);
   logger.log(`📝 Environment: ${nodeEnv}`);
   logger.log(`🌐 Frontend URL: ${frontendUrl}`);
 }

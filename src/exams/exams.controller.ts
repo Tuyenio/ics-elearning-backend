@@ -72,6 +72,11 @@ export class ExamsController {
 
   // ==================== ADMIN ENDPOINTS ====================
 
+  /**
+   * Get all exams from the exam bank for admin management.
+   * Returns only regular exams (exam bank) created by teachers.
+   * Does NOT include extracted exams for students.
+   */
   @Get('admin/all')
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)

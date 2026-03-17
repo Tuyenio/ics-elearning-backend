@@ -39,6 +39,7 @@ import { SystemSettingsModule } from './system-settings/system-setting.module';
 import { MaintenanceGuard } from './common/guards/maintenance.guard';
 import { JwtModule } from '@nestjs/jwt';
 import { ScheduleModule } from './schedule/schedule.module';
+import { InstructorSubscriptionsModule } from './instructor-subscriptions/instructor-subscriptions.module';
 
 @Module({
   imports: [
@@ -143,6 +144,7 @@ import { ScheduleModule } from './schedule/schedule.module';
     StatsModule,
     UploadModule,
     ScheduleModule,
+    InstructorSubscriptionsModule,
   ],
   controllers: [AppController],
   providers: [

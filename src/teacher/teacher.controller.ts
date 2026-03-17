@@ -23,27 +23,27 @@ export class TeacherController {
 
   @Get('dashboard/stats')
   getDashboardStats(@Req() req: any) {
-    return this.teacherService.getDashboardStats(req.user.userId);
+    return this.teacherService.getDashboardStats(req.user.id);
   }
 
   @Get('dashboard/enrollments/recent')
   getRecentEnrollments(@Req() req: any) {
-    return this.teacherService.getRecentEnrollments(req.user.userId);
+    return this.teacherService.getRecentEnrollments(req.user.id);
   }
 
   @Get('earnings')
   getEarnings(@Req() req: any) {
-    return this.teacherService.getEarnings(req.user.userId);
+    return this.teacherService.getEarnings(req.user.id);
   }
 
   @Get('students')
   getStudents(@Req() req: any) {
-    return this.teacherService.getStudentList(req.user.userId);
+    return this.teacherService.getStudentList(req.user.id);
   }
 
   @Post('students/export')
   async exportStudents(@Req() req: any, @Res() res: Response) {
-    const csv = await this.teacherService.exportStudentsToCSV(req.user.userId);
+    const csv = await this.teacherService.exportStudentsToCSV(req.user.id);
     res.header('Content-Type', 'text/csv');
     res.header('Content-Disposition', 'attachment; filename="students.csv"');
     res.send(csv);
@@ -51,7 +51,7 @@ export class TeacherController {
 
   @Post('earnings/export')
   async exportEarnings(@Req() req: any, @Res() res: Response) {
-    const csv = await this.teacherService.exportEarningsToCSV(req.user.userId);
+    const csv = await this.teacherService.exportEarningsToCSV(req.user.id);
     res.header('Content-Type', 'text/csv');
     res.header('Content-Disposition', 'attachment; filename="earnings.csv"');
     res.send(csv);
@@ -59,7 +59,7 @@ export class TeacherController {
 
   @Get('reviews')
   getReviews(@Req() req: any) {
-    return this.teacherService.getTeacherReviews(req.user.userId);
+    return this.teacherService.getTeacherReviews(req.user.id);
   }
 
   @Post('reviews/:id/reply')
@@ -68,6 +68,6 @@ export class TeacherController {
     @Param('id') id: string,
     @Body('reply') reply: string,
   ) {
-    return this.teacherService.replyToReview(req.user.userId, id, reply);
+    return this.teacherService.replyToReview(req.user.id, id, reply);
   }
 }

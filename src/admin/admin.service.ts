@@ -218,8 +218,8 @@ export class AdminService {
 
     return transactions.map((t) => ({
       id: t.id,
-      studentName: t.student.name,
-      courseName: t.course.title,
+      studentName: t.student?.name || 'Unknown',
+      courseName: t.course?.title || 'Deleted Course',
       amount: Number(t.finalAmount || 0),
       status: t.status,
       createdAt: t.createdAt,

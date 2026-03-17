@@ -32,7 +32,7 @@ export class DiscussionsController {
   @Post()
   @ApiOperation({ summary: 'Tạo thảo luận mới' })
   create(@Body() createDiscussionDto: CreateDiscussionDto, @Req() req: any) {
-    return this.discussionsService.create(createDiscussionDto, req.user.userId);
+    return this.discussionsService.create(createDiscussionDto, req.user.id);
   }
 
   @Get('course/:courseId')
@@ -62,7 +62,7 @@ export class DiscussionsController {
   ) {
     // Kiểm tra quyền sở hữu
     const discussion = await this.discussionsService.findOne(id);
-    if (discussion.authorId !== req.user.userId) {
+    if (discussion.authorId !== req.user.id) {
       throw new ForbiddenException(
         'Bạn không có quyền chỉnh sửa thảo luận này',
       );
@@ -75,7 +75,7 @@ export class DiscussionsController {
   async remove(@Param('id') id: string, @Req() req: any) {
     // Kiểm tra quyền sở hữu
     const discussion = await this.discussionsService.findOne(id);
-    if (discussion.authorId !== req.user.userId) {
+    if (discussion.authorId !== req.user.id) {
       throw new ForbiddenException('Bạn không có quyền xóa thảo luận này');
     }
     return this.discussionsService.remove(id);

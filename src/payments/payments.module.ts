@@ -10,6 +10,7 @@ import { Lesson } from '../lessons/entities/lesson.entity';
 import { LessonProgress } from '../lesson-progress/entities/lesson-progress.entity';
 import { VNPayService } from './vnpay.service';
 import { MomoService } from './momo.service';
+import { CouponsModule } from '../coupons/coupons.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { MomoService } from './momo.service';
       LessonProgress,
     ]),
     ConfigModule,
+    CouponsModule,
   ],
   controllers: [PaymentsController],
   providers: [PaymentsService, VNPayService, MomoService],

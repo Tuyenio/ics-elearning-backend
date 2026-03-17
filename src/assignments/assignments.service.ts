@@ -126,6 +126,11 @@ export class AssignmentsService {
     submissionId: string,
     score: number,
     feedback: string,
+    gradingDetails: Array<{
+      criterion: string;
+      selectedLevel: number;
+      points: number;
+    }> | undefined,
     userId: string,
   ) {
     const submission = await this.submissionRepo.findOne({
@@ -145,6 +150,9 @@ export class AssignmentsService {
 
     submission.score = score;
     submission.feedback = feedback;
+    submission.gradingDetails = Array.isArray(gradingDetails)
+      ? JSON.stringify(gradingDetails)
+      : undefined;
     submission.status = SubmissionStatus.GRADED;
     submission.gradedBy = userId;
     submission.gradedAt = new Date();

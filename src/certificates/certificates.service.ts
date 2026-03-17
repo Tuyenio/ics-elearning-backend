@@ -75,6 +75,44 @@ export class CertificatesService {
     return this.certificateRepository.save(certificate);
   }
 
+  async generateCertificateForExamPass(
+    enrollmentId: string,
+    examInfo?: { examId?: string; attemptId?: string; score?: number },
+  ): Promise<Certificate> {
+    const enrollment = await this.enrollmentRepository.findOne({
+      where: { id: enrollmentId },
+      relations: ['student', 'course'],
+    });
+
+    if (!enrollment) {
+      throw new NotFoundException('Đăng ký không tìm thấy');
+    }
+
+    const existingCertificate = await this.certificateRepository.findOne({
+      where: { enrollmentId },
+    });
+
+    if (existingCertificate) {
+      return existingCertificate;
+    }
+
+    const certificate = this.certificateRepository.create({
+      certificateNumber: this.generateCertificateNumber(),
+      studentId: enrollment.studentId,
+      courseId: enrollment.courseId,
+      enrollmentId: enrollment.id,
+      issueDate: new Date(),
+      metadata: {
+        studentName: enrollment.student.name,
+        courseName: enrollment.course.title,
+        source: 'official_exam',
+        ...examInfo,
+      },
+    });
+
+    return this.certificateRepository.save(certificate);
+  }
+
   async findByStudent(studentId: string): Promise<Certificate[]> {
     return this.certificateRepository.find({
       where: { studentId },

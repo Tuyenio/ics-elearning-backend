@@ -2,11 +2,18 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Exam, ExamStatus, ExamType } from './entities/exam.entity';
 import { ExamAttempt, AttemptStatus } from './entities/exam-attempt.entity';
+import {
+  Enrollment,
+  EnrollmentStatus,
+} from '../enrollments/entities/enrollment.entity';
+import { CertificatesService } from '../certificates/certificates.service';
 
 @Injectable()
 export class ExamsService {
@@ -15,8 +22,12 @@ export class ExamsService {
     private examRepository: Repository<Exam>,
     @InjectRepository(ExamAttempt)
     private attemptRepository: Repository<ExamAttempt>,
+    @InjectRepository(Enrollment)
+    private enrollmentRepository: Repository<Enrollment>,
     @InjectDataSource()
     private dataSource: DataSource,
+    @Inject(forwardRef(() => CertificatesService))
+    private certificatesService: CertificatesService,
   ) {}
 
   // ==================== TEACHER METHODS ====================
@@ -30,6 +41,44 @@ export class ExamsService {
         'Bài thi thật phải có mẫu chứng chỉ được chọn',
       );
     }
+
+    // Sanitize datetime fields - convert invalid values to null
+    if ('availableFrom' in createExamDto) {
+      const val = createExamDto.availableFrom;
+      if (val === null || val === undefined || val === '') {
+        createExamDto.availableFrom = null;
+      } else {
+        try {
+          const date = new Date(val);
+          if (Number.isNaN(date.getTime())) {
+            createExamDto.availableFrom = null;
+          }
+        } catch {
+          createExamDto.availableFrom = null;
+        }
+      }
+    }
+
+    if ('availableUntil' in createExamDto) {
+      const val = createExamDto.availableUntil;
+      if (val === null || val === undefined || val === '') {
+        createExamDto.availableUntil = null;
+      } else {
+        try {
+          const date = new Date(val);
+          if (Number.isNaN(date.getTime())) {
+            createExamDto.availableUntil = null;
+          }
+        } catch {
+          createExamDto.availableUntil = null;
+        }
+      }
+    }
+
+    this.validateAvailabilityWindow(
+      createExamDto.availableFrom,
+      createExamDto.availableUntil,
+    );
 
     console.log('[create] createExamDto.questions.length:', createExamDto.questions?.length);
     
@@ -67,11 +116,16 @@ export class ExamsService {
       }
     }
     
+    const requestedStatus = String(createExamDto?.status || '').toLowerCase();
+    const effectiveStatus =
+      requestedStatus === ExamStatus.DRAFT ? ExamStatus.DRAFT : ExamStatus.APPROVED;
+
     const examData = {
       ...createExamDto,
       questions: questionsToSave,
       teacherId,
-      status: ExamStatus.DRAFT,
+      status: effectiveStatus,
+      rejectionReason: null,
     };
 
     console.log('[create] examData.questions sample (first 2):', examData.questions?.slice(0, 2));
@@ -120,21 +174,13 @@ export class ExamsService {
       where: { id, teacherId },
     });
     if (!exam) throw new NotFoundException('Không tìm thấy bài thi');
-    if (exam.status === ExamStatus.APPROVED) {
-      throw new BadRequestException(
-        'Không thể chỉnh sửa bài thi đã được duyệt',
-      );
-    }
 
     const { questions: rawQuestions, ...metaFields } = updateExamDto as any;
 
-    if (
-      (exam.status === ExamStatus.REJECTED || exam.status === ExamStatus.PENDING) &&
-      !metaFields.status
-    ) {
-      metaFields.status = ExamStatus.DRAFT;
-      metaFields.rejectionReason = null;
+    if (!metaFields.status && exam.status !== ExamStatus.DRAFT) {
+      metaFields.status = ExamStatus.APPROVED;
     }
+    metaFields.rejectionReason = null;
 
     if (rawQuestions !== undefined) {
       const normalizedQuestions = this.normalizeQuestionsPayload(rawQuestions);
@@ -159,16 +205,51 @@ export class ExamsService {
   async updateAny(id: string, updateExamDto: any): Promise<Exam> {
     const exam = await this.examRepository.findOne({ where: { id } });
     if (!exam) throw new NotFoundException('Không tìm thấy bài thi');
-    if (exam.status === ExamStatus.APPROVED) {
-      throw new BadRequestException('Không thể chỉnh sửa bài thi đã được duyệt');
-    }
 
     const { questions: rawQuestions, ...metaFields } = updateExamDto as any;
 
-    if (exam.status === ExamStatus.REJECTED || exam.status === ExamStatus.PENDING) {
-      metaFields.status = ExamStatus.DRAFT;
-      metaFields.rejectionReason = null;
+    // Sanitize datetime fields - convert invalid values to null
+    if ('availableFrom' in metaFields) {
+      const val = metaFields.availableFrom;
+      if (val === null || val === undefined || val === '') {
+        metaFields.availableFrom = null;
+      } else {
+        try {
+          const date = new Date(val);
+          if (Number.isNaN(date.getTime())) {
+            metaFields.availableFrom = null;
+          }
+        } catch {
+          metaFields.availableFrom = null;
+        }
+      }
     }
+
+    if ('availableUntil' in metaFields) {
+      const val = metaFields.availableUntil;
+      if (val === null || val === undefined || val === '') {
+        metaFields.availableUntil = null;
+      } else {
+        try {
+          const date = new Date(val);
+          if (Number.isNaN(date.getTime())) {
+            metaFields.availableUntil = null;
+          }
+        } catch {
+          metaFields.availableUntil = null;
+        }
+      }
+    }
+
+    this.validateAvailabilityWindow(
+      metaFields.availableFrom,
+      metaFields.availableUntil,
+    );
+
+    if (!metaFields.status && exam.status !== ExamStatus.DRAFT) {
+      metaFields.status = ExamStatus.APPROVED;
+    }
+    metaFields.rejectionReason = null;
 
     if (rawQuestions !== undefined) {
       const normalizedQuestions = this.normalizeQuestionsPayload(rawQuestions);
@@ -195,9 +276,6 @@ export class ExamsService {
       where: { id, teacherId },
     });
     if (!exam) throw new NotFoundException('Không tìm thấy bài thi');
-    if (exam.status === ExamStatus.APPROVED) {
-      throw new BadRequestException('Không thể xóa bài thi đã được duyệt');
-    }
     await this.examRepository.remove(exam);
   }
 
@@ -266,6 +344,14 @@ export class ExamsService {
 
   // ==================== ADMIN METHODS ====================
 
+  /**
+   * Fetch all exams from the exam bank for admin management.
+   * This returns only regular exams created by teachers (exam bank).
+   * INTENTIONALLY EXCLUDES extracted exams for students (see ExtractedExamsService).
+   * 
+   * Extracted exams are student-specific practice exams created for learning purposes
+   * and are not managed by admins through this endpoint.
+   */
   async findAll(): Promise<Exam[]> {
     return this.examRepository.find({
       relations: ['course', 'teacher'],
@@ -310,11 +396,24 @@ export class ExamsService {
   // ==================== STUDENT METHODS ====================
 
   async findAvailable(studentId: string): Promise<Exam[]> {
-    return this.examRepository.find({
-      where: { status: ExamStatus.APPROVED },
-      relations: ['course', 'teacher'],
-      order: { createdAt: 'DESC' },
-    });
+    return this.examRepository
+      .createQueryBuilder('exam')
+      .innerJoin(
+        Enrollment,
+        'enrollment',
+        `enrollment."courseId" = exam."courseId"
+         AND enrollment."studentId" = :studentId
+         AND enrollment."status" IN (:...statuses)`,
+        {
+          studentId,
+          statuses: [EnrollmentStatus.ACTIVE, EnrollmentStatus.COMPLETED],
+        },
+      )
+      .leftJoinAndSelect('exam.course', 'course')
+      .leftJoinAndSelect('exam.teacher', 'teacher')
+      .where('exam.status = :status', { status: ExamStatus.APPROVED })
+      .orderBy('exam.createdAt', 'DESC')
+      .getMany();
   }
 
   async findByCourse(courseId: string): Promise<Exam[]> {
@@ -334,6 +433,35 @@ export class ExamsService {
         'Không tìm thấy bài thi hoặc bài thi chưa được duyệt',
       );
 
+    const enrollment = await this.enrollmentRepository.findOne({
+      where: {
+        studentId,
+        courseId: exam.courseId,
+      },
+    });
+
+    if (
+      !enrollment ||
+      ![EnrollmentStatus.ACTIVE, EnrollmentStatus.COMPLETED].includes(
+        enrollment.status,
+      )
+    ) {
+      throw new BadRequestException(
+        'Bạn chưa đăng ký khóa học của bài thi này',
+      );
+    }
+
+    const now = new Date();
+    if (exam.availableFrom && now < new Date(exam.availableFrom)) {
+      throw new BadRequestException(
+        'Chưa đến thời gian mở bài thi, vui lòng quay lại sau',
+      );
+    }
+
+    if (exam.availableUntil && now > new Date(exam.availableUntil)) {
+      throw new BadRequestException('Đã hết thời gian làm bài thi');
+    }
+
     const attemptCount = await this.attemptRepository.count({
       where: { examId, studentId, status: AttemptStatus.COMPLETED },
     });
@@ -350,8 +478,11 @@ export class ExamsService {
 
     if (inProgressAttempt) return inProgressAttempt;
 
-    const totalPoints =
-      exam.questions?.reduce((sum, q) => sum + q.points, 0) || 0;
+    const questions = this.coerceQuestionsArray(exam.questions);
+    const totalPoints = questions.reduce(
+      (sum, q: any) => sum + Number(q?.points || 0),
+      0,
+    );
 
     const attempt = this.attemptRepository.create({
       examId,
@@ -386,10 +517,11 @@ export class ExamsService {
     }
 
     const exam = attempt.exam;
+    const questions = this.coerceQuestionsArray(exam.questions);
     let earnedPoints = 0;
 
     const gradedAnswers = answers.map((answer) => {
-      const question = exam.questions?.find((q) => q.id === answer.questionId);
+      const question = questions.find((q: any) => q.id === answer.questionId);
       if (!question) return { ...answer, isCorrect: false, earnedPoints: 0 };
 
       const isCorrect = this.checkAnswer(question.correctAnswer, answer.answer);
@@ -399,8 +531,10 @@ export class ExamsService {
       return { ...answer, isCorrect, earnedPoints: points };
     });
 
-    const totalPoints =
-      exam.questions?.reduce((sum, q) => sum + q.points, 0) || 0;
+    const totalPoints = questions.reduce(
+      (sum, q: any) => sum + Number(q?.points || 0),
+      0,
+    );
     const score = totalPoints > 0 ? (earnedPoints / totalPoints) * 100 : 0;
     const passed = score >= exam.passingScore;
 
@@ -414,8 +548,31 @@ export class ExamsService {
     attempt.timeSpent = Math.floor(
       (attempt.completedAt.getTime() - attempt.startedAt.getTime()) / 1000,
     );
+    const savedAttempt = await this.attemptRepository.save(attempt);
 
-    return await this.attemptRepository.save(attempt);
+    if (savedAttempt.passed && exam.type === ExamType.OFFICIAL) {
+      const enrollment = await this.enrollmentRepository.findOne({
+        where: { studentId, courseId: exam.courseId },
+      });
+
+      if (enrollment) {
+        const certificate =
+          await this.certificatesService.generateCertificateForExamPass(
+            enrollment.id,
+            {
+              examId: exam.id,
+              score: savedAttempt.score,
+              attemptId: savedAttempt.id,
+            },
+          );
+
+        savedAttempt.certificateIssued = true;
+        savedAttempt.certificateId = certificate.id;
+        return this.attemptRepository.save(savedAttempt);
+      }
+    }
+
+    return savedAttempt;
   }
 
   async getMyAttempts(studentId: string): Promise<ExamAttempt[]> {
@@ -469,6 +626,28 @@ export class ExamsService {
 
     console.log('[normalizeQuestionsPayload] After normalize:', normalized.length, 'questions');
     return normalized as any[];
+  }
+
+  private validateAvailabilityWindow(
+    availableFrom?: string | Date | null,
+    availableUntil?: string | Date | null,
+  ): void {
+    if (!availableFrom || !availableUntil) {
+      return;
+    }
+
+    const fromDate = new Date(availableFrom);
+    const untilDate = new Date(availableUntil);
+
+    if (Number.isNaN(fromDate.getTime()) || Number.isNaN(untilDate.getTime())) {
+      throw new BadRequestException('Thời gian mở/đóng bài thi không hợp lệ');
+    }
+
+    if (untilDate <= fromDate) {
+      throw new BadRequestException(
+        'Thời gian kết thúc phải sau thời gian bắt đầu',
+      );
+    }
   }
 
   private hasAnyQuestionContent(rawQuestions: any): boolean {

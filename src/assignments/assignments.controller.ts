@@ -30,7 +30,7 @@ export class AssignmentsController {
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   @ApiOperation({ summary: 'Tạo bài tập mới (Teacher/Admin)' })
   create(@Body() createAssignmentDto: CreateAssignmentDto, @Req() req: any) {
-    return this.assignmentsService.create(createAssignmentDto, req.user.userId);
+    return this.assignmentsService.create(createAssignmentDto, req.user.id);
   }
 
   @Get('course/:courseId')
@@ -82,7 +82,7 @@ export class AssignmentsController {
       id,
       body.content,
       body.attachments || [],
-      req.user.userId,
+      req.user.id,
     );
   }
 
@@ -97,7 +97,7 @@ export class AssignmentsController {
   @Get(':id/my-submission')
   @ApiOperation({ summary: 'Lấy bài nộp của tôi' })
   getMySubmission(@Param('id') id: string, @Req() req: any) {
-    return this.assignmentsService.getMySubmission(id, req.user.userId);
+    return this.assignmentsService.getMySubmission(id, req.user.id);
   }
 
   @Post('submissions/:submissionId/grade')
@@ -106,14 +106,24 @@ export class AssignmentsController {
   @ApiOperation({ summary: 'Chấm điểm bài nộp (Teacher/Admin)' })
   gradeSubmission(
     @Param('submissionId') submissionId: string,
-    @Body() body: { score: number; feedback: string },
+    @Body()
+    body: {
+      score: number;
+      feedback: string;
+      gradingDetails?: Array<{
+        criterion: string;
+        selectedLevel: number;
+        points: number;
+      }>;
+    },
     @Req() req: any,
   ) {
     return this.assignmentsService.gradeSubmission(
       submissionId,
       body.score,
       body.feedback,
-      req.user.userId,
+      body.gradingDetails,
+      req.user.id,
     );
   }
 }

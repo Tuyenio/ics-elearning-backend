@@ -26,7 +26,7 @@ export class ResourcesController {
   @UseGuards(RolesGuard)
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   create(@Body() createResourceDto: CreateResourceDto, @Req() req: any) {
-    return this.resourcesService.create(createResourceDto, req.user.userId);
+    return this.resourcesService.create(createResourceDto, req.user.id);
   }
 
   @Get('public')

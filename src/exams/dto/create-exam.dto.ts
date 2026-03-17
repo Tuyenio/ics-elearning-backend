@@ -10,12 +10,18 @@ import {
   Max,
   IsInt,
   IsUUID,
+  IsDateString,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export enum ExamType {
   PRACTICE = 'practice',
   OFFICIAL = 'official',
+}
+
+export enum ExamStatusDto {
+  DRAFT = 'draft',
+  APPROVED = 'approved',
 }
 
 export class CreateExamDto {
@@ -30,6 +36,10 @@ export class CreateExamDto {
   @IsEnum(ExamType)
   @IsOptional()
   type?: ExamType;
+
+  @IsEnum(ExamStatusDto)
+  @IsOptional()
+  status?: ExamStatusDto;
 
   @IsArray()
   @IsNotEmpty()
@@ -62,6 +72,14 @@ export class CreateExamDto {
   @IsBoolean()
   @IsOptional()
   showCorrectAnswers?: boolean;
+
+  @IsDateString()
+  @IsOptional()
+  availableFrom?: string;
+
+  @IsDateString()
+  @IsOptional()
+  availableUntil?: string;
 
   @IsUUID()
   @IsOptional()

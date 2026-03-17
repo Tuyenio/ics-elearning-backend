@@ -68,6 +68,7 @@ export class ReviewsService {
       ...createReviewDto,
       studentId: student.id,
       isVerifiedPurchase: true,
+      isPublished: true,
     });
 
     const savedReview = await this.reviewRepository.save(review);
@@ -94,7 +95,7 @@ export class ReviewsService {
     const sortBy = options?.sortBy || 'createdAt';
 
     const [data, total] = await this.reviewRepository.findAndCount({
-      where: { courseId, isPublished: true },
+      where: { courseId },
       relations: ['student'],
       order: { [sortBy]: 'DESC' },
       skip,

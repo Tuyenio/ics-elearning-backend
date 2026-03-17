@@ -19,6 +19,7 @@ import { Course, CourseStatus } from '../courses/entities/course.entity';
 import { Enrollment } from '../enrollments/entities/enrollment.entity';
 import { Lesson } from '../lessons/entities/lesson.entity';
 import { LessonProgress } from '../lesson-progress/entities/lesson-progress.entity';
+import { CouponsService } from '../coupons/coupons.service';
 import PDFDocument from 'pdfkit';
 
 @Injectable()
@@ -36,6 +37,7 @@ export class PaymentsService {
     private readonly lessonRepository: Repository<Lesson>,
     @InjectRepository(LessonProgress)
     private readonly lessonProgressRepository: Repository<LessonProgress>,
+    private readonly couponsService: CouponsService,
   ) {}
 
   async create(
@@ -67,31 +69,68 @@ export class PaymentsService {
       throw new ConflictException('Đã đăng ký khóa học này rồi');
     }
 
-    // ✅ Calculate expected amount
-    const expectedAmount = course.discountPrice || course.price || 0;
+    const expectedAmount = Number(course.discountPrice || course.price || 0);
 
-    // ✅ Validate amount
-    if (createPaymentDto.amount !== expectedAmount) {
-      throw new BadRequestException(
-        `Số tiền không hợp lệ. Mong đợi: ${expectedAmount} VND, nhận được: ${createPaymentDto.amount} VND`,
+    let discountAmount = Number(createPaymentDto.discountAmount || 0);
+    let couponCode: string | null = null;
+
+    if (createPaymentDto.couponCode?.trim()) {
+      const normalizedCode = createPaymentDto.couponCode.trim().toUpperCase();
+      const couponResult = await this.couponsService.validateCoupon(
+        normalizedCode,
+        course.id,
       );
+
+      if (!couponResult.valid) {
+        throw new BadRequestException(
+          couponResult.message || 'Mã thanh toán không hợp lệ',
+        );
+      }
+
+      discountAmount = Number(couponResult.discount || 0);
+      couponCode = normalizedCode;
+      await this.couponsService.applyCoupon(normalizedCode);
     }
+
+    if (discountAmount < 0) {
+      throw new BadRequestException('Giảm giá không hợp lệ');
+    }
+
+    const finalAmount = Math.max(0, expectedAmount - discountAmount);
 
     const transactionId =
       createPaymentDto.transactionId || this.generateTransactionId();
 
     const payment = this.paymentRepository.create({
-      ...createPaymentDto,
       transactionId,
       studentId: student.id,
-      status: PaymentStatus.PENDING,
+      courseId: createPaymentDto.courseId,
+      amount: expectedAmount,
+      discountAmount,
+      finalAmount,
+      currency: createPaymentDto.currency || 'VND',
+      paymentMethod:
+        createPaymentDto.paymentMethod || PaymentMethod.BANK_TRANSFER,
+      paymentGatewayId: createPaymentDto.paymentGatewayId,
+      status: finalAmount === 0 ? PaymentStatus.COMPLETED : PaymentStatus.PENDING,
+      ...(finalAmount === 0 ? { paidAt: new Date() } : {}),
+      metadata: {
+        ...(createPaymentDto.metadata || {}),
+        ...(couponCode ? { couponCode } : {}),
+      },
     });
 
     this.logger.log(
       `Created payment ${transactionId} for course ${createPaymentDto.courseId}`,
     );
 
-    return this.paymentRepository.save(payment);
+    const savedPayment = await this.paymentRepository.save(payment);
+
+    if (savedPayment.status === PaymentStatus.COMPLETED) {
+      await this.createEnrollmentForPayment(savedPayment);
+    }
+
+    return savedPayment;
   }
 
   async processPayment(

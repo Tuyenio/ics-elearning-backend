@@ -33,6 +33,8 @@ export interface ExamQuestion {
   correctAnswer: string | string[];
   points: number;
   explanation?: string;
+  chapter?: string;
+  difficulty?: number | string;
 }
 
 @Entity('exams', { schema: 'learning' })
@@ -81,6 +83,14 @@ export class Exam {
 
   @Column({ default: true })
   showCorrectAnswers: boolean; // Hiển thị đáp án sau khi thi
+
+  @Index()
+  @Column({ type: 'timestamp', nullable: true })
+  availableFrom: Date | null;
+
+  @Index()
+  @Column({ type: 'timestamp', nullable: true })
+  availableUntil: Date | null;
 
   @Column({ nullable: true })
   certificateTemplateId: string; // ID của mẫu chứng chỉ (chỉ cho thi thật)

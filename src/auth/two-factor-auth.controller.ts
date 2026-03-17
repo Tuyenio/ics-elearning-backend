@@ -35,7 +35,7 @@ export class TwoFactorAuthController {
    */
   @Get('status')
   async getStatus(@Request() req) {
-    return this.twoFactorAuthService.get2FAStatus(req.user.userId);
+    return this.twoFactorAuthService.get2FAStatus(req.user.id);
   }
 
   /**
@@ -44,7 +44,7 @@ export class TwoFactorAuthController {
   @Get('enabled')
   async isEnabled(@Request() req) {
     const isEnabled = await this.twoFactorAuthService.is2FAEnabled(
-      req.user.userId,
+      req.user.id,
     );
     return { isEnabled };
   }
@@ -54,7 +54,7 @@ export class TwoFactorAuthController {
    */
   @Post('setup/totp')
   async setupTOTP(@Request() req) {
-    return this.twoFactorAuthService.setupTOTP(req.user.userId);
+    return this.twoFactorAuthService.setupTOTP(req.user.id);
   }
 
   /**
@@ -64,7 +64,7 @@ export class TwoFactorAuthController {
   @HttpCode(HttpStatus.OK)
   async verifyTOTP(@Request() req, @Body() body: VerifyTOTPDto) {
     return this.twoFactorAuthService.verifyAndEnableTOTP(
-      req.user.userId,
+      req.user.id,
       body.token,
     );
   }
@@ -75,7 +75,7 @@ export class TwoFactorAuthController {
   @Post('verify')
   @HttpCode(HttpStatus.OK)
   async verify(@Request() req, @Body() body: VerifyTOTPDto) {
-    return this.twoFactorAuthService.verifyTOTP(req.user.userId, body.token);
+    return this.twoFactorAuthService.verifyTOTP(req.user.id, body.token);
   }
 
   /**
@@ -84,7 +84,7 @@ export class TwoFactorAuthController {
   @Post('disable')
   @HttpCode(HttpStatus.OK)
   async disable(@Request() req, @Body() body: DisableDto) {
-    return this.twoFactorAuthService.disable2FA(req.user.userId, body.token);
+    return this.twoFactorAuthService.disable2FA(req.user.id, body.token);
   }
 
   /**
@@ -93,7 +93,7 @@ export class TwoFactorAuthController {
   @Post('backup-codes/regenerate')
   async regenerateBackupCodes(@Request() req, @Body() body: VerifyTOTPDto) {
     const codes = await this.twoFactorAuthService.regenerateBackupCodes(
-      req.user.userId,
+      req.user.id,
       body.token,
     );
     return { backupCodes: codes };
@@ -105,7 +105,7 @@ export class TwoFactorAuthController {
   @Post('setup/sms')
   async setupSMS(@Request() req, @Body() body: SetupSMSDto) {
     return this.twoFactorAuthService.setupSMS(
-      req.user.userId,
+      req.user.id,
       body.phoneNumber,
     );
   }
@@ -115,6 +115,6 @@ export class TwoFactorAuthController {
    */
   @Post('setup/email')
   async setupEmail(@Request() req) {
-    return this.twoFactorAuthService.setupEmail(req.user.userId);
+    return this.twoFactorAuthService.setupEmail(req.user.id);
   }
 }

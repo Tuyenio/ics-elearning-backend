@@ -122,6 +122,9 @@ export class AssignmentSubmission {
   @Column({ type: 'text', nullable: true })
   feedback: string;
 
+  @Column({ name: 'grading_details', type: 'text', nullable: true })
+  gradingDetails?: string;
+
   @Column({ name: 'graded_by', nullable: true })
   gradedBy: string;
 
