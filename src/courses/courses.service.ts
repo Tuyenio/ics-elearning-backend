@@ -310,14 +310,39 @@ export class CoursesService {
   async approveCourse(id: string): Promise<Course> {
     const course = await this.findOne(id);
     course.status = CourseStatus.PUBLISHED;
-    return this.courseRepository.save(course);
+    course.rejectionReason = '';
+    const savedCourse = await this.courseRepository.save(course);
+
+    // Keep compatibility with deployments that still rely on isPublished flag.
+    try {
+      await this.courseRepository.query(
+        'UPDATE learning.courses SET "isPublished" = $1 WHERE id = $2',
+        [true, id],
+      );
+    } catch {
+      // Ignore when schema does not include this legacy column.
+    }
+
+    return savedCourse;
   }
 
   async rejectCourse(id: string, reason: string): Promise<Course> {
     const course = await this.findOne(id);
     course.status = CourseStatus.REJECTED;
     course.rejectionReason = reason;
-    return this.courseRepository.save(course);
+    const savedCourse = await this.courseRepository.save(course);
+
+    // Keep compatibility with deployments that still rely on isPublished flag.
+    try {
+      await this.courseRepository.query(
+        'UPDATE learning.courses SET "isPublished" = $1 WHERE id = $2',
+        [false, id],
+      );
+    } catch {
+      // Ignore when schema does not include this legacy column.
+    }
+
+    return savedCourse;
   }
 
   async submitForApproval(id: string, user: User): Promise<Course> {

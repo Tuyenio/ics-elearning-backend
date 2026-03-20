@@ -1,11 +1,20 @@
 import { Injectable, ExecutionContext } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
+import { resolveFrontendUrl } from '../../common/utils/frontend-url.util';
 
 @Injectable()
 export class GoogleAuthGuard extends AuthGuard('google') {
   constructor(private configService: ConfigService) {
     super();
+  }
+
+  private getFrontendUrl(): string {
+    const rawUrl =
+      this.configService.get<string>('FRONTEND_URL') ||
+      this.configService.get<string>('frontendUrl');
+
+    return resolveFrontendUrl(rawUrl);
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -15,7 +24,7 @@ export class GoogleAuthGuard extends AuthGuard('google') {
     } catch (error) {
       // Bắt lỗi từ Google strategy và redirect về trang login với thông báo
       const response = context.switchToHttp().getResponse();
-      const frontendUrl = this.configService.get<string>('FRONTEND_URL');
+      const frontendUrl = this.getFrontendUrl();
 
       const errorMessage =
         error instanceof Error ? error.message : 'Đăng nhập thất bại';

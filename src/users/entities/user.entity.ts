@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   BeforeInsert,
+  BeforeUpdate,
   OneToMany,
   Index,
 } from 'typeorm';
@@ -129,6 +130,14 @@ export class User {
         .toUpperCase();
       // Use a default avatar service or generate a colored placeholder
       this.avatar = `https://ui-avatars.com/?name=${encodeURIComponent(this.name)}&background=random&size=200`;
+    }
+  }
+
+  @BeforeUpdate()
+  async hashPasswordOnUpdate() {
+    // Only hash password if it's been modified and isn't already hashed
+    if (this.password && !this.password.startsWith('$2')) {
+      this.password = await bcrypt.hash(this.password, 12);
     }
   }
 

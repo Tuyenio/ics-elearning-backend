@@ -11,6 +11,31 @@ import { UserRole } from '../users/entities/user.entity';
 export class ExtractedExamsController {
   constructor(private readonly service: ExtractedExamsService) {}
 
+  @Get('available')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.STUDENT)
+  findAvailableForStudent(@Request() req) {
+    return this.service.findAvailableForStudent(req.user.id);
+  }
+
+  @Get('student/:id')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.STUDENT)
+  findOneForStudent(@Param('id') id: string, @Request() req) {
+    return this.service.findOneForStudent(id, req.user.id);
+  }
+
+  @Post(':id/submit')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.STUDENT)
+  submitForStudent(
+    @Param('id') id: string,
+    @Body() body: { answers: Array<{ questionId: string; answer: string | string[] }> },
+    @Request() req,
+  ) {
+    return this.service.submitForStudent(id, req.user.id, body?.answers || []);
+  }
+
   @Get('my')
   @UseGuards(RolesGuard)
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
@@ -22,7 +47,7 @@ export class ExtractedExamsController {
   @UseGuards(RolesGuard)
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   create(@Body() dto: CreateExtractedExamDto, @Request() req) {
-    return this.service.create(dto, req.user.id);
+    return this.service.create(dto, req.user.id, req.user.role);
   }
 
   @Get(':id')
@@ -36,7 +61,7 @@ export class ExtractedExamsController {
   @UseGuards(RolesGuard)
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   update(@Param('id') id: string, @Body() dto: Partial<CreateExtractedExamDto>, @Request() req) {
-    return this.service.update(id, req.user.id, dto);
+    return this.service.update(id, req.user.id, req.user.role, dto);
   }
 
   @Delete(':id')

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
+import { resolveFrontendUrl } from '../utils/frontend-url.util';
 
 @Injectable()
 export class EmailService {
@@ -9,6 +10,14 @@ export class EmailService {
 
   constructor(private configService: ConfigService) {
     this.createTransporter();
+  }
+
+  private getFrontendUrl(): string {
+    const rawUrl =
+      this.configService.get<string>('FRONTEND_URL') ||
+      this.configService.get<string>('frontendUrl');
+
+    return resolveFrontendUrl(rawUrl);
   }
 
   private createTransporter() {
@@ -24,7 +33,8 @@ export class EmailService {
   }
 
   async sendVerificationEmail(email: string, token: string) {
-    const verificationUrl = `${this.configService.get('FRONTEND_URL')}/verify-email?token=${token}`;
+    const frontendUrl = this.getFrontendUrl();
+    const verificationUrl = `${frontendUrl}/verify-email?token=${token}`;
 
     const mailOptions = {
       from: this.configService.get('SMTP_FROM'),
@@ -33,7 +43,7 @@ export class EmailService {
       html: `
         <div style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: Arial, sans-serif;">
           <div style="text-align: center; margin-bottom: 30px;">
-            <img src="${this.configService.get('FRONTEND_URL')}/image/logo-ics.jpg" alt="ICS Cyber Security" style="height: 60px; border-radius: 50%;">
+            <img src="${frontendUrl}/image/logo-ics.jpg" alt="ICS Cyber Security" style="height: 60px; border-radius: 50%;">
           </div>
           
           <h1 style="color: #333; text-align: center; margin-bottom: 30px;">Verify Your Email Address</h1>
@@ -82,7 +92,8 @@ export class EmailService {
   }
 
   async sendPasswordResetEmail(email: string, token: string) {
-    const resetUrl = `${this.configService.get('FRONTEND_URL')}/reset-password?token=${token}`;
+    const frontendUrl = this.getFrontendUrl();
+    const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
 
     const mailOptions = {
       from: this.configService.get('SMTP_FROM'),
@@ -91,7 +102,7 @@ export class EmailService {
       html: `
         <div style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: Arial, sans-serif;">
           <div style="text-align: center; margin-bottom: 30px;">
-            <img src="${this.configService.get('FRONTEND_URL')}/image/logo-ics.jpg" alt="ICS Cyber Security" style="height: 60px; border-radius: 50%;">
+            <img src="${frontendUrl}/image/logo-ics.jpg" alt="ICS Cyber Security" style="height: 60px; border-radius: 50%;">
           </div>
           
           <h1 style="color: #333; text-align: center; margin-bottom: 30px;">Reset Your Password</h1>
@@ -140,7 +151,8 @@ export class EmailService {
   }
 
   async sendWelcomeEmail(email: string, firstName: string) {
-    const dashboardUrl = `${this.configService.get('FRONTEND_URL')}/dashboard`;
+    const frontendUrl = this.getFrontendUrl();
+    const dashboardUrl = `${frontendUrl}/dashboard`;
 
     const mailOptions = {
       from: this.configService.get('SMTP_FROM'),
@@ -207,7 +219,8 @@ export class EmailService {
     name: string,
     tempPassword: string,
   ) {
-    const loginUrl = `${this.configService.get('FRONTEND_URL')}/login`;
+    const frontendUrl = this.getFrontendUrl();
+    const loginUrl = `${frontendUrl}/login`;
 
     const mailOptions = {
       from: this.configService.get('SMTP_FROM'),

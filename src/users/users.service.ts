@@ -261,6 +261,17 @@ export class UsersService {
     );
   }
 
+  async updateEmailVerificationStatus(id: string, verified: boolean): Promise<void> {
+    await this.usersRepository.update(
+      { id },
+      {
+        emailVerified: verified,
+        emailVerifiedAt: verified ? new Date() : undefined,
+        emailVerificationToken: undefined,
+      },
+    );
+  }
+
   async verifyEmail(token: string): Promise<User | null> {
     const user = await this.usersRepository.findOne({
       where: { emailVerificationToken: token },

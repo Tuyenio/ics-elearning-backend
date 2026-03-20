@@ -28,14 +28,17 @@ export class ExamsController {
   @UseGuards(RolesGuard)
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   findAllForTeacher(@Request() req) {
-    return this.examsService.findAll();
+    if (req.user.role === UserRole.ADMIN) {
+      return this.examsService.findAll();
+    }
+    return this.examsService.findMyExams(req.user.id);
   }
 
   @Post()
   @UseGuards(RolesGuard)
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   create(@Body() createExamDto: CreateExamDto, @Request() req) {
-    return this.examsService.create(createExamDto, req.user.id);
+    return this.examsService.create(createExamDto, req.user.id, req.user.role);
   }
 
   @Get('my-exams')
@@ -53,7 +56,10 @@ export class ExamsController {
     @Body() updateExamDto: any,
     @Request() req,
   ) {
-    return this.examsService.updateAny(id, updateExamDto);
+    if (req.user.role === UserRole.ADMIN) {
+      return this.examsService.updateAny(id, updateExamDto);
+    }
+    return this.examsService.update(id, updateExamDto, req.user.id);
   }
 
   @Delete(':id')

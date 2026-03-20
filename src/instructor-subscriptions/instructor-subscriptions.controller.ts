@@ -40,6 +40,41 @@ export class InstructorSubscriptionsController {
     return this.service.upgradePlan(user.id, body);
   }
 
+  @Get('teacher/payment-methods')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.TEACHER)
+  getTeacherPaymentMethods(@GetUser() user: User) {
+    return this.service.getTeacherPaymentMethods(user.id);
+  }
+
+  @Post('teacher/payment-methods')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.TEACHER)
+  createTeacherPaymentMethod(@GetUser() user: User, @Body() body: Record<string, any>) {
+    return this.service.createTeacherPaymentMethod(user.id, body);
+  }
+
+  @Patch('teacher/payment-methods/:id/default')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.TEACHER)
+  setDefaultTeacherPaymentMethod(@GetUser() user: User, @Param('id') id: string) {
+    return this.service.setDefaultTeacherPaymentMethod(user.id, id);
+  }
+
+  @Post('teacher/checkout')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.TEACHER)
+  createCheckout(@GetUser() user: User, @Body() body: UpgradeSubscriptionDto) {
+    return this.service.createCheckout(user.id, body);
+  }
+
+  @Post('teacher/checkout/:transactionId/confirm')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.TEACHER)
+  confirmCheckout(@GetUser() user: User, @Param('transactionId') transactionId: string) {
+    return this.service.confirmCheckout(user.id, transactionId);
+  }
+
   @Post('teacher/cancel')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.TEACHER)

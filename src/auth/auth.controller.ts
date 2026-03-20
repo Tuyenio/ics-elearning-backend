@@ -30,6 +30,7 @@ import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { GetUser } from './decorators/get-user.decorator';
 import { User } from '../users/entities/user.entity';
 import { ConfigService } from '@nestjs/config';
+import { resolveFrontendUrl } from '../common/utils/frontend-url.util';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -38,6 +39,14 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
   ) {}
+
+  private getFrontendUrl(): string {
+    const rawUrl =
+      this.configService.get<string>('FRONTEND_URL') ||
+      this.configService.get<string>('frontendUrl');
+
+    return resolveFrontendUrl(rawUrl);
+  }
 
   @Post('register')
   @Throttle({ short: { limit: 3, ttl: 60000 } }) // 3 requests per minute
@@ -130,7 +139,7 @@ export class AuthController {
   async googleAuthRedirect(@Request() req, @Res() res: Response) {
     try {
       const user = req.user;
-      const frontendUrl = this.configService.get<string>('FRONTEND_URL');
+      const frontendUrl = this.getFrontendUrl();
 
       // Kiểm tra status và emailVerified
       if (user.status !== 'active') {
@@ -160,7 +169,7 @@ export class AuthController {
       const redirectUrl = `${frontendUrl}/auth/google/callback?token=${access_token}&user=${encodeURIComponent(JSON.stringify(user))}`;
       res.redirect(redirectUrl);
     } catch (error) {
-      const frontendUrl = this.configService.get<string>('FRONTEND_URL');
+      const frontendUrl = this.getFrontendUrl();
       const errorMessage =
         error instanceof Error ? error.message : 'Đăng nhập thất bại';
       const loginUrl = `${frontendUrl}/login?error=auth_failed&message=${encodeURIComponent(errorMessage)}`;

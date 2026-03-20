@@ -9,10 +9,17 @@ import { Enrollment } from '../enrollments/entities/enrollment.entity';
 import { ExtractedExam } from './entities/extracted-exam.entity';
 import { ExtractedExamsService } from './extracted-exams.service';
 import { ExtractedExamsController } from './extracted-exams.controller';
+import { Course } from '../courses/entities/course.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Exam, ExamAttempt, Enrollment, ExtractedExam]),
+    TypeOrmModule.forFeature([
+      Exam,
+      ExamAttempt,
+      Enrollment,
+      ExtractedExam,
+      Course,
+    ]),
     forwardRef(() => CertificatesModule),
   ],
   controllers: [ExamsController, ExtractedExamsController],

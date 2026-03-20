@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { CreateUserDto } from '../users/dto/create-user.dto';
@@ -11,6 +11,8 @@ import { SystemSettingsService } from '../system-settings/system-setting.service
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger('AuthService');
+
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
@@ -19,12 +21,34 @@ export class AuthService {
   ) {}
 
   async validateUser(email: string, password: string): Promise<any> {
-    const user = await this.usersService.findByEmail(email);
-    if (user && (await bcrypt.compare(password, user.password))) {
-      const { password, ...result } = user;
-      return result;
+    try {
+      const user = await this.usersService.findByEmail(email);
+      
+      if (!user) {
+        this.logger.warn(`Login attempt with non-existent email: ${email}`);
+        return null;
+      }
+
+      // Check if password is properly hashed
+      if (!user.password.startsWith('$2')) {
+        this.logger.error(`⚠️ WARNING: User ${email} has unhashed password in database!`);
+        // Try to compare anyway, but it will likely fail
+      }
+
+      const passwordMatch = await bcrypt.compare(password, user.password);
+      
+      if (passwordMatch) {
+        this.logger.log(`✅ Successful login for user: ${email} (role: ${user.role})`);
+        const { password, ...result } = user;
+        return result;
+      } else {
+        this.logger.warn(`❌ Failed login attempt for user: ${email} (wrong password)`);
+        return null;
+      }
+    } catch (error) {
+      this.logger.error(`🔥 Error during validateUser for ${email}:`, error);
+      return null;
     }
-    return null;
   }
 
   async login(loginDto: LoginDto) {
@@ -91,7 +115,7 @@ export class AuthService {
     // Create user
     const user = await this.usersService.create(createUserDto);
 
-    // Generate verification token
+    // Always require email verification for self-registration.
     const verificationToken = this.jwtService.sign(
       { email: user.email, type: 'email-verification' },
       { expiresIn: '24h' },
@@ -111,9 +135,12 @@ export class AuthService {
 
     const { password, emailVerificationToken, passwordResetToken, ...result } =
       user;
+    
+    const message =
+      'User registered successfully. Please check your email for verification.';
+    
     return {
-      message:
-        'User registered successfully. Please check your email for verification.',
+      message,
       user: result,
     };
   }

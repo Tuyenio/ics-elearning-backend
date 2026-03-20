@@ -11,6 +11,10 @@ import { Course } from '../courses/entities/course.entity';
 import { User, UserRole } from '../users/entities/user.entity';
 import { UpsertPlanDto } from './dto/upsert-plan.dto';
 import { UpgradeSubscriptionDto } from './dto/upgrade-subscription.dto';
+import {
+  InstructorPaymentMethod,
+  InstructorPaymentMethodType,
+} from './entities/instructor-payment-method.entity';
 import { InstructorPlan } from './entities/instructor-plan.entity';
 import {
   InstructorSubscription,
@@ -30,6 +34,8 @@ export class InstructorSubscriptionsService implements OnModuleInit {
     private readonly subscriptionRepo: Repository<InstructorSubscription>,
     @InjectRepository(InstructorSubscriptionPayment)
     private readonly paymentRepo: Repository<InstructorSubscriptionPayment>,
+    @InjectRepository(InstructorPaymentMethod)
+    private readonly paymentMethodRepo: Repository<InstructorPaymentMethod>,
     @InjectRepository(Course)
     private readonly courseRepo: Repository<Course>,
     @InjectRepository(User)
@@ -234,10 +240,15 @@ export class InstructorSubscriptionsService implements OnModuleInit {
     return `SUB-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
   }
 
-  async upgradePlan(teacherId: string, dto: UpgradeSubscriptionDto) {
-    const plan = await this.planRepo.findOne({ where: { id: dto.planId, isActive: true } });
-    if (!plan) throw new NotFoundException('Goi nang cap khong ton tai');
+  private toPlanCode(plan: InstructorPlan) {
+    const normalized = String(plan.name || 'PLAN')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    return normalized || 'PLAN';
+  }
 
+  private async applyPlanToTeacher(teacherId: string, plan: InstructorPlan, paymentMethod?: string | null) {
     const now = new Date();
     const endDate = this.addMonths(now, plan.durationMonths || 1);
 
@@ -252,21 +263,215 @@ export class InstructorSubscriptionsService implements OnModuleInit {
       subscription.endDate = endDate;
       subscription.status = InstructorSubscriptionStatus.ACTIVE;
       subscription.cancelReason = null;
-      subscription.paymentMethod = dto.paymentMethod || subscription.paymentMethod;
-      subscription = await this.subscriptionRepo.save(subscription);
-    } else {
-      subscription = await this.subscriptionRepo.save(
-        this.subscriptionRepo.create({
+      subscription.paymentMethod = paymentMethod || subscription.paymentMethod;
+      return this.subscriptionRepo.save(subscription);
+    }
+
+    return this.subscriptionRepo.save(
+      this.subscriptionRepo.create({
+        teacherId,
+        planId: plan.id,
+        startDate: now,
+        endDate,
+        status: InstructorSubscriptionStatus.ACTIVE,
+        autoRenew: false,
+        paymentMethod: paymentMethod || null,
+      }),
+    );
+  }
+
+  async getTeacherPaymentMethods(teacherId: string) {
+    return this.paymentMethodRepo.find({
+      where: { teacherId },
+      order: { isDefault: 'DESC', createdAt: 'DESC' },
+    });
+  }
+
+  async createTeacherPaymentMethod(teacherId: string, dto: Record<string, any>) {
+    const type = dto.type as InstructorPaymentMethodType;
+    if (!Object.values(InstructorPaymentMethodType).includes(type)) {
+      throw new BadRequestException('Loai phuong thuc thanh toan khong hop le');
+    }
+
+    const hasAnyMethod = (await this.paymentMethodRepo.count({ where: { teacherId } })) > 0;
+
+    if (type === InstructorPaymentMethodType.BANK_CARD) {
+      const cardNumberRaw = String(dto.cardNumber || '').replace(/\s+/g, '');
+      const cvv = String(dto.cvv || '').trim();
+      const cardHolderName = String(dto.cardHolderName || '').trim();
+      const cardExpiry = String(dto.cardExpiry || '').trim();
+
+      if (cardNumberRaw.length < 12 || cvv.length < 3) {
+        throw new BadRequestException('Thong tin the khong hop le');
+      }
+
+      if (!cardHolderName) {
+        throw new BadRequestException('Vui long nhap ten chu the');
+      }
+
+      const cardLast4 = cardNumberRaw.slice(-4);
+      const label = dto.label || `The ****${cardLast4}`;
+
+      if (!hasAnyMethod || dto.isDefault === true) {
+        await this.paymentMethodRepo.update({ teacherId }, { isDefault: false });
+      }
+
+      return this.paymentMethodRepo.save(
+        this.paymentMethodRepo.create({
           teacherId,
-          planId: plan.id,
-          startDate: now,
-          endDate,
-          status: InstructorSubscriptionStatus.ACTIVE,
-          autoRenew: false,
-          paymentMethod: dto.paymentMethod || null,
+          type,
+          provider: 'bank_card',
+          label,
+          cardLast4,
+          cardHolderName,
+          cardExpiry,
+          walletPhone: null,
+          isDefault: !hasAnyMethod || dto.isDefault === true,
+          metadata: {
+            brand: dto.brand || null,
+            masked: `**** **** **** ${cardLast4}`,
+          },
         }),
       );
     }
+
+    const provider = String(dto.provider || '').toLowerCase();
+    if (!provider || !['momo', 'zalopay'].includes(provider)) {
+      throw new BadRequestException('Vi dien tu chi ho tro momo hoac zalopay');
+    }
+
+    if (!hasAnyMethod || dto.isDefault === true) {
+      await this.paymentMethodRepo.update({ teacherId }, { isDefault: false });
+    }
+
+    const walletPhone = dto.walletPhone ? String(dto.walletPhone).trim() : null;
+    const label = dto.label || `${provider.toUpperCase()}${walletPhone ? ` - ${walletPhone}` : ''}`;
+
+    return this.paymentMethodRepo.save(
+      this.paymentMethodRepo.create({
+        teacherId,
+        type,
+        provider,
+        label,
+        cardLast4: null,
+        cardHolderName: null,
+        cardExpiry: null,
+        walletPhone,
+        isDefault: !hasAnyMethod || dto.isDefault === true,
+        metadata: {
+          deeplink: provider === 'momo' ? 'momo://app' : 'zalopay://app',
+          returnUrl: dto.returnUrl || null,
+        },
+      }),
+    );
+  }
+
+  async setDefaultTeacherPaymentMethod(teacherId: string, id: string) {
+    const method = await this.paymentMethodRepo.findOne({ where: { id, teacherId } });
+    if (!method) {
+      throw new NotFoundException('Khong tim thay phuong thuc thanh toan');
+    }
+
+    await this.paymentMethodRepo.update({ teacherId }, { isDefault: false });
+    method.isDefault = true;
+    return this.paymentMethodRepo.save(method);
+  }
+
+  async createCheckout(teacherId: string, dto: UpgradeSubscriptionDto) {
+    const plan = await this.planRepo.findOne({ where: { id: dto.planId, isActive: true } });
+    if (!plan) {
+      throw new NotFoundException('Goi nang cap khong ton tai');
+    }
+
+    let paymentMethod: InstructorPaymentMethod | null = null;
+    if (dto.paymentMethodId) {
+      paymentMethod = await this.paymentMethodRepo.findOne({
+        where: { id: dto.paymentMethodId, teacherId },
+      });
+      if (!paymentMethod) {
+        throw new NotFoundException('Khong tim thay phuong thuc thanh toan da luu');
+      }
+    }
+
+    const paymentChannel = dto.paymentChannel || paymentMethod?.type || 'qr';
+    const tx = this.generateTx();
+    const planCode = this.toPlanCode(plan);
+    const qrPayload = `ICS|PLAN:${planCode}|PLAN_ID:${plan.id}|TX:${tx}|AMOUNT:${Number(plan.price || 0)}`;
+
+    const payment = await this.paymentRepo.save(
+      this.paymentRepo.create({
+        transactionId: tx,
+        teacherId,
+        planId: plan.id,
+        subscriptionId: null,
+        amount: Number(plan.price || 0),
+        currency: 'USD',
+        paymentMethod: paymentChannel,
+        status: InstructorSubscriptionPaymentStatus.PENDING,
+        paidAt: null,
+        metadata: {
+          ...(dto.metadata || {}),
+          paymentChannel,
+          planCode,
+          paymentMethodId: paymentMethod?.id || null,
+          provider: paymentMethod?.provider || null,
+          qrPayload,
+        },
+      }),
+    );
+
+    return {
+      transactionId: payment.transactionId,
+      status: payment.status,
+      amount: payment.amount,
+      currency: payment.currency,
+      plan,
+      paymentChannel,
+      qrPayload,
+      qrImageUrl: `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(qrPayload)}`,
+      message:
+        paymentChannel === 'qr'
+          ? 'Vui long quet ma QR va xac nhan sau khi thanh toan thanh cong'
+          : 'Giao dich dang cho xac nhan',
+    };
+  }
+
+  async confirmCheckout(teacherId: string, transactionId: string) {
+    const payment = await this.paymentRepo.findOne({
+      where: { transactionId, teacherId },
+      relations: ['plan'],
+    });
+    if (!payment) {
+      throw new NotFoundException('Khong tim thay giao dich');
+    }
+
+    if (payment.status === InstructorSubscriptionPaymentStatus.PAID) {
+      return { payment, subscription: await this.getTeacherSubscription(teacherId) };
+    }
+
+    if (payment.status !== InstructorSubscriptionPaymentStatus.PENDING) {
+      throw new BadRequestException('Giao dich khong o trang thai cho xac nhan');
+    }
+
+    const subscription = await this.applyPlanToTeacher(teacherId, payment.plan, payment.paymentMethod);
+
+    payment.status = InstructorSubscriptionPaymentStatus.PAID;
+    payment.paidAt = new Date();
+    payment.subscriptionId = subscription.id;
+    const savedPayment = await this.paymentRepo.save(payment);
+
+    return {
+      payment: savedPayment,
+      subscription,
+      message: 'Thanh toan thanh cong, da kich hoat goi',
+    };
+  }
+
+  async upgradePlan(teacherId: string, dto: UpgradeSubscriptionDto) {
+    const plan = await this.planRepo.findOne({ where: { id: dto.planId, isActive: true } });
+    if (!plan) throw new NotFoundException('Goi nang cap khong ton tai');
+
+    const subscription = await this.applyPlanToTeacher(teacherId, plan, dto.paymentMethod || null);
 
     const payment = await this.paymentRepo.save(
       this.paymentRepo.create({
@@ -279,7 +484,11 @@ export class InstructorSubscriptionsService implements OnModuleInit {
         paymentMethod: dto.paymentMethod || 'manual',
         status: InstructorSubscriptionPaymentStatus.PAID,
         paidAt: new Date(),
-        metadata: dto.metadata || null,
+        metadata: {
+          ...(dto.metadata || {}),
+          planCode: this.toPlanCode(plan),
+          paymentChannel: dto.paymentChannel || dto.paymentMethod || 'manual',
+        },
       }),
     );
 

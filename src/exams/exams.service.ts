@@ -9,17 +9,21 @@ import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Exam, ExamStatus, ExamType } from './entities/exam.entity';
 import { ExamAttempt, AttemptStatus } from './entities/exam-attempt.entity';
+import { Course } from '../courses/entities/course.entity';
 import {
   Enrollment,
   EnrollmentStatus,
 } from '../enrollments/entities/enrollment.entity';
 import { CertificatesService } from '../certificates/certificates.service';
+import { UserRole } from '../users/entities/user.entity';
 
 @Injectable()
 export class ExamsService {
   constructor(
     @InjectRepository(Exam)
     private examRepository: Repository<Exam>,
+    @InjectRepository(Course)
+    private courseRepository: Repository<Course>,
     @InjectRepository(ExamAttempt)
     private attemptRepository: Repository<ExamAttempt>,
     @InjectRepository(Enrollment)
@@ -32,7 +36,23 @@ export class ExamsService {
 
   // ==================== TEACHER METHODS ====================
 
-  async create(createExamDto: any, teacherId: string): Promise<Exam> {
+  async create(
+    createExamDto: any,
+    teacherId: string,
+    role: UserRole,
+  ): Promise<Exam> {
+    const course = await this.courseRepository.findOne({
+      where: { id: createExamDto.courseId },
+    });
+    if (!course) {
+      throw new NotFoundException('Không tìm thấy khóa học');
+    }
+    if (role !== UserRole.ADMIN && course.teacherId !== teacherId) {
+      throw new BadRequestException(
+        'Bạn chỉ được tạo ngân hàng đề thi cho khóa học của chính mình',
+      );
+    }
+
     if (
       createExamDto.type === ExamType.OFFICIAL &&
       !createExamDto.certificateTemplateId
@@ -176,6 +196,20 @@ export class ExamsService {
     if (!exam) throw new NotFoundException('Không tìm thấy bài thi');
 
     const { questions: rawQuestions, ...metaFields } = updateExamDto as any;
+
+    if (metaFields.courseId && metaFields.courseId !== exam.courseId) {
+      const targetCourse = await this.courseRepository.findOne({
+        where: { id: metaFields.courseId },
+      });
+      if (!targetCourse) {
+        throw new NotFoundException('Không tìm thấy khóa học');
+      }
+      if (targetCourse.teacherId !== teacherId) {
+        throw new BadRequestException(
+          'Bạn chỉ được gán bài thi vào khóa học của chính mình',
+        );
+      }
+    }
 
     if (!metaFields.status && exam.status !== ExamStatus.DRAFT) {
       metaFields.status = ExamStatus.APPROVED;

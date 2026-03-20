@@ -4,6 +4,7 @@ import { Course } from '../courses/entities/course.entity';
 import { User } from '../users/entities/user.entity';
 import { InstructorSubscriptionsController } from './instructor-subscriptions.controller';
 import { InstructorSubscriptionsService } from './instructor-subscriptions.service';
+import { InstructorPaymentMethod } from './entities/instructor-payment-method.entity';
 import { InstructorPlan } from './entities/instructor-plan.entity';
 import { InstructorSubscription } from './entities/instructor-subscription.entity';
 import { InstructorSubscriptionPayment } from './entities/instructor-subscription-payment.entity';
@@ -14,6 +15,7 @@ import { InstructorSubscriptionPayment } from './entities/instructor-subscriptio
       InstructorPlan,
       InstructorSubscription,
       InstructorSubscriptionPayment,
+      InstructorPaymentMethod,
       Course,
       User,
     ]),
