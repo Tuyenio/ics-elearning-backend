@@ -40,7 +40,9 @@ async function dropAllTables() {
     for (const table of tables) {
       const tableName = table.tablename;
       try {
-        await queryRunner.query(`DROP TABLE IF EXISTS "learning"."${tableName}" CASCADE`);
+        await queryRunner.query(
+          `DROP TABLE IF EXISTS "learning"."${tableName}" CASCADE`,
+        );
         console.log(`   ✓ Đã xóa: ${tableName}`);
       } catch (error: unknown) {
         const errorMessage =

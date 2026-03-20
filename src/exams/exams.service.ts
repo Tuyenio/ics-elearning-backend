@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-enum-comparison, @typescript-eslint/no-redundant-type-constituents */
 import {
   Injectable,
   NotFoundException,
@@ -100,45 +101,58 @@ export class ExamsService {
       createExamDto.availableUntil,
     );
 
-    console.log('[create] createExamDto.questions.length:', createExamDto.questions?.length);
-    
+    console.log(
+      '[create] createExamDto.questions.length:',
+      createExamDto.questions?.length,
+    );
+
     // *** DISABLE normalization for draft exams - only preserve raw payload ***
     // Strict normalization is done at submit-for-approval time
-    
+
     // Handle questions structure - may be wrapped in arrays with properties
     let questionsToSave = createExamDto.questions || [];
     if (Array.isArray(questionsToSave) && questionsToSave.length > 0) {
       const firstItem = questionsToSave[0];
-      
+
       // Check if first item is an array (indicates structure issue)
       if (Array.isArray(firstItem)) {
         console.log('[create] Detected array type for question item');
-        console.log('[create] First item Array.length:', (firstItem as any[]).length);
+        console.log('[create] First item Array.length:', firstItem.length);
         console.log('[create] First item Object.keys:', Object.keys(firstItem));
-        
+
         // If it's an empty array with properties, extract the properties as question objects
-        if ((firstItem as any[]).length === 0 && Object.keys(firstItem).length > 0) {
-          console.log('[create] Array has properties but no numeric indices - extracting objects');
-          questionsToSave = questionsToSave.map(item => {
+        if (firstItem.length === 0 && Object.keys(firstItem).length > 0) {
+          console.log(
+            '[create] Array has properties but no numeric indices - extracting objects',
+          );
+          questionsToSave = questionsToSave.map((item) => {
             const obj: any = {};
             for (const key of Object.keys(item)) {
-              obj[key] = (item as any)[key];
+              obj[key] = item[key];
             }
             return obj;
           });
-          console.log('[create] After extraction: length =', questionsToSave.length);
-        } else if ((firstItem as any[]).length > 0) {
+          console.log(
+            '[create] After extraction: length =',
+            questionsToSave.length,
+          );
+        } else if (firstItem.length > 0) {
           // If it's a proper array with items, just flatten it
           console.log('[create] Array has numeric indices - flattening');
           questionsToSave = questionsToSave.flat();
-          console.log('[create] After flatten: length =', questionsToSave.length);
+          console.log(
+            '[create] After flatten: length =',
+            questionsToSave.length,
+          );
         }
       }
     }
-    
+
     const requestedStatus = String(createExamDto?.status || '').toLowerCase();
     const effectiveStatus =
-      requestedStatus === ExamStatus.DRAFT ? ExamStatus.DRAFT : ExamStatus.APPROVED;
+      requestedStatus === ExamStatus.DRAFT
+        ? ExamStatus.DRAFT
+        : ExamStatus.APPROVED;
 
     const examData = {
       ...createExamDto,
@@ -148,8 +162,11 @@ export class ExamsService {
       rejectionReason: null,
     };
 
-    console.log('[create] examData.questions sample (first 2):', examData.questions?.slice(0, 2));
-    
+    console.log(
+      '[create] examData.questions sample (first 2):',
+      examData.questions?.slice(0, 2),
+    );
+
     // Log the structure of first question to debug serialization
     if (examData.questions && examData.questions.length > 0) {
       const firstQuestion = examData.questions[0];
@@ -164,24 +181,36 @@ export class ExamsService {
     }
 
     const exam = this.examRepository.create(examData) as unknown as Exam;
-    
+
     // Log exam object before save
-    console.log('[create] exam.questions before save first 2:', (exam.questions as any[])?.slice(0, 2));
-    console.log('[create] exam.questions.length:', (exam.questions as any[])?.length);
-    
+    console.log(
+      '[create] exam.questions before save first 2:',
+      (exam.questions as any[])?.slice(0, 2),
+    );
+    console.log(
+      '[create] exam.questions.length:',
+      (exam.questions as any[])?.length,
+    );
+
     if ((exam.questions as any[])?.length > 0) {
       const firstQuestion = (exam.questions as any[])[0];
       console.log('[create] First question before save:', firstQuestion);
     }
 
     const saved = await this.examRepository.save(exam);
-    
+
     // Log after save
-    console.log('[create] saved.questions.length after save:', (saved.questions as any[])?.length);
+    console.log(
+      '[create] saved.questions.length after save:',
+      (saved.questions as any[])?.length,
+    );
     if ((saved.questions as any[])?.length > 0) {
-      console.log('[create] saved.questions first 2 after save:', (saved.questions as any[])?.slice(0, 2));
+      console.log(
+        '[create] saved.questions first 2 after save:',
+        (saved.questions as any[])?.slice(0, 2),
+      );
     }
-    
+
     return saved as unknown as Exam;
   }
 
@@ -195,7 +224,7 @@ export class ExamsService {
     });
     if (!exam) throw new NotFoundException('Không tìm thấy bài thi');
 
-    const { questions: rawQuestions, ...metaFields } = updateExamDto as any;
+    const { questions: rawQuestions, ...metaFields } = updateExamDto;
 
     if (metaFields.courseId && metaFields.courseId !== exam.courseId) {
       const targetCourse = await this.courseRepository.findOne({
@@ -222,7 +251,12 @@ export class ExamsService {
         normalizedQuestions.length > 0
           ? normalizedQuestions
           : this.buildQuestionsFallback(rawQuestions);
-      console.log('[update] Saving', normalizedQuestions.length, 'questions for exam', id);
+      console.log(
+        '[update] Saving',
+        normalizedQuestions.length,
+        'questions for exam',
+        id,
+      );
       await this.dataSource.query(
         `UPDATE learning.exams SET questions = $1::json WHERE id = $2`,
         [JSON.stringify(finalQuestions), id],
@@ -233,14 +267,17 @@ export class ExamsService {
       await this.examRepository.update(id, metaFields);
     }
     // Return freshly loaded entity so the response includes the saved questions
-    return (await this.examRepository.findOne({ where: { id }, relations: ['course', 'teacher'] }))!;
+    return (await this.examRepository.findOne({
+      where: { id },
+      relations: ['course', 'teacher'],
+    }))!;
   }
 
   async updateAny(id: string, updateExamDto: any): Promise<Exam> {
     const exam = await this.examRepository.findOne({ where: { id } });
     if (!exam) throw new NotFoundException('Không tìm thấy bài thi');
 
-    const { questions: rawQuestions, ...metaFields } = updateExamDto as any;
+    const { questions: rawQuestions, ...metaFields } = updateExamDto;
 
     // Sanitize datetime fields - convert invalid values to null
     if ('availableFrom' in metaFields) {
@@ -291,7 +328,16 @@ export class ExamsService {
         normalizedQuestions.length > 0
           ? normalizedQuestions
           : this.buildQuestionsFallback(rawQuestions);
-      console.log('[updateAny] raw type:', typeof rawQuestions, 'normalized:', normalizedQuestions.length, 'final:', finalQuestions.length, 'exam:', id);
+      console.log(
+        '[updateAny] raw type:',
+        typeof rawQuestions,
+        'normalized:',
+        normalizedQuestions.length,
+        'final:',
+        finalQuestions.length,
+        'exam:',
+        id,
+      );
       await this.dataSource.query(
         `UPDATE learning.exams SET questions = $1::json WHERE id = $2`,
         [JSON.stringify(finalQuestions), id],
@@ -302,7 +348,10 @@ export class ExamsService {
       await this.examRepository.update(id, metaFields);
     }
     // Return freshly loaded entity so the response includes the saved questions
-    return (await this.examRepository.findOne({ where: { id }, relations: ['course', 'teacher'] }))!;
+    return (await this.examRepository.findOne({
+      where: { id },
+      relations: ['course', 'teacher'],
+    }))!;
   }
 
   async delete(id: string, teacherId: string): Promise<void> {
@@ -332,7 +381,7 @@ export class ExamsService {
         'Chỉ có thể gửi duyệt bài thi nháp hoặc đã bị từ chối',
       );
     }
-    
+
     // Read questions directly via raw SQL to bypass any ORM identity-map staleness
     const rawRows = await this.dataSource.query(
       `SELECT questions FROM learning.exams WHERE id = $1`,
@@ -340,15 +389,27 @@ export class ExamsService {
     );
     const questionsRaw = rawRows?.[0]?.questions ?? null;
     const questionsArray = this.coerceQuestionsArray(questionsRaw);
-    console.log('[submitForApproval] exam:', id, 'questionsArray.length:', questionsArray.length, 'sample:', questionsArray.slice(0, 1));
+    console.log(
+      '[submitForApproval] exam:',
+      id,
+      'questionsArray.length:',
+      questionsArray.length,
+      'sample:',
+      questionsArray.slice(0, 1),
+    );
 
-    const hasQuestions = questionsArray.length > 0 && questionsArray.some((q: any) => {
-      if (!q || typeof q !== 'object') return false;
-      const text = String(q.question || q.text || q.content || '').trim();
-      const hasOptions = Array.isArray(q.options) && q.options.some((o: any) => String(o || '').trim().length > 0);
-      const hasAnswer = String(q.correctAnswer || q.answer || '').trim().length > 0;
-      return text.length > 0 || hasOptions || hasAnswer;
-    });
+    const hasQuestions =
+      questionsArray.length > 0 &&
+      questionsArray.some((q: any) => {
+        if (!q || typeof q !== 'object') return false;
+        const text = String(q.question || q.text || q.content || '').trim();
+        const hasOptions =
+          Array.isArray(q.options) &&
+          q.options.some((o: any) => String(o || '').trim().length > 0);
+        const hasAnswer =
+          String(q.correctAnswer || q.answer || '').trim().length > 0;
+        return text.length > 0 || hasOptions || hasAnswer;
+      });
 
     if (!hasQuestions) {
       throw new BadRequestException('Bài thi phải có ít nhất 1 câu hỏi');
@@ -382,7 +443,7 @@ export class ExamsService {
    * Fetch all exams from the exam bank for admin management.
    * This returns only regular exams created by teachers (exam bank).
    * INTENTIONALLY EXCLUDES extracted exams for students (see ExtractedExamsService).
-   * 
+   *
    * Extracted exams are student-specific practice exams created for learning purposes
    * and are not managed by admins through this endpoint.
    */
@@ -649,17 +710,27 @@ export class ExamsService {
   private normalizeQuestionsPayload(rawQuestions: any): any[] {
     const questionsArray = this.coerceQuestionsArray(rawQuestions);
 
-    console.log('[normalizeQuestionsPayload] Processing', questionsArray.length, 'raw questions');
+    console.log(
+      '[normalizeQuestionsPayload] Processing',
+      questionsArray.length,
+      'raw questions',
+    );
     const normalized = questionsArray
       .map((raw, index) => {
         const result = this.normalizeSingleQuestion(raw, index);
-        console.log(`[normalizeQuestionsPayload] Question ${index}: ${result ? 'kept' : 'filtered'}`);
+        console.log(
+          `[normalizeQuestionsPayload] Question ${index}: ${result ? 'kept' : 'filtered'}`,
+        );
         return result;
       })
       .filter((item) => item !== null);
 
-    console.log('[normalizeQuestionsPayload] After normalize:', normalized.length, 'questions');
-    return normalized as any[];
+    console.log(
+      '[normalizeQuestionsPayload] After normalize:',
+      normalized.length,
+      'questions',
+    );
+    return normalized;
   }
 
   private validateAvailabilityWindow(
@@ -688,7 +759,11 @@ export class ExamsService {
     const questionsArray = this.coerceQuestionsArray(rawQuestions);
 
     if (questionsArray.length === 0) {
-      console.log('[hasAnyQuestionContent] Not array or empty:', Array.isArray(questionsArray), questionsArray?.length);
+      console.log(
+        '[hasAnyQuestionContent] Not array or empty:',
+        Array.isArray(questionsArray),
+        questionsArray?.length,
+      );
       return false;
     }
 
@@ -704,7 +779,13 @@ export class ExamsService {
     };
 
     const result = questionsArray.some((question) => hasContent(question));
-    console.log('[hasAnyQuestionContent] result:', result, 'for', questionsArray.length, 'questions');
+    console.log(
+      '[hasAnyQuestionContent] result:',
+      result,
+      'for',
+      questionsArray.length,
+      'questions',
+    );
     return result;
   }
 
@@ -715,7 +796,10 @@ export class ExamsService {
       try {
         data = JSON.parse(data);
       } catch (e) {
-        console.log('[coerceQuestionsArray] Failed to parse string questions:', e?.message || e);
+        console.log(
+          '[coerceQuestionsArray] Failed to parse string questions:',
+          e?.message || e,
+        );
         return [];
       }
     }
@@ -734,7 +818,7 @@ export class ExamsService {
     if (numericKeys.length > 0) {
       return numericKeys
         .sort((a, b) => Number(a) - Number(b))
-        .map((k) => (data as any)[k]);
+        .map((k) => data[k]);
     }
 
     // Handle single-question object shape
@@ -773,36 +857,36 @@ export class ExamsService {
       .map((item, idx) => {
         if (item && typeof item === 'object' && !Array.isArray(item)) {
           const question =
-            toText((item as any).question) ||
-            toText((item as any).text) ||
-            toText((item as any).content) ||
-            toText((item as any).prompt) ||
-            toText((item as any).stem);
+            toText(item.question) ||
+            toText(item.text) ||
+            toText(item.content) ||
+            toText(item.prompt) ||
+            toText(item.stem);
 
-          const options = Array.isArray((item as any).options)
-            ? (item as any).options.map((opt: any) => toText(opt)).filter(Boolean)
-            : Array.isArray((item as any).answers)
-              ? (item as any).answers.map((opt: any) => toText(opt)).filter(Boolean)
+          const options = Array.isArray(item.options)
+            ? item.options.map((opt: any) => toText(opt)).filter(Boolean)
+            : Array.isArray(item.answers)
+              ? item.answers.map((opt: any) => toText(opt)).filter(Boolean)
               : [];
 
           const answer =
-            toText((item as any).correctAnswer) ||
-            toText((item as any).answer) ||
-            toText((item as any).correct);
+            toText(item.correctAnswer) ||
+            toText(item.answer) ||
+            toText(item.correct);
 
           if (!question && options.length === 0 && !answer) return null;
 
           return {
-            id: toText((item as any).id) || `${idx + 1}`,
+            id: toText(item.id) || `${idx + 1}`,
             type:
-              toText((item as any).type) ||
+              toText(item.type) ||
               (options.length >= 2 ? 'multiple_choice' : 'fill_in'),
             question,
-            image: toText((item as any).image) || undefined,
+            image: toText(item.image) || undefined,
             options,
             correctAnswer: answer,
-            points: Number((item as any).points) > 0 ? Number((item as any).points) : 1,
-            explanation: toText((item as any).explanation),
+            points: Number(item.points) > 0 ? Number(item.points) : 1,
+            explanation: toText(item.explanation),
           };
         }
 
@@ -907,8 +991,8 @@ export class ExamsService {
       return value
         .trim()
         .replace(/^[-*+•]\s*/, '')
-        .replace(/^\"+|\"+$/g, '')
-        .replace(/^\“+|\”+$/g, '')
+        .replace(/^"+|"+$/g, '')
+        .replace(/^“+|”+$/g, '')
         .trim();
     };
 
@@ -916,7 +1000,10 @@ export class ExamsService {
       return options.map((item) => cleanOptionText(item)).filter(Boolean);
     };
 
-    const mapAnswerToOption = (answer: any, options: string[]): string | string[] => {
+    const mapAnswerToOption = (
+      answer: any,
+      options: string[],
+    ): string | string[] => {
       const mapSingle = (value: any): string => {
         const token = String(value || '').trim();
         if (!token) return '';
@@ -929,7 +1016,8 @@ export class ExamsService {
 
         const numeric = Number.parseInt(token, 10);
         if (!Number.isNaN(numeric)) {
-          if (numeric >= 1 && numeric <= options.length) return options[numeric - 1];
+          if (numeric >= 1 && numeric <= options.length)
+            return options[numeric - 1];
           if (numeric >= 0 && numeric < options.length) return options[numeric];
         }
 
@@ -946,10 +1034,9 @@ export class ExamsService {
       return mapSingle(answer);
     };
 
-    const normalizeType = (value: any):
-      | 'multiple_choice'
-      | 'true_false'
-      | 'fill_in' => {
+    const normalizeType = (
+      value: any,
+    ): 'multiple_choice' | 'true_false' | 'fill_in' => {
       const normalized = String(value || 'multiple_choice')
         .toLowerCase()
         .trim();
@@ -975,7 +1062,8 @@ export class ExamsService {
       const options = cells.slice(1, 7).filter(Boolean);
       const rawAnswer = cells[7] || cells[cells.length - 1] || '';
       const pointValue = Number(cells[8]);
-      const points = Number.isFinite(pointValue) && pointValue > 0 ? pointValue : 1;
+      const points =
+        Number.isFinite(pointValue) && pointValue > 0 ? pointValue : 1;
       const explanation = cells[9] || '';
 
       if (options.length >= 2) {
@@ -1037,12 +1125,16 @@ export class ExamsService {
     }
 
     if (Array.isArray(questionData)) {
-      console.log(`[normalizeSingleQuestion] index=${index}, input is array, calling parseFromArray`);
+      console.log(
+        `[normalizeSingleQuestion] index=${index}, input is array, calling parseFromArray`,
+      );
       return parseFromArray(questionData);
     }
 
     if (!questionData || typeof questionData !== 'object') {
-      console.log(`[normalizeSingleQuestion] index=${index}, input is not object/array, returning NULL`);
+      console.log(
+        `[normalizeSingleQuestion] index=${index}, input is not object/array, returning NULL`,
+      );
       return null;
     }
 
@@ -1058,7 +1150,9 @@ export class ExamsService {
 
     // Nếu có bất kỳ text nào, vẫn giữ lại câu hỏi (không trả về null)
     if (!question) {
-      console.log(`[normalizeSingleQuestion] index=${index}, no question text found, checking options...`);
+      console.log(
+        `[normalizeSingleQuestion] index=${index}, no question text found, checking options...`,
+      );
       const options = Array.isArray(questionData.options)
         ? questionData.options
             .map((option) => optionToText(option))
@@ -1069,21 +1163,20 @@ export class ExamsService {
               .filter(Boolean)
           : [];
       const answerValue =
-        questionData.correctAnswer ?? questionData.answer ?? questionData.correct ?? '';
+        questionData.correctAnswer ??
+        questionData.answer ??
+        questionData.correct ??
+        '';
       const explanation =
         asString(questionData.explanation) || asString(questionData.explain);
 
-      if (
-        options.length > 0 ||
-        asString(answerValue) ||
-        image ||
-        explanation
-      ) {
+      if (options.length > 0 || asString(answerValue) || image || explanation) {
         console.log(
           `[normalizeSingleQuestion] index=${index}, keeping partial question with preserved content`,
         );
         const normalizedOptions = normalizeOptions(options);
-        const fallbackType = normalizedOptions.length >= 2 ? 'multiple_choice' : 'fill_in';
+        const fallbackType =
+          normalizedOptions.length >= 2 ? 'multiple_choice' : 'fill_in';
         return {
           ...questionData,
           id: asString(questionData.id) || `${index + 1}`,
@@ -1100,7 +1193,9 @@ export class ExamsService {
         };
       }
       // Nếu không có text và không có option, trả về null
-      console.log(`[normalizeSingleQuestion] index=${index}, no question text and no options, returning NULL`);
+      console.log(
+        `[normalizeSingleQuestion] index=${index}, no question text and no options, returning NULL`,
+      );
       return null;
     }
 
@@ -1113,8 +1208,10 @@ export class ExamsService {
             .map((option) => optionToText(option))
             .filter(Boolean)
         : [];
-    
-    console.log(`[normalizeSingleQuestion] index=${index}, type=${questionData.type}, question="${question.substring(0, 30)}...", options.length=${options.length}`);
+
+    console.log(
+      `[normalizeSingleQuestion] index=${index}, type=${questionData.type}, question="${question.substring(0, 30)}...", options.length=${options.length}`,
+    );
 
     let effectiveQuestion = question;
     let effectiveOptions = options;
@@ -1129,7 +1226,7 @@ export class ExamsService {
         const stem = lines[0];
         const inferredOptions = lines
           .slice(1)
-          .map((line) => cleanOptionText(line.replace(/^[A-F][\.)]\s*/i, '')))
+          .map((line) => cleanOptionText(line.replace(/^[A-F][.)]\s*/i, '')))
           .filter(Boolean);
 
         if (inferredOptions.length >= 2) {
@@ -1143,12 +1240,16 @@ export class ExamsService {
     const pointsValue = Number(
       questionData.points ?? questionData.score ?? questionData.mark,
     );
-    const points = Number.isFinite(pointsValue) && pointsValue > 0 ? pointsValue : 1;
+    const points =
+      Number.isFinite(pointsValue) && pointsValue > 0 ? pointsValue : 1;
     const explanation =
       asString(questionData.explanation) || asString(questionData.explain);
 
     const correctAnswer =
-      questionData.correctAnswer ?? questionData.answer ?? questionData.correct ?? '';
+      questionData.correctAnswer ??
+      questionData.answer ??
+      questionData.correct ??
+      '';
 
     const normalizedType = effectiveOptions.length >= 2 ? type : 'fill_in';
     const finalOptions =
@@ -1177,9 +1278,12 @@ export class ExamsService {
       points,
       explanation,
     };
-    
-    console.log(`[normalizeSingleQuestion] index=${index}, question="${effectiveQuestion.substring(0, 50)}", type=${normalizedType}, options=${finalOptions.length}, returning=`, normalized ? 'object' : 'null');
-    
+
+    console.log(
+      `[normalizeSingleQuestion] index=${index}, question="${effectiveQuestion.substring(0, 50)}", type=${normalizedType}, options=${finalOptions.length}, returning=`,
+      normalized ? 'object' : 'null',
+    );
+
     return normalized;
   }
 }

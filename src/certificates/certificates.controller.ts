@@ -174,7 +174,9 @@ export class CertificatesController {
   }
 
   @Get('number/:certificateNumber')
-  findByCertificateNumber(@Param('certificateNumber') certificateNumber: string) {
+  findByCertificateNumber(
+    @Param('certificateNumber') certificateNumber: string,
+  ) {
     return this.certificatesService.findByCertificateNumber(certificateNumber);
   }
 

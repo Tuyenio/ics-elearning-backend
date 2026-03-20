@@ -13,7 +13,7 @@ export class FixPasswordHashingService {
 
   async fixUnhashedPasswords() {
     console.log('🔍 Scanning for unhashed passwords...');
-    
+
     const allUsers = await this.usersRepository.find();
     let fixedCount = 0;
 
@@ -21,16 +21,16 @@ export class FixPasswordHashingService {
       // Check if password looks like it's already hashed (bcrypt hashes start with $2a$, $2b$, or $2y$)
       if (!user.password.startsWith('$2')) {
         console.log(`⚠️  Found unhashed password for user: ${user.email}`);
-        
+
         // Hash the password
         const hashedPassword = await bcrypt.hash(user.password, 12);
-        
+
         // Update in database directly to bypass the @BeforeInsert hook
         await this.usersRepository.update(
           { id: user.id },
-          { password: hashedPassword }
+          { password: hashedPassword },
         );
-        
+
         fixedCount++;
         console.log(`✅ Fixed password for: ${user.email}`);
       }
@@ -48,7 +48,9 @@ export class FixPasswordHashingService {
     }
 
     const isHashed = user.password.startsWith('$2');
-    console.log(`✅ User ${email}: Password is ${isHashed ? 'HASHED' : 'NOT HASHED'}`);
+    console.log(
+      `✅ User ${email}: Password is ${isHashed ? 'HASHED' : 'NOT HASHED'}`,
+    );
     return isHashed;
   }
 }

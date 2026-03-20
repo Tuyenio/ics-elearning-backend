@@ -112,7 +112,8 @@ export class PaymentsService {
       paymentMethod:
         createPaymentDto.paymentMethod || PaymentMethod.BANK_TRANSFER,
       paymentGatewayId: createPaymentDto.paymentGatewayId,
-      status: finalAmount === 0 ? PaymentStatus.COMPLETED : PaymentStatus.PENDING,
+      status:
+        finalAmount === 0 ? PaymentStatus.COMPLETED : PaymentStatus.PENDING,
       ...(finalAmount === 0 ? { paidAt: new Date() } : {}),
       metadata: {
         ...(createPaymentDto.metadata || {}),

@@ -50,14 +50,20 @@ export class InstructorSubscriptionsController {
   @Post('teacher/payment-methods')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.TEACHER)
-  createTeacherPaymentMethod(@GetUser() user: User, @Body() body: Record<string, any>) {
+  createTeacherPaymentMethod(
+    @GetUser() user: User,
+    @Body() body: Record<string, any>,
+  ) {
     return this.service.createTeacherPaymentMethod(user.id, body);
   }
 
   @Patch('teacher/payment-methods/:id/default')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.TEACHER)
-  setDefaultTeacherPaymentMethod(@GetUser() user: User, @Param('id') id: string) {
+  setDefaultTeacherPaymentMethod(
+    @GetUser() user: User,
+    @Param('id') id: string,
+  ) {
     return this.service.setDefaultTeacherPaymentMethod(user.id, id);
   }
 
@@ -71,7 +77,10 @@ export class InstructorSubscriptionsController {
   @Post('teacher/checkout/:transactionId/confirm')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.TEACHER)
-  confirmCheckout(@GetUser() user: User, @Param('transactionId') transactionId: string) {
+  confirmCheckout(
+    @GetUser() user: User,
+    @Param('transactionId') transactionId: string,
+  ) {
     return this.service.confirmCheckout(user.id, transactionId);
   }
 

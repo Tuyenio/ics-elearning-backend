@@ -1,10 +1,11 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-argument */
 import {
   Injectable,
   NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull } from 'typeorm';
+import { Repository } from 'typeorm';
 import * as XLSX from 'xlsx';
 import { Note } from './entities/note.entity';
 import { CreateNoteDto } from './dto/create-note.dto';
@@ -113,8 +114,9 @@ export class NotesService {
             : 'Lịch học',
       note.content
         ? note.content.substring(0, 100)
-        : `${note.items?.length || 0} mục` ||
-          `${note.schedule?.length || 0} lịch`,
+        : note.items?.length
+          ? `${note.items.length} mục`
+          : `${note.schedule?.length || 0} lịch`,
       note.course?.title || '-',
       note.lesson?.title || '-',
       new Date(note.createdAt).toLocaleDateString('vi-VN'),

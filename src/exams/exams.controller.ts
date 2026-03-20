@@ -51,11 +51,7 @@ export class ExamsController {
   @Patch(':id')
   @UseGuards(RolesGuard)
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
-  update(
-    @Param('id') id: string,
-    @Body() updateExamDto: any,
-    @Request() req,
-  ) {
+  update(@Param('id') id: string, @Body() updateExamDto: any, @Request() req) {
     if (req.user.role === UserRole.ADMIN) {
       return this.examsService.updateAny(id, updateExamDto);
     }

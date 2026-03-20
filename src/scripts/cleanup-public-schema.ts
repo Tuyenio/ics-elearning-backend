@@ -1,7 +1,7 @@
 /**
  * Script chạy 1 lần: Xóa tất cả bảng còn lại trong schema public
  * (trừ bảng migrations của TypeORM)
- * 
+ *
  * Chạy: npx ts-node -r tsconfig-paths/register src/scripts/cleanup-public-schema.ts
  */
 import { DataSource } from 'typeorm';
@@ -33,7 +33,7 @@ async function cleanupPublicSchema() {
        JOIN pg_namespace n ON t.typnamespace = n.oid
        WHERE t.typtype = 'e'
          AND n.nspname = 'public'
-       ORDER BY t.typname`
+       ORDER BY t.typname`,
     );
 
     // Lấy danh sách bảng trong public schema, bỏ qua bảng migrations
@@ -42,18 +42,22 @@ async function cleanupPublicSchema() {
        FROM pg_tables
        WHERE schemaname = 'public'
          AND tablename != 'migrations'
-       ORDER BY tablename`
+       ORDER BY tablename`,
     );
 
     const tables: string[] = tablesRes.map((r: any) => r.tablename);
     const enums: string[] = enumsRes.map((r: any) => r.typname);
 
-    console.log(`📊 Tìm thấy ${tables.length} bảng cần xóa trong schema public:`);
-    tables.forEach(t => console.log(`   - ${t}`));
+    console.log(
+      `📊 Tìm thấy ${tables.length} bảng cần xóa trong schema public:`,
+    );
+    tables.forEach((t) => console.log(`   - ${t}`));
     console.log('');
 
-    console.log(`📋 Tìm thấy ${enums.length} enum type cần xóa trong schema public:`);
-    enums.forEach(e => console.log(`   - ${e}`));
+    console.log(
+      `📋 Tìm thấy ${enums.length} enum type cần xóa trong schema public:`,
+    );
+    enums.forEach((e) => console.log(`   - ${e}`));
     console.log('');
 
     // Xóa tất cả bảng (CASCADE để xóa cả FK constraints)
@@ -78,17 +82,21 @@ async function cleanupPublicSchema() {
 
     // Kiểm tra lại sau khi xóa
     const remaining = await qr.query(
-      `SELECT tablename FROM pg_tables WHERE schemaname = 'public'`
+      `SELECT tablename FROM pg_tables WHERE schemaname = 'public'`,
     );
     const remainingEnums = await qr.query(
       `SELECT t.typname FROM pg_type t
        JOIN pg_namespace n ON t.typnamespace = n.oid
-       WHERE t.typtype = 'e' AND n.nspname = 'public'`
+       WHERE t.typtype = 'e' AND n.nspname = 'public'`,
     );
 
     console.log(`✅ Schema public còn lại:`);
-    console.log(`   - Bảng: ${remaining.map((r: any) => r.tablename).join(', ') || '(trống)'}`);
-    console.log(`   - Enum: ${remainingEnums.map((r: any) => r.typname).join(', ') || '(trống)'}`);
+    console.log(
+      `   - Bảng: ${remaining.map((r: any) => r.tablename).join(', ') || '(trống)'}`,
+    );
+    console.log(
+      `   - Enum: ${remainingEnums.map((r: any) => r.typname).join(', ') || '(trống)'}`,
+    );
     console.log('\n🎉 Dọn dẹp schema public hoàn tất!');
   } finally {
     await qr.release();

@@ -19,7 +19,9 @@ async function dropDatabase() {
       WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
     `);
     for (const t of tables) {
-      await dataSource.query(`DROP TABLE IF EXISTS "public"."${t.table_name}" CASCADE`);
+      await dataSource.query(
+        `DROP TABLE IF EXISTS "public"."${t.table_name}" CASCADE`,
+      );
     }
 
     // Drop all enum types that may exist in public schema
@@ -29,7 +31,9 @@ async function dropDatabase() {
       WHERE n.nspname = 'public' AND t.typtype = 'e'
     `);
     for (const e of enums) {
-      await dataSource.query(`DROP TYPE IF EXISTS "public"."${e.typname}" CASCADE`);
+      await dataSource.query(
+        `DROP TYPE IF EXISTS "public"."${e.typname}" CASCADE`,
+      );
     }
 
     // Drop all sequences in public schema
@@ -38,7 +42,9 @@ async function dropDatabase() {
       WHERE sequence_schema = 'public'
     `);
     for (const s of sequences) {
-      await dataSource.query(`DROP SEQUENCE IF EXISTS "public"."${s.sequence_name}" CASCADE`);
+      await dataSource.query(
+        `DROP SEQUENCE IF EXISTS "public"."${s.sequence_name}" CASCADE`,
+      );
     }
 
     console.log('✅ Database dropped successfully!');

@@ -75,7 +75,10 @@ export class LessonsService {
     const lesson = this.lessonRepository.create(createLessonDto);
     const saved = await this.lessonRepository.save(lesson);
 
-    if (Array.isArray(createLessonDto.resources) && createLessonDto.resources.length) {
+    if (
+      Array.isArray(createLessonDto.resources) &&
+      createLessonDto.resources.length
+    ) {
       const resourcesToSave = createLessonDto.resources
         .filter((item) => item && item.url)
         .map((item) => {
@@ -263,8 +266,8 @@ export class LessonsService {
     }
 
     lesson.isPublished = !lesson.isPublished;
-      const saved = await this.lessonRepository.save(lesson);
-      return this.formatLesson(saved);
+    const saved = await this.lessonRepository.save(lesson);
+    return this.formatLesson(saved);
   }
 
   async reorder(
