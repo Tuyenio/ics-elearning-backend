@@ -23,7 +23,7 @@ export class AuthService {
   async validateUser(email: string, password: string): Promise<any> {
     try {
       const user = await this.usersService.findByEmail(email);
-      
+
       if (!user) {
         this.logger.warn(`Login attempt with non-existent email: ${email}`);
         return null;
@@ -31,18 +31,24 @@ export class AuthService {
 
       // Check if password is properly hashed
       if (!user.password.startsWith('$2')) {
-        this.logger.error(`⚠️ WARNING: User ${email} has unhashed password in database!`);
+        this.logger.error(
+          `⚠️ WARNING: User ${email} has unhashed password in database!`,
+        );
         // Try to compare anyway, but it will likely fail
       }
 
       const passwordMatch = await bcrypt.compare(password, user.password);
-      
+
       if (passwordMatch) {
-        this.logger.log(`✅ Successful login for user: ${email} (role: ${user.role})`);
+        this.logger.log(
+          `✅ Successful login for user: ${email} (role: ${user.role})`,
+        );
         const { password, ...result } = user;
         return result;
       } else {
-        this.logger.warn(`❌ Failed login attempt for user: ${email} (wrong password)`);
+        this.logger.warn(
+          `❌ Failed login attempt for user: ${email} (wrong password)`,
+        );
         return null;
       }
     } catch (error) {
@@ -135,10 +141,10 @@ export class AuthService {
 
     const { password, emailVerificationToken, passwordResetToken, ...result } =
       user;
-    
+
     const message =
       'User registered successfully. Please check your email for verification.';
-    
+
     return {
       message,
       user: result,

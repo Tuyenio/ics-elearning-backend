@@ -309,27 +309,43 @@ export class QuizzesService {
   }
 
   private isAnswerCorrect(question: any, studentAnswer: any): boolean {
-    const normalizedType = String(question?.type || 'multiple-choice').toLowerCase();
+    const normalizedType = String(
+      question?.type || 'multiple-choice',
+    ).toLowerCase();
     const primaryCorrect = this.toInt(question?.correctAnswer);
 
-    if (normalizedType === 'multiple-choice' || normalizedType === 'true-false') {
-      return primaryCorrect !== undefined && primaryCorrect === this.toInt(studentAnswer);
+    if (
+      normalizedType === 'multiple-choice' ||
+      normalizedType === 'true-false'
+    ) {
+      return (
+        primaryCorrect !== undefined &&
+        primaryCorrect === this.toInt(studentAnswer)
+      );
     }
 
     if (normalizedType === 'multiple-select') {
       const correctAnswers = Array.isArray(question?.correctAnswers)
         ? question.correctAnswers
             .map((value: any) => this.toInt(value))
-            .filter((value: number | undefined): value is number => value !== undefined)
+            .filter(
+              (value: number | undefined): value is number =>
+                value !== undefined,
+            )
         : [];
       const studentAnswers = Array.isArray(studentAnswer)
         ? studentAnswer
             .map((value: any) => this.toInt(value))
-            .filter((value: number | undefined): value is number => value !== undefined)
+            .filter(
+              (value: number | undefined): value is number =>
+                value !== undefined,
+            )
         : [];
       return (
         correctAnswers.length === studentAnswers.length &&
-        correctAnswers.every((answer: number) => studentAnswers.includes(answer))
+        correctAnswers.every((answer: number) =>
+          studentAnswers.includes(answer),
+        )
       );
     }
 
@@ -421,31 +437,41 @@ export class QuizzesService {
         const correctAnswers = Array.isArray(q.correctAnswers)
           ? q.correctAnswers
               .map((value: any) => this.toInt(value))
-              .filter((value: number | undefined): value is number => value !== undefined)
+              .filter(
+                (value: number | undefined): value is number =>
+                  value !== undefined,
+              )
           : [];
 
         return {
-          question: String(q.question ?? this.stripHtml(String(q.content ?? ''))),
+          question: String(
+            q.question ?? this.stripHtml(String(q.content ?? '')),
+          ),
           content: q.content,
           contentHtml: q.contentHtml ?? q.content_html,
           content_html: q.content_html ?? q.contentHtml,
           image: q.image,
           difficulty:
-            this.toInt(q.difficulty) !== undefined ? this.toInt(q.difficulty) : undefined,
+            this.toInt(q.difficulty) !== undefined
+              ? this.toInt(q.difficulty)
+              : undefined,
           topic: q.topic,
           learningObj: q.learningObj ?? q.learning_obj,
           globalObj: q.globalObj ?? q.global_obj,
           type: String(q.type || 'multiple-choice'),
           options,
           correctAnswer: correctAnswer,
-          correctAnswers: correctAnswers.length > 1 ? correctAnswers : undefined,
+          correctAnswers:
+            correctAnswers.length > 1 ? correctAnswers : undefined,
           answers: Array.isArray(q.answers) ? q.answers : undefined,
         } as QuestionBankItem;
       })
       .filter((item): item is QuestionBankItem => item !== null);
   }
 
-  private normalizeIncomingQuestions(rawQuestions: any[]): NormalizedIncomingQuestion[] {
+  private normalizeIncomingQuestions(
+    rawQuestions: any[],
+  ): NormalizedIncomingQuestion[] {
     if (!Array.isArray(rawQuestions)) return [];
 
     return rawQuestions
@@ -463,22 +489,37 @@ export class QuizzesService {
         if (!contentHtml) return null;
 
         const answersPayload = Array.isArray(question.answers)
-          ? question.answers.filter((answer: any) => answer && typeof answer === 'object')
+          ? question.answers.filter(
+              (answer: any) => answer && typeof answer === 'object',
+            )
           : [];
         const optionsFromPayload = Array.isArray(question.options)
-          ? question.options.map((opt: any) => String(opt ?? '').trim()).filter(Boolean)
+          ? question.options
+              .map((opt: any) => String(opt ?? '').trim())
+              .filter(Boolean)
           : [];
         const optionsFromAnswers = answersPayload
-          .map((answer: any) => String(answer.content ?? answer.text ?? '').trim())
+          .map((answer: any) =>
+            String(answer.content ?? answer.text ?? '').trim(),
+          )
           .filter(Boolean);
-        const options = optionsFromPayload.length > 0 ? optionsFromPayload : optionsFromAnswers;
+        const options =
+          optionsFromPayload.length > 0
+            ? optionsFromPayload
+            : optionsFromAnswers;
 
         let correctAnswerIndices: number[] = [];
         if (Array.isArray(question.correctAnswers)) {
           correctAnswerIndices = question.correctAnswers
             .map((value: any) => this.toInt(value))
-            .filter((value: number | undefined): value is number => value !== undefined);
-        } else if (question.correctAnswer !== undefined && question.correctAnswer !== null) {
+            .filter(
+              (value: number | undefined): value is number =>
+                value !== undefined,
+            );
+        } else if (
+          question.correctAnswer !== undefined &&
+          question.correctAnswer !== null
+        ) {
           const primary = this.toInt(question.correctAnswer);
           if (primary !== undefined) {
             correctAnswerIndices = [primary];
@@ -490,7 +531,9 @@ export class QuizzesService {
             .map((answer: any, index: number) => {
               const rawFlag = answer.is_correct ?? answer.isCorrect;
               const isCorrect =
-                rawFlag === true || rawFlag === 1 || String(rawFlag).toLowerCase() === 'true';
+                rawFlag === true ||
+                rawFlag === 1 ||
+                String(rawFlag).toLowerCase() === 'true';
               return isCorrect ? index : -1;
             })
             .filter((index: number) => index >= 0);
@@ -500,8 +543,13 @@ export class QuizzesService {
           correctAnswerIndices = [0];
         }
 
-        const inferredType = this.inferQuestionType(options, correctAnswerIndices);
-        const declaredType = String(question.type || '').trim().toLowerCase();
+        const inferredType = this.inferQuestionType(
+          options,
+          correctAnswerIndices,
+        );
+        const declaredType = String(question.type || '')
+          .trim()
+          .toLowerCase();
 
         return {
           contentHtml,
@@ -509,16 +557,20 @@ export class QuizzesService {
           difficulty: this.toInt(question.difficulty),
           topic: String(question.topic || '').trim() || undefined,
           learningObj:
-            String(question.learningObj ?? question.learning_obj ?? '').trim() || undefined,
+            String(
+              question.learningObj ?? question.learning_obj ?? '',
+            ).trim() || undefined,
           globalObj:
-            String(question.globalObj ?? question.global_obj ?? '').trim() || undefined,
+            String(question.globalObj ?? question.global_obj ?? '').trim() ||
+            undefined,
           type: declaredType || inferredType,
           options,
           correctAnswerIndices,
         } as NormalizedIncomingQuestion;
       })
       .filter(
-        (item): item is NormalizedIncomingQuestion => item !== null && item.contentHtml.length > 0,
+        (item): item is NormalizedIncomingQuestion =>
+          item !== null && item.contentHtml.length > 0,
       );
   }
 
@@ -569,7 +621,11 @@ export class QuizzesService {
       await this.quizQuestionRepository.delete({ quizId });
     }
 
-    for (let questionIndex = 0; questionIndex < normalizedQuestions.length; questionIndex += 1) {
+    for (
+      let questionIndex = 0;
+      questionIndex < normalizedQuestions.length;
+      questionIndex += 1
+    ) {
       const question = normalizedQuestions[questionIndex];
       const savedQuestion = await this.quizQuestionRepository.save(
         this.quizQuestionRepository.create({
@@ -601,7 +657,10 @@ export class QuizzesService {
     }
   }
 
-  private inferQuestionType(options: string[], correctIndexes: number[]): string {
+  private inferQuestionType(
+    options: string[],
+    correctIndexes: number[],
+  ): string {
     if (correctIndexes.length > 1) {
       return 'multiple-select';
     }
@@ -635,5 +694,4 @@ export class QuizzesService {
     }
     return undefined;
   }
-
 }

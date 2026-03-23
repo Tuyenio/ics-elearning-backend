@@ -115,7 +115,10 @@ export class CoursesController {
     } catch (error) {
       // Log validation errors in detail
       if (error && error.response && error.response.message) {
-        console.error('PATCH /courses/:id validation error:', error.response.message);
+        console.error(
+          'PATCH /courses/:id validation error:',
+          error.response.message,
+        );
       } else {
         console.error('PATCH /courses/:id error:', error);
       }

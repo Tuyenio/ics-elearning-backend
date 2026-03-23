@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import session from 'express-session';
+import { json, urlencoded } from 'express';
 import passport from 'passport';
 import { join } from 'path';
 import { AppModule } from './app.module';
@@ -40,15 +41,20 @@ async function bootstrap() {
       // In development mode, allow all localhost and private IP ranges
       if (nodeEnv === 'development') {
         // Allow localhost (port 3000, 3001, or any port)
-        if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) {
+        if (
+          origin.startsWith('http://localhost:') ||
+          origin.startsWith('http://127.0.0.1:')
+        ) {
           logger.debug(`Allowed localhost origin: ${origin}`);
           return callback(null, true);
         }
 
         // Allow private IP ranges (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
         if (
-          origin.match(/http:\/\/(192\.168|10|172\.(1[6-9]|2[0-9]|3[01]))\.\d+\.\d+:\d+/) ||
-          origin.match(/http:\/\/[a-zA-Z0-9\-]+\.local:\d+/) // Allow *.local (mDNS)
+          origin.match(
+            /http:\/\/(192\.168|10|172\.(1[6-9]|2[0-9]|3[01]))\.\d+\.\d+:\d+/,
+          ) ||
+          origin.match(/http:\/\/[a-zA-Z0-9-]+\.local:\d+/) // Allow *.local (mDNS)
         ) {
           logger.debug(`Allowed private IP origin: ${origin}`);
           return callback(null, true);
@@ -113,8 +119,8 @@ async function bootstrap() {
   app.use(passport.session());
 
   // Increase body size limit to handle quiz payloads with embedded images (base64 data URLs)
-  app.use(require('express').json({ limit: '50mb' }));
-  app.use(require('express').urlencoded({ limit: '50mb', extended: true }));
+  app.use(json({ limit: '50mb' }));
+  app.use(urlencoded({ limit: '50mb', extended: true }));
 
   // Global filters
   app.useGlobalFilters(new GlobalExceptionFilter());
@@ -133,7 +139,6 @@ async function bootstrap() {
       },
     }),
   );
-
 
   // Swagger documentation
   if (nodeEnv !== 'production') {
@@ -176,9 +181,7 @@ async function bootstrap() {
       },
     });
 
-    logger.log(
-      `📖 Swagger docs available at: http://localhost:${port}/docs`,
-    );
+    logger.log(`📖 Swagger docs available at: http://localhost:${port}/docs`);
   }
 
   await app.listen(port, '0.0.0.0');
@@ -188,4 +191,4 @@ async function bootstrap() {
   logger.log(`📝 Environment: ${nodeEnv}`);
   logger.log(`🌐 Frontend URL: ${frontendUrl}`);
 }
-bootstrap();
+void bootstrap();

@@ -43,9 +43,7 @@ export class TwoFactorAuthController {
    */
   @Get('enabled')
   async isEnabled(@Request() req) {
-    const isEnabled = await this.twoFactorAuthService.is2FAEnabled(
-      req.user.id,
-    );
+    const isEnabled = await this.twoFactorAuthService.is2FAEnabled(req.user.id);
     return { isEnabled };
   }
 
@@ -104,10 +102,7 @@ export class TwoFactorAuthController {
    */
   @Post('setup/sms')
   async setupSMS(@Request() req, @Body() body: SetupSMSDto) {
-    return this.twoFactorAuthService.setupSMS(
-      req.user.id,
-      body.phoneNumber,
-    );
+    return this.twoFactorAuthService.setupSMS(req.user.id, body.phoneNumber);
   }
 
   /**

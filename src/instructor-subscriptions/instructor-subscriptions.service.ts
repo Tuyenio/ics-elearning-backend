@@ -93,11 +93,16 @@ export class InstructorSubscriptionsService implements OnModuleInit {
       },
     ];
 
-    await this.planRepo.save(defaults.map((item) => this.planRepo.create(item)));
+    await this.planRepo.save(
+      defaults.map((item) => this.planRepo.create(item)),
+    );
   }
 
   async getPublicPlans() {
-    return this.planRepo.find({ where: { isActive: true }, order: { price: 'ASC' } });
+    return this.planRepo.find({
+      where: { isActive: true },
+      order: { price: 'ASC' },
+    });
   }
 
   async getAdminPlans() {
@@ -141,7 +146,9 @@ export class InstructorSubscriptionsService implements OnModuleInit {
     const plan = await this.planRepo.findOne({ where: { id } });
     if (!plan) throw new NotFoundException('Khong tim thay goi');
 
-    const usedCount = await this.subscriptionRepo.count({ where: { planId: id } });
+    const usedCount = await this.subscriptionRepo.count({
+      where: { planId: id },
+    });
     if (usedCount > 0) {
       plan.isActive = false;
       await this.planRepo.save(plan);
@@ -205,7 +212,9 @@ export class InstructorSubscriptionsService implements OnModuleInit {
       subscription.plan = freePlan;
     }
 
-    const coursesCreated = await this.courseRepo.count({ where: { teacherId } });
+    const coursesCreated = await this.courseRepo.count({
+      where: { teacherId },
+    });
     const courseLimit = subscription.plan?.courseLimit || 2;
     const remainingCourses = Math.max(0, courseLimit - coursesCreated);
 
@@ -228,7 +237,8 @@ export class InstructorSubscriptionsService implements OnModuleInit {
   }
 
   async enforceTeacherCourseLimit(teacherId: string) {
-    const { usage, subscription } = await this.getTeacherSubscription(teacherId);
+    const { usage, subscription } =
+      await this.getTeacherSubscription(teacherId);
     if (usage.coursesCreated >= usage.courseLimit) {
       throw new ForbiddenException(
         `Ban da dat gioi han ${usage.courseLimit} khoa hoc cua goi ${subscription.plan?.name || 'Free'}. Vui long nang cap de tao them khoa hoc.`,
@@ -248,11 +258,15 @@ export class InstructorSubscriptionsService implements OnModuleInit {
     return normalized || 'PLAN';
   }
 
-  private async applyPlanToTeacher(teacherId: string, plan: InstructorPlan, paymentMethod?: string | null) {
+  private async applyPlanToTeacher(
+    teacherId: string,
+    plan: InstructorPlan,
+    paymentMethod?: string | null,
+  ) {
     const now = new Date();
     const endDate = this.addMonths(now, plan.durationMonths || 1);
 
-    let subscription = await this.subscriptionRepo.findOne({
+    const subscription = await this.subscriptionRepo.findOne({
       where: { teacherId, status: InstructorSubscriptionStatus.ACTIVE },
       order: { createdAt: 'DESC' },
     });
@@ -287,13 +301,17 @@ export class InstructorSubscriptionsService implements OnModuleInit {
     });
   }
 
-  async createTeacherPaymentMethod(teacherId: string, dto: Record<string, any>) {
+  async createTeacherPaymentMethod(
+    teacherId: string,
+    dto: Record<string, any>,
+  ) {
     const type = dto.type as InstructorPaymentMethodType;
     if (!Object.values(InstructorPaymentMethodType).includes(type)) {
       throw new BadRequestException('Loai phuong thuc thanh toan khong hop le');
     }
 
-    const hasAnyMethod = (await this.paymentMethodRepo.count({ where: { teacherId } })) > 0;
+    const hasAnyMethod =
+      (await this.paymentMethodRepo.count({ where: { teacherId } })) > 0;
 
     if (type === InstructorPaymentMethodType.BANK_CARD) {
       const cardNumberRaw = String(dto.cardNumber || '').replace(/\s+/g, '');
@@ -313,7 +331,10 @@ export class InstructorSubscriptionsService implements OnModuleInit {
       const label = dto.label || `The ****${cardLast4}`;
 
       if (!hasAnyMethod || dto.isDefault === true) {
-        await this.paymentMethodRepo.update({ teacherId }, { isDefault: false });
+        await this.paymentMethodRepo.update(
+          { teacherId },
+          { isDefault: false },
+        );
       }
 
       return this.paymentMethodRepo.save(
@@ -345,7 +366,9 @@ export class InstructorSubscriptionsService implements OnModuleInit {
     }
 
     const walletPhone = dto.walletPhone ? String(dto.walletPhone).trim() : null;
-    const label = dto.label || `${provider.toUpperCase()}${walletPhone ? ` - ${walletPhone}` : ''}`;
+    const label =
+      dto.label ||
+      `${provider.toUpperCase()}${walletPhone ? ` - ${walletPhone}` : ''}`;
 
     return this.paymentMethodRepo.save(
       this.paymentMethodRepo.create({
@@ -367,7 +390,9 @@ export class InstructorSubscriptionsService implements OnModuleInit {
   }
 
   async setDefaultTeacherPaymentMethod(teacherId: string, id: string) {
-    const method = await this.paymentMethodRepo.findOne({ where: { id, teacherId } });
+    const method = await this.paymentMethodRepo.findOne({
+      where: { id, teacherId },
+    });
     if (!method) {
       throw new NotFoundException('Khong tim thay phuong thuc thanh toan');
     }
@@ -378,7 +403,9 @@ export class InstructorSubscriptionsService implements OnModuleInit {
   }
 
   async createCheckout(teacherId: string, dto: UpgradeSubscriptionDto) {
-    const plan = await this.planRepo.findOne({ where: { id: dto.planId, isActive: true } });
+    const plan = await this.planRepo.findOne({
+      where: { id: dto.planId, isActive: true },
+    });
     if (!plan) {
       throw new NotFoundException('Goi nang cap khong ton tai');
     }
@@ -389,7 +416,9 @@ export class InstructorSubscriptionsService implements OnModuleInit {
         where: { id: dto.paymentMethodId, teacherId },
       });
       if (!paymentMethod) {
-        throw new NotFoundException('Khong tim thay phuong thuc thanh toan da luu');
+        throw new NotFoundException(
+          'Khong tim thay phuong thuc thanh toan da luu',
+        );
       }
     }
 
@@ -446,14 +475,23 @@ export class InstructorSubscriptionsService implements OnModuleInit {
     }
 
     if (payment.status === InstructorSubscriptionPaymentStatus.PAID) {
-      return { payment, subscription: await this.getTeacherSubscription(teacherId) };
+      return {
+        payment,
+        subscription: await this.getTeacherSubscription(teacherId),
+      };
     }
 
     if (payment.status !== InstructorSubscriptionPaymentStatus.PENDING) {
-      throw new BadRequestException('Giao dich khong o trang thai cho xac nhan');
+      throw new BadRequestException(
+        'Giao dich khong o trang thai cho xac nhan',
+      );
     }
 
-    const subscription = await this.applyPlanToTeacher(teacherId, payment.plan, payment.paymentMethod);
+    const subscription = await this.applyPlanToTeacher(
+      teacherId,
+      payment.plan,
+      payment.paymentMethod,
+    );
 
     payment.status = InstructorSubscriptionPaymentStatus.PAID;
     payment.paidAt = new Date();
@@ -468,10 +506,16 @@ export class InstructorSubscriptionsService implements OnModuleInit {
   }
 
   async upgradePlan(teacherId: string, dto: UpgradeSubscriptionDto) {
-    const plan = await this.planRepo.findOne({ where: { id: dto.planId, isActive: true } });
+    const plan = await this.planRepo.findOne({
+      where: { id: dto.planId, isActive: true },
+    });
     if (!plan) throw new NotFoundException('Goi nang cap khong ton tai');
 
-    const subscription = await this.applyPlanToTeacher(teacherId, plan, dto.paymentMethod || null);
+    const subscription = await this.applyPlanToTeacher(
+      teacherId,
+      plan,
+      dto.paymentMethod || null,
+    );
 
     const payment = await this.paymentRepo.save(
       this.paymentRepo.create({
@@ -511,7 +555,10 @@ export class InstructorSubscriptionsService implements OnModuleInit {
     subscription.planId = freePlan.id;
     subscription.status = InstructorSubscriptionStatus.ACTIVE;
     subscription.startDate = new Date();
-    subscription.endDate = this.addMonths(new Date(), freePlan.durationMonths || 1);
+    subscription.endDate = this.addMonths(
+      new Date(),
+      freePlan.durationMonths || 1,
+    );
     subscription.cancelReason = reason || 'User cancelled';
 
     await this.subscriptionRepo.save(subscription);
@@ -527,7 +574,9 @@ export class InstructorSubscriptionsService implements OnModuleInit {
 
     return Promise.all(
       subs.map(async (sub) => {
-        const coursesCreated = await this.courseRepo.count({ where: { teacherId: sub.teacherId } });
+        const coursesCreated = await this.courseRepo.count({
+          where: { teacherId: sub.teacherId },
+        });
         return {
           ...sub,
           teacher: sub.teacher,
@@ -564,11 +613,16 @@ export class InstructorSubscriptionsService implements OnModuleInit {
   }
 
   async getRevenueDashboard() {
-    const payments = await this.paymentRepo.find({ where: { status: InstructorSubscriptionPaymentStatus.PAID } });
+    const payments = await this.paymentRepo.find({
+      where: { status: InstructorSubscriptionPaymentStatus.PAID },
+    });
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const totalRevenue = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const totalRevenue = payments.reduce(
+      (sum, p) => sum + Number(p.amount || 0),
+      0,
+    );
     const monthlyRevenue = payments
       .filter((p) => p.createdAt >= monthStart)
       .reduce((sum, p) => sum + Number(p.amount || 0), 0);
@@ -578,22 +632,34 @@ export class InstructorSubscriptionsService implements OnModuleInit {
       this.subscriptionRepo
         .createQueryBuilder('s')
         .leftJoin('s.plan', 'plan')
-        .where('s.status = :status', { status: InstructorSubscriptionStatus.ACTIVE })
+        .where('s.status = :status', {
+          status: InstructorSubscriptionStatus.ACTIVE,
+        })
         .andWhere('plan.price > 0')
         .getCount(),
     ]);
 
-    const conversionRate = activeUsers > 0 ? (paidUsers / activeUsers) * 100 : 0;
+    const conversionRate =
+      activeUsers > 0 ? (paidUsers / activeUsers) * 100 : 0;
 
-    const monthlyPoints = [] as Array<{ month: string; revenue: number; upgradedUsers: number }>;
+    const monthlyPoints = [] as Array<{
+      month: string;
+      revenue: number;
+      upgradedUsers: number;
+    }>;
     for (let i = 5; i >= 0; i--) {
       const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
-      const monthPayments = payments.filter((p) => p.createdAt >= start && p.createdAt < end);
+      const monthPayments = payments.filter(
+        (p) => p.createdAt >= start && p.createdAt < end,
+      );
       const upgradedUsers = new Set(monthPayments.map((p) => p.teacherId)).size;
       monthlyPoints.push({
         month: `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`,
-        revenue: monthPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0),
+        revenue: monthPayments.reduce(
+          (sum, p) => sum + Number(p.amount || 0),
+          0,
+        ),
         upgradedUsers,
       });
     }

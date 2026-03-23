@@ -5,14 +5,14 @@ dotenv.config();
 
 /**
  * Seed script: imports data from the old public schema into the learning schema.
- * 
+ *
  * Usage:
  *   npx ts-node -r tsconfig-paths/register src/scripts/seed-learning-data.ts
- * 
+ *
  * Prerequisites:
  *   - Run `npm start` first to apply migrations (creates learning schema + tables)
  *   - Tables in learning schema should be empty
- * 
+ *
  * Generated on: 2026-02-27T02:42:10.919Z
  */
 
@@ -38,7 +38,7 @@ async function seedData() {
   try {
     // Set search_path for this session
     await qr.query('SET search_path TO learning, public');
-    
+
     // Disable FK checks during seeding
     await qr.query('SET session_replication_role = replica');
 

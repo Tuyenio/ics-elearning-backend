@@ -126,11 +126,13 @@ export class AssignmentsService {
     submissionId: string,
     score: number,
     feedback: string,
-    gradingDetails: Array<{
-      criterion: string;
-      selectedLevel: number;
-      points: number;
-    }> | undefined,
+    gradingDetails:
+      | Array<{
+          criterion: string;
+          selectedLevel: number;
+          points: number;
+        }>
+      | undefined,
     userId: string,
   ) {
     const submission = await this.submissionRepo.findOne({

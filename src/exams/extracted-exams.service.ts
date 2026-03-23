@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
@@ -12,7 +16,10 @@ import {
   ExtractedExamStatusDto,
   ExtractedExamTypeDto,
 } from './dto/create-extracted-exam.dto';
-import { Enrollment, EnrollmentStatus } from '../enrollments/entities/enrollment.entity';
+import {
+  Enrollment,
+  EnrollmentStatus,
+} from '../enrollments/entities/enrollment.entity';
 import { Course } from '../courses/entities/course.entity';
 import { UserRole } from '../users/entities/user.entity';
 import { ExtractedExamAttempt } from './entities/extracted-exam-attempt.entity';
@@ -54,12 +61,17 @@ export class ExtractedExamsService {
     return variants;
   }
 
-  private normalizeStatus(status?: ExtractedExamStatusDto): ExtractedExamStatus {
+  private normalizeStatus(
+    status?: ExtractedExamStatusDto,
+  ): ExtractedExamStatus {
     if (!status) return ExtractedExamStatus.APPROVED;
     const normalized = String(status).toLowerCase();
-    if (normalized === ExtractedExamStatus.DRAFT) return ExtractedExamStatus.DRAFT;
-    if (normalized === ExtractedExamStatus.PENDING) return ExtractedExamStatus.PENDING;
-    if (normalized === ExtractedExamStatus.REJECTED) return ExtractedExamStatus.REJECTED;
+    if (normalized === ExtractedExamStatus.DRAFT)
+      return ExtractedExamStatus.DRAFT;
+    if (normalized === ExtractedExamStatus.PENDING)
+      return ExtractedExamStatus.PENDING;
+    if (normalized === ExtractedExamStatus.REJECTED)
+      return ExtractedExamStatus.REJECTED;
     return ExtractedExamStatus.APPROVED;
   }
 
@@ -72,7 +84,10 @@ export class ExtractedExamsService {
   }
 
   private validateOfficial(dto: CreateExtractedExamDto) {
-    if (dto.type === ExtractedExamTypeDto.OFFICIAL && !dto.certificateTemplateId) {
+    if (
+      dto.type === ExtractedExamTypeDto.OFFICIAL &&
+      !dto.certificateTemplateId
+    ) {
       throw new BadRequestException('Bài thi thật cần chọn chứng chỉ');
     }
   }
@@ -84,20 +99,21 @@ export class ExtractedExamsService {
       throw new BadRequestException('Cần ít nhất 1 câu hỏi');
     }
 
-    const course = await this.courseRepo.findOne({ where: { id: dto.courseId } });
+    const course = await this.courseRepo.findOne({
+      where: { id: dto.courseId },
+    });
     if (!course) {
       throw new NotFoundException('Không tìm thấy khóa học');
     }
     if (role !== UserRole.ADMIN && course.teacherId !== teacherId) {
-      throw new BadRequestException('Bạn chỉ được tạo đề thi từ khóa học của chính mình');
+      throw new BadRequestException(
+        'Bạn chỉ được tạo đề thi từ khóa học của chính mình',
+      );
     }
 
     // Normalize datetime strings to Date to satisfy entity typing
     const availableFrom = dto.availableFrom ? new Date(dto.availableFrom) : undefined;
     const availableUntil = dto.availableUntil ? new Date(dto.availableUntil) : undefined;
-
-    const variantCount = Math.max(1, Number(dto.variantCount) || 1);
-    const variants = variantCount > 1 ? this.generateVariants(normalizedQuestions, variantCount) : [];
 
     const payload: Partial<ExtractedExam> = {
       ...dto,
@@ -145,7 +161,9 @@ export class ExtractedExamsService {
   }
 
   async findOne(id: string, teacherId: string) {
-    const exam = await this.extractedExamRepo.findOne({ where: { id, teacherId } });
+    const exam = await this.extractedExamRepo.findOne({
+      where: { id, teacherId },
+    });
     if (!exam) throw new NotFoundException('Không tìm thấy đề thi');
     return exam;
   }
@@ -156,14 +174,22 @@ export class ExtractedExamsService {
     role: UserRole,
     dto: Partial<CreateExtractedExamDto>,
   ) {
-    const exam = await this.extractedExamRepo.findOne({ where: { id, teacherId } });
+    const exam = await this.extractedExamRepo.findOne({
+      where: { id, teacherId },
+    });
     if (!exam) throw new NotFoundException('Không tìm thấy đề thi');
 
-    if (dto.type === ExtractedExamTypeDto.OFFICIAL && !dto.certificateTemplateId && !exam.certificateTemplateId) {
+    if (
+      dto.type === ExtractedExamTypeDto.OFFICIAL &&
+      !dto.certificateTemplateId &&
+      !exam.certificateTemplateId
+    ) {
       throw new BadRequestException('Bài thi thật cần chọn chứng chỉ');
     }
 
-    const nextStatus = dto.status ? this.normalizeStatus(dto.status) : undefined;
+    const nextStatus = dto.status
+      ? this.normalizeStatus(dto.status)
+      : undefined;
     const nextType = dto.type ? this.normalizeType(dto.type) : undefined;
     const nextQuestions = dto.questions
       ? this.normalizeQuestionsPayload(dto.questions)
@@ -174,12 +200,16 @@ export class ExtractedExamsService {
     }
 
     if (dto.courseId && dto.courseId !== exam.courseId) {
-      const targetCourse = await this.courseRepo.findOne({ where: { id: dto.courseId } });
+      const targetCourse = await this.courseRepo.findOne({
+        where: { id: dto.courseId },
+      });
       if (!targetCourse) {
         throw new NotFoundException('Không tìm thấy khóa học');
       }
       if (role !== UserRole.ADMIN && targetCourse.teacherId !== teacherId) {
-        throw new BadRequestException('Bạn chỉ được gán đề thi vào khóa học của chính mình');
+        throw new BadRequestException(
+          'Bạn chỉ được gán đề thi vào khóa học của chính mình',
+        );
       }
     }
 
@@ -211,7 +241,9 @@ export class ExtractedExamsService {
   }
 
   async remove(id: string, teacherId: string) {
-    const exam = await this.extractedExamRepo.findOne({ where: { id, teacherId } });
+    const exam = await this.extractedExamRepo.findOne({
+      where: { id, teacherId },
+    });
     if (!exam) throw new NotFoundException('Không tìm thấy đề thi');
     await this.extractedExamRepo.delete(id);
     return { success: true };
@@ -260,12 +292,16 @@ export class ExtractedExamsService {
         enrollment.status,
       )
     ) {
-      throw new BadRequestException('Bạn chưa đăng ký khóa học của bài thi này');
+      throw new BadRequestException(
+        'Bạn chưa đăng ký khóa học của bài thi này',
+      );
     }
 
     const now = new Date();
     if (exam.availableFrom && now < new Date(exam.availableFrom)) {
-      throw new BadRequestException('Chưa đến thời gian mở bài thi, vui lòng quay lại sau');
+      throw new BadRequestException(
+        'Chưa đến thời gian mở bài thi, vui lòng quay lại sau',
+      );
     }
 
     if (exam.availableUntil && now > new Date(exam.availableUntil)) {
@@ -487,7 +523,9 @@ export class ExtractedExamsService {
     }
 
     if (typeof correctAnswer === 'string' && typeof userAnswer === 'string') {
-      return correctAnswer.toLowerCase().trim() === userAnswer.toLowerCase().trim();
+      return (
+        correctAnswer.toLowerCase().trim() === userAnswer.toLowerCase().trim()
+      );
     }
 
     return false;

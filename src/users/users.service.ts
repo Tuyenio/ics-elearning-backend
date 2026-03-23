@@ -261,7 +261,10 @@ export class UsersService {
     );
   }
 
-  async updateEmailVerificationStatus(id: string, verified: boolean): Promise<void> {
+  async updateEmailVerificationStatus(
+    id: string,
+    verified: boolean,
+  ): Promise<void> {
     await this.usersRepository.update(
       { id },
       {

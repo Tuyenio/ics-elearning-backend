@@ -117,7 +117,8 @@ const COUPON1_ID = 'af000000-0000-0000-0000-000000000001';
 const COUPON2_ID = 'af000000-0000-0000-0000-000000000002';
 
 // Password hash for "12345678@Ab" with bcrypt salt=12
-const PASSWORD_HASH = '$2b$12$kSEz7E8I/f.UmlyZkvMvreXzw8cnUlr9AyXLTyFF8xyxQHh2EkSli';
+const PASSWORD_HASH =
+  '$2b$12$kSEz7E8I/f.UmlyZkvMvreXzw8cnUlr9AyXLTyFF8xyxQHh2EkSli';
 
 const NOW = '2026-03-05T00:00:00.000Z';
 
@@ -173,7 +174,9 @@ async function seedFreshData() {
       await qr.query(`DELETE FROM "learning"."${table}"`);
     }
     // Reset sequence cho system_settings
-    await qr.query(`SELECT setval(pg_get_serial_sequence('"learning"."system_settings"', 'id'), 1, false)`);
+    await qr.query(
+      `SELECT setval(pg_get_serial_sequence('"learning"."system_settings"', 'id'), 1, false)`,
+    );
     console.log('✅ Đã xoá sạch toàn bộ dữ liệu\n');
 
     // ===============================
@@ -234,7 +237,9 @@ async function seedFreshData() {
         (20,'site_description','Nền tảng học trực tuyến hàng đầu Việt Nam',null),
         (21,'maintenance_mode','false',null)
     `);
-    await qr.query(`SELECT setval(pg_get_serial_sequence('"learning"."system_settings"', 'id'), 22, false)`);
+    await qr.query(
+      `SELECT setval(pg_get_serial_sequence('"learning"."system_settings"', 'id'), 22, false)`,
+    );
     console.log('✅ Đã tạo 21 cài đặt hệ thống\n');
 
     // ===============================
@@ -381,18 +386,103 @@ async function seedFreshData() {
     // ===============================
     console.log('❓ Đang tạo quiz...');
     const quiz1Questions = JSON.stringify([
-      { id: 1, question: 'Next.js 14 sử dụng router nào mặc định?', options: ['Pages Router', 'App Router', 'Express Router', 'React Router'], correctAnswer: 1, points: 10 },
-      { id: 2, question: 'Server Component có thể sử dụng useState không?', options: ['Có', 'Không', 'Tùy trường hợp', 'Chỉ khi dùng use client'], correctAnswer: 1, points: 10 },
-      { id: 3, question: 'Đâu là cách fetch data phía server trong Next.js 14?', options: ['useEffect', 'fetch() trong Server Component', 'axios.get()', 'XMLHttpRequest'], correctAnswer: 1, points: 10 },
-      { id: 4, question: 'File nào dùng để định nghĩa layout trong App Router?', options: ['_app.tsx', 'layout.tsx', 'index.tsx', '_layout.tsx'], correctAnswer: 1, points: 10 },
-      { id: 5, question: 'Server Actions được đánh dấu bằng directive nào?', options: ['"use client"', '"use server"', '"use action"', '"use api"'], correctAnswer: 1, points: 10 }
+      {
+        id: 1,
+        question: 'Next.js 14 sử dụng router nào mặc định?',
+        options: [
+          'Pages Router',
+          'App Router',
+          'Express Router',
+          'React Router',
+        ],
+        correctAnswer: 1,
+        points: 10,
+      },
+      {
+        id: 2,
+        question: 'Server Component có thể sử dụng useState không?',
+        options: ['Có', 'Không', 'Tùy trường hợp', 'Chỉ khi dùng use client'],
+        correctAnswer: 1,
+        points: 10,
+      },
+      {
+        id: 3,
+        question: 'Đâu là cách fetch data phía server trong Next.js 14?',
+        options: [
+          'useEffect',
+          'fetch() trong Server Component',
+          'axios.get()',
+          'XMLHttpRequest',
+        ],
+        correctAnswer: 1,
+        points: 10,
+      },
+      {
+        id: 4,
+        question: 'File nào dùng để định nghĩa layout trong App Router?',
+        options: ['_app.tsx', 'layout.tsx', 'index.tsx', '_layout.tsx'],
+        correctAnswer: 1,
+        points: 10,
+      },
+      {
+        id: 5,
+        question: 'Server Actions được đánh dấu bằng directive nào?',
+        options: ['"use client"', '"use server"', '"use action"', '"use api"'],
+        correctAnswer: 1,
+        points: 10,
+      },
     ]);
     const quiz2Questions = JSON.stringify([
-      { id: 1, question: 'Thư viện nào dùng để xử lý mảng số liệu trong Python?', options: ['Pandas', 'NumPy', 'Matplotlib', 'Scikit-learn'], correctAnswer: 1, points: 10 },
-      { id: 2, question: 'Supervised Learning bao gồm loại nào?', options: ['Clustering', 'Regression và Classification', 'PCA', 'K-Means'], correctAnswer: 1, points: 10 },
-      { id: 3, question: 'Activation function phổ biến nhất trong hidden layer?', options: ['Sigmoid', 'ReLU', 'Softmax', 'Tanh'], correctAnswer: 1, points: 10 },
-      { id: 4, question: 'Overfitting xảy ra khi nào?', options: ['Model quá đơn giản', 'Model học quá kỹ trên training data', 'Data quá ít', 'Learning rate quá cao'], correctAnswer: 1, points: 10 },
-      { id: 5, question: 'Transfer Learning sử dụng gì?', options: ['Model mới hoàn toàn', 'Pre-trained model', 'Random weights', 'Manual features'], correctAnswer: 1, points: 10 }
+      {
+        id: 1,
+        question: 'Thư viện nào dùng để xử lý mảng số liệu trong Python?',
+        options: ['Pandas', 'NumPy', 'Matplotlib', 'Scikit-learn'],
+        correctAnswer: 1,
+        points: 10,
+      },
+      {
+        id: 2,
+        question: 'Supervised Learning bao gồm loại nào?',
+        options: [
+          'Clustering',
+          'Regression và Classification',
+          'PCA',
+          'K-Means',
+        ],
+        correctAnswer: 1,
+        points: 10,
+      },
+      {
+        id: 3,
+        question: 'Activation function phổ biến nhất trong hidden layer?',
+        options: ['Sigmoid', 'ReLU', 'Softmax', 'Tanh'],
+        correctAnswer: 1,
+        points: 10,
+      },
+      {
+        id: 4,
+        question: 'Overfitting xảy ra khi nào?',
+        options: [
+          'Model quá đơn giản',
+          'Model học quá kỹ trên training data',
+          'Data quá ít',
+          'Learning rate quá cao',
+        ],
+        correctAnswer: 1,
+        points: 10,
+      },
+      {
+        id: 5,
+        question: 'Transfer Learning sử dụng gì?',
+        options: [
+          'Model mới hoàn toàn',
+          'Pre-trained model',
+          'Random weights',
+          'Manual features',
+        ],
+        correctAnswer: 1,
+        points: 10,
+      },
     ]);
 
     await qr.query(`
@@ -419,23 +509,138 @@ async function seedFreshData() {
     // ===============================
     console.log('📝 Đang tạo bài thi...');
     const exam1Questions = JSON.stringify([
-      { id: 1, question: 'Next.js 14 App Router lưu route trong thư mục nào?', options: ['pages/', 'app/', 'routes/', 'src/'], correctAnswer: 1, points: 10 },
-      { id: 2, question: 'Cách tạo dynamic route trong App Router?', options: ['[id].tsx', '[id]/page.tsx', ':id/page.tsx', '{id}/page.tsx'], correctAnswer: 1, points: 10 },
-      { id: 3, question: 'Metadata API dùng để làm gì?', options: ['Quản lý state', 'SEO - title, description', 'Authentication', 'Database'], correctAnswer: 1, points: 10 },
-      { id: 4, question: 'next/image có lợi ích gì?', options: ['Chỉ hỗ trợ PNG', 'Tự động tối ưu hình ảnh', 'Tạo animation', 'Không có lợi ích'], correctAnswer: 1, points: 10 },
-      { id: 5, question: 'Middleware trong Next.js chạy ở đâu?', options: ['Client-side', 'Edge Runtime', 'Node.js server', 'Browser'], correctAnswer: 1, points: 10 },
-      { id: 6, question: 'Loading UI trong App Router dùng file nào?', options: ['_loading.tsx', 'loading.tsx', 'loader.tsx', 'spinner.tsx'], correctAnswer: 1, points: 10 },
-      { id: 7, question: 'Error boundary dùng file nào?', options: ['_error.tsx', 'error.tsx', 'catch.tsx', 'boundary.tsx'], correctAnswer: 1, points: 10 },
-      { id: 8, question: 'Parallel routes sử dụng ký hiệu gì?', options: ['(folder)', '@folder', '[folder]', '{folder}'], correctAnswer: 1, points: 10 },
-      { id: 9, question: 'Route Groups sử dụng ký hiệu gì?', options: ['@folder', '(folder)', '[folder]', '_folder'], correctAnswer: 1, points: 10 },
-      { id: 10, question: 'Revalidate data cache bằng cách nào?', options: ['revalidatePath()', 'clearCache()', 'refreshData()', 'resetCache()'], correctAnswer: 0, points: 10 }
+      {
+        id: 1,
+        question: 'Next.js 14 App Router lưu route trong thư mục nào?',
+        options: ['pages/', 'app/', 'routes/', 'src/'],
+        correctAnswer: 1,
+        points: 10,
+      },
+      {
+        id: 2,
+        question: 'Cách tạo dynamic route trong App Router?',
+        options: ['[id].tsx', '[id]/page.tsx', ':id/page.tsx', '{id}/page.tsx'],
+        correctAnswer: 1,
+        points: 10,
+      },
+      {
+        id: 3,
+        question: 'Metadata API dùng để làm gì?',
+        options: [
+          'Quản lý state',
+          'SEO - title, description',
+          'Authentication',
+          'Database',
+        ],
+        correctAnswer: 1,
+        points: 10,
+      },
+      {
+        id: 4,
+        question: 'next/image có lợi ích gì?',
+        options: [
+          'Chỉ hỗ trợ PNG',
+          'Tự động tối ưu hình ảnh',
+          'Tạo animation',
+          'Không có lợi ích',
+        ],
+        correctAnswer: 1,
+        points: 10,
+      },
+      {
+        id: 5,
+        question: 'Middleware trong Next.js chạy ở đâu?',
+        options: ['Client-side', 'Edge Runtime', 'Node.js server', 'Browser'],
+        correctAnswer: 1,
+        points: 10,
+      },
+      {
+        id: 6,
+        question: 'Loading UI trong App Router dùng file nào?',
+        options: ['_loading.tsx', 'loading.tsx', 'loader.tsx', 'spinner.tsx'],
+        correctAnswer: 1,
+        points: 10,
+      },
+      {
+        id: 7,
+        question: 'Error boundary dùng file nào?',
+        options: ['_error.tsx', 'error.tsx', 'catch.tsx', 'boundary.tsx'],
+        correctAnswer: 1,
+        points: 10,
+      },
+      {
+        id: 8,
+        question: 'Parallel routes sử dụng ký hiệu gì?',
+        options: ['(folder)', '@folder', '[folder]', '{folder}'],
+        correctAnswer: 1,
+        points: 10,
+      },
+      {
+        id: 9,
+        question: 'Route Groups sử dụng ký hiệu gì?',
+        options: ['@folder', '(folder)', '[folder]', '_folder'],
+        correctAnswer: 1,
+        points: 10,
+      },
+      {
+        id: 10,
+        question: 'Revalidate data cache bằng cách nào?',
+        options: [
+          'revalidatePath()',
+          'clearCache()',
+          'refreshData()',
+          'resetCache()',
+        ],
+        correctAnswer: 0,
+        points: 10,
+      },
     ]);
     const exam2Questions = JSON.stringify([
-      { id: 1, question: 'DataFrame là cấu trúc dữ liệu của thư viện nào?', options: ['NumPy', 'Pandas', 'SciPy', 'Matplotlib'], correctAnswer: 1, points: 10 },
-      { id: 2, question: 'Random Forest thuộc loại thuật toán nào?', options: ['Unsupervised', 'Ensemble', 'Deep Learning', 'Reinforcement'], correctAnswer: 1, points: 10 },
-      { id: 3, question: 'Gradient Descent dùng để làm gì?', options: ['Tạo dữ liệu', 'Tối ưu loss function', 'Trực quan hóa', 'Phân cụm'], correctAnswer: 1, points: 10 },
-      { id: 4, question: 'Epoch trong training là gì?', options: ['Một batch', 'Một lần duyệt toàn bộ dataset', 'Một iteration', 'Một prediction'], correctAnswer: 1, points: 10 },
-      { id: 5, question: 'CNN phù hợp nhất cho loại dữ liệu nào?', options: ['Văn bản', 'Hình ảnh', 'Âm thanh', 'Bảng'], correctAnswer: 1, points: 10 }
+      {
+        id: 1,
+        question: 'DataFrame là cấu trúc dữ liệu của thư viện nào?',
+        options: ['NumPy', 'Pandas', 'SciPy', 'Matplotlib'],
+        correctAnswer: 1,
+        points: 10,
+      },
+      {
+        id: 2,
+        question: 'Random Forest thuộc loại thuật toán nào?',
+        options: ['Unsupervised', 'Ensemble', 'Deep Learning', 'Reinforcement'],
+        correctAnswer: 1,
+        points: 10,
+      },
+      {
+        id: 3,
+        question: 'Gradient Descent dùng để làm gì?',
+        options: [
+          'Tạo dữ liệu',
+          'Tối ưu loss function',
+          'Trực quan hóa',
+          'Phân cụm',
+        ],
+        correctAnswer: 1,
+        points: 10,
+      },
+      {
+        id: 4,
+        question: 'Epoch trong training là gì?',
+        options: [
+          'Một batch',
+          'Một lần duyệt toàn bộ dataset',
+          'Một iteration',
+          'Một prediction',
+        ],
+        correctAnswer: 1,
+        points: 10,
+      },
+      {
+        id: 5,
+        question: 'CNN phù hợp nhất cho loại dữ liệu nào?',
+        options: ['Văn bản', 'Hình ảnh', 'Âm thanh', 'Bảng'],
+        correctAnswer: 1,
+        points: 10,
+      },
     ]);
 
     await qr.query(`
@@ -491,9 +696,15 @@ async function seedFreshData() {
         (gen_random_uuid(),'${STUDENT_ID}','${COURSE3_ID}',5,'Tuyệt vời! Sau khóa học mình đã publish được app đầu tiên lên Google Play. Rất cảm ơn giảng viên!',true,8,true,'Chúc mừng bạn! Rất vui khi biết bạn đã publish app thành công!','2026-03-02T10:00:00.000Z','2026-03-01T17:00:00.000Z','2026-03-02T10:00:00.000Z')
     `);
     // Cập nhật rating và reviewCount cho courses
-    await qr.query(`UPDATE "learning"."courses" SET "rating"=5.0, "reviewCount"=1 WHERE "id"='${COURSE1_ID}'`);
-    await qr.query(`UPDATE "learning"."courses" SET "rating"=4.0, "reviewCount"=1 WHERE "id"='${COURSE2_ID}'`);
-    await qr.query(`UPDATE "learning"."courses" SET "rating"=5.0, "reviewCount"=1 WHERE "id"='${COURSE3_ID}'`);
+    await qr.query(
+      `UPDATE "learning"."courses" SET "rating"=5.0, "reviewCount"=1 WHERE "id"='${COURSE1_ID}'`,
+    );
+    await qr.query(
+      `UPDATE "learning"."courses" SET "rating"=4.0, "reviewCount"=1 WHERE "id"='${COURSE2_ID}'`,
+    );
+    await qr.query(
+      `UPDATE "learning"."courses" SET "rating"=5.0, "reviewCount"=1 WHERE "id"='${COURSE3_ID}'`,
+    );
     console.log('✅ Đã tạo 3 đánh giá\n');
 
     // ===============================
@@ -680,7 +891,6 @@ async function seedFreshData() {
     console.log('  - Giáo viên: nguyenngoctuyen11032003@gmail.com');
     console.log('  - Học viên:  nntuyen1132003@gmail.com');
     console.log('========================================');
-
   } catch (error) {
     console.error('❌ Lỗi:', error);
     // Đảm bảo bật lại FK check
