@@ -415,6 +415,9 @@ export class ExtractedExamsService {
       }),
     );
 
+    const totalAttempts = Number(exam.maxAttempts || 0);
+    const remainingAttempts = Math.max(0, totalAttempts - (attemptCount + 1));
+
     return {
       id: savedAttempt.id,
       score,
@@ -422,6 +425,8 @@ export class ExtractedExamsService {
       earnedPoints,
       totalPoints,
       certificateId: null,
+      totalAttempts,
+      remainingAttempts,
       exam: {
         id: exam.id,
         title: exam.title,
