@@ -51,7 +51,9 @@ export class ExtractedExamsController {
   @Roles(UserRole.STUDENT)
   submitForStudent(
     @Param('id') id: string,
-    @Body() body: { answers: Array<{ questionId: string; answer: string | string[] }> },
+    @Body() body: {
+      variantCode: number | undefined; answers: Array<{ questionId: string; answer: string | string[] }> 
+},
     @Request() req,
   ) {
     return this.service.submitForStudent(id, req.user.id, body?.answers || [], body?.variantCode);

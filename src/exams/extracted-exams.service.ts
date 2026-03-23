@@ -115,6 +115,9 @@ export class ExtractedExamsService {
     const availableFrom = dto.availableFrom ? new Date(dto.availableFrom) : undefined;
     const availableUntil = dto.availableUntil ? new Date(dto.availableUntil) : undefined;
 
+    const variantCount = Math.max(1, Number(dto.variantCount) || 1);
+    const variants = variantCount > 1 ? this.generateVariants(normalizedQuestions, variantCount) : [];
+
     const payload: Partial<ExtractedExam> = {
       ...dto,
       questions: normalizedQuestions,
