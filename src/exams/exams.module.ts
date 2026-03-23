@@ -7,6 +7,7 @@ import { ExamAttempt } from './entities/exam-attempt.entity';
 import { CertificatesModule } from '../certificates/certificates.module';
 import { Enrollment } from '../enrollments/entities/enrollment.entity';
 import { ExtractedExam } from './entities/extracted-exam.entity';
+import { ExtractedExamAttempt } from './entities/extracted-exam-attempt.entity';
 import { ExtractedExamsService } from './extracted-exams.service';
 import { ExtractedExamsController } from './extracted-exams.controller';
 import { Course } from '../courses/entities/course.entity';
@@ -18,6 +19,7 @@ import { Course } from '../courses/entities/course.entity';
       ExamAttempt,
       Enrollment,
       ExtractedExam,
+      ExtractedExamAttempt,
       Course,
     ]),
     forwardRef(() => CertificatesModule),

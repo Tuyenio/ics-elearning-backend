@@ -23,6 +23,11 @@ export enum ExtractedExamStatus {
   REJECTED = 'rejected',
 }
 
+export interface ExamVariant {
+  code: number;
+  questions: ExtractedExamQuestion[];
+}
+
 export interface ExtractedExamQuestion {
   id: string;
   type: 'multiple_choice' | 'true_false' | 'fill_in';
@@ -93,6 +98,12 @@ export class ExtractedExam {
 
   @Column({ type: 'uuid', nullable: true })
   certificateTemplateId: string | null;
+
+  @Column({ type: 'int', default: 1 })
+  variantCount: number;
+
+  @Column({ type: 'jsonb', nullable: true })
+  variants: ExamVariant[] | null;
 
   @Column({ type: 'uuid', nullable: true })
   sourceExamId: string | null;

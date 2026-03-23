@@ -30,10 +30,10 @@ export class ExtractedExamsController {
   @Roles(UserRole.STUDENT)
   submitForStudent(
     @Param('id') id: string,
-    @Body() body: { answers: Array<{ questionId: string; answer: string | string[] }> },
+    @Body() body: { answers: Array<{ questionId: string; answer: string | string[] }>; variantCode?: number },
     @Request() req,
   ) {
-    return this.service.submitForStudent(id, req.user.id, body?.answers || []);
+    return this.service.submitForStudent(id, req.user.id, body?.answers || [], body?.variantCode);
   }
 
   @Get('my')
@@ -48,6 +48,24 @@ export class ExtractedExamsController {
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   create(@Body() dto: CreateExtractedExamDto, @Request() req) {
     return this.service.create(dto, req.user.id, req.user.role);
+  }
+
+  @Get(':id/attempts')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.TEACHER, UserRole.ADMIN)
+  getAttempts(@Param('id') id: string, @Request() req) {
+    return this.service.getAttemptsForTeacher(id, req.user.id, req.user.role);
+  }
+
+  @Get(':id/attempts/:attemptId')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.TEACHER, UserRole.ADMIN)
+  getAttemptDetail(
+    @Param('id') id: string,
+    @Param('attemptId') attemptId: string,
+    @Request() req,
+  ) {
+    return this.service.getAttemptDetailForTeacher(id, attemptId, req.user.id, req.user.role);
   }
 
   @Get(':id')

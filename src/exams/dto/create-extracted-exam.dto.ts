@@ -93,4 +93,10 @@ export class CreateExtractedExamDto {
   @IsUUID()
   @IsNotEmpty()
   courseId: string;
+
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  @IsOptional()
+  variantCount?: number;
 }
