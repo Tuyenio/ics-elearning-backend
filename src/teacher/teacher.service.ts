@@ -1,10 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { Course, CourseStatus } from '../courses/entities/course.entity';
 import { Enrollment } from '../enrollments/entities/enrollment.entity';
 import { Payment, PaymentStatus } from '../payments/entities/payment.entity';
 import { Review } from '../reviews/entities/review.entity';
+import { Assignment } from '../assignments/entities/assignment.entity';
+import { AssignmentSubmission, SubmissionStatus } from '../assignments/entities/assignment.entity';
 import { TeacherDashboardStats, EarningsData } from './dto/teacher-stats.dto';
 import { EnrollmentStatus } from '../enrollments/entities/enrollment.entity';
 
