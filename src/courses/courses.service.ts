@@ -10,6 +10,7 @@ import { Course, CourseStatus } from './entities/course.entity';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { User, UserRole } from '../users/entities/user.entity';
+import { EnrollmentStatus } from '../enrollments/entities/enrollment.entity';
 import {
   CourseFilters,
   FilterOption,
@@ -201,11 +202,38 @@ export class CoursesService {
   }
 
   async findByTeacher(teacherId: string): Promise<Course[]> {
-    return this.courseRepository.find({
+    const courses = await this.courseRepository.find({
       where: { teacherId },
       relations: ['category', 'lessons'],
       order: { createdAt: 'DESC' },
     });
+
+    if (courses.length === 0) {
+      return courses;
+    }
+
+    // Keep enrollmentCount in sync with actual enrollments to avoid stale values.
+    const courseIds = courses.map((course) => course.id);
+    const rows = await this.courseRepository
+      .createQueryBuilder('course')
+      .leftJoin('course.enrollments', 'enrollment')
+      .select('course.id', 'courseId')
+      .addSelect('COUNT(enrollment.id)', 'count')
+      .where('course.id IN (:...courseIds)', { courseIds })
+      .andWhere('enrollment.status IN (:...statuses)', {
+        statuses: [EnrollmentStatus.ACTIVE, EnrollmentStatus.COMPLETED],
+      })
+      .groupBy('course.id')
+      .getRawMany<{ courseId: string; count: string }>();
+
+    const countMap = new Map<string, number>(
+      rows.map((row) => [row.courseId, Number(row.count || 0)]),
+    );
+
+    return courses.map((course) => ({
+      ...course,
+      enrollmentCount: countMap.get(course.id) ?? 0,
+    }));
   }
 
   async findOne(id: string): Promise<Course> {

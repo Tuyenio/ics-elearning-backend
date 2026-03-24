@@ -236,6 +236,8 @@ export class PaymentsService {
         });
         const savedEnrollment = await manager.save(Enrollment, enrollment);
 
+        await manager.increment(Course, { id: payment.courseId }, 'enrollmentCount', 1);
+
         // Create lesson progress entries for all lessons in the course
         const lessons = await manager.find(Lesson, {
           where: { courseId: payment.courseId },
