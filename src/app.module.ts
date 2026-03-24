@@ -90,9 +90,12 @@ import { InstructorSubscriptionsModule } from './instructor-subscriptions/instru
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
-        const maxConnections = Number(configService.get('DB_POOL_MAX') ?? 5) || 5;
-        const idleTimeoutMillis = Number(configService.get('DB_IDLE_TIMEOUT_MS') ?? 10000) || 10000;
-        const connectionTimeoutMillis = Number(configService.get('DB_CONN_TIMEOUT_MS') ?? 5000) || 5000;
+        const maxConnections =
+          Number(configService.get('DB_POOL_MAX') ?? 5) || 5;
+        const idleTimeoutMillis =
+          Number(configService.get('DB_IDLE_TIMEOUT_MS') ?? 10000) || 10000;
+        const connectionTimeoutMillis =
+          Number(configService.get('DB_CONN_TIMEOUT_MS') ?? 5000) || 5000;
 
         return {
           type: 'postgres',
