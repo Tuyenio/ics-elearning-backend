@@ -5,6 +5,10 @@ import * as path from 'path';
 
 dotenv.config();
 
+const maxConnections = Number(process.env.DB_POOL_MAX ?? 5) || 5;
+const idleTimeoutMillis = Number(process.env.DB_IDLE_TIMEOUT_MS ?? 10000) || 10000;
+const connectionTimeoutMillis = Number(process.env.DB_CONN_TIMEOUT_MS ?? 5000) || 5000;
+
 export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
   url: process.env.DATABASE_URL,
@@ -19,6 +23,9 @@ export const dataSourceOptions: DataSourceOptions = {
       : false,
   extra: {
     options: '-c search_path=learning,public',
+    max: maxConnections,
+    idleTimeoutMillis,
+    connectionTimeoutMillis,
   },
 };
 

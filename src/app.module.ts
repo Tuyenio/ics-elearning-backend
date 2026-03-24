@@ -89,33 +89,40 @@ import { InstructorSubscriptionsModule } from './instructor-subscriptions/instru
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        url: configService.get('DATABASE_URL'),
-        entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        migrations: [join(__dirname, '..', 'migrations', '*{.ts,.js}')],
-        synchronize: false,
-        migrationsRun: true,
-        logging: configService.get('NODE_ENV') === 'development',
-        ssl:
-          configService.get('DATABASE_SSL') === 'true'
-            ? {
-                rejectUnauthorized: false,
-              }
-            : false,
-        extra: {
-          // Set search_path so that "learning" schema is resolved first, then "public"
-          // Safe even before "learning" schema exists (PG skips non-existent schemas)
-          options: '-c search_path=learning,public',
-          ...(configService.get('DATABASE_SSL') === 'true'
-            ? {
-                ssl: {
+      useFactory: (configService: ConfigService) => {
+        const maxConnections = Number(configService.get('DB_POOL_MAX') ?? 5) || 5;
+        const idleTimeoutMillis = Number(configService.get('DB_IDLE_TIMEOUT_MS') ?? 10000) || 10000;
+        const connectionTimeoutMillis = Number(configService.get('DB_CONN_TIMEOUT_MS') ?? 5000) || 5000;
+
+        return {
+          type: 'postgres',
+          url: configService.get('DATABASE_URL'),
+          entities: [__dirname + '/**/*.entity{.ts,.js}'],
+          migrations: [join(__dirname, '..', 'migrations', '*{.ts,.js}')],
+          synchronize: false,
+          migrationsRun: true,
+          logging: configService.get('NODE_ENV') === 'development',
+          ssl:
+            configService.get('DATABASE_SSL') === 'true'
+              ? {
                   rejectUnauthorized: false,
-                },
-              }
-            : {}),
-        },
-      }),
+                }
+              : false,
+          extra: {
+            options: '-c search_path=learning,public',
+            max: maxConnections, // limit pool to stay under Supabase cap
+            idleTimeoutMillis,
+            connectionTimeoutMillis,
+            ...(configService.get('DATABASE_SSL') === 'true'
+              ? {
+                  ssl: {
+                    rejectUnauthorized: false,
+                  },
+                }
+              : {}),
+          },
+        };
+      },
     }),
     AuthModule,
     UsersModule,
