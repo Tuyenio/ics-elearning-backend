@@ -5,7 +5,6 @@ import {
   UploadedFile,
   UseGuards,
   BadRequestException,
-  Request,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -14,8 +13,10 @@ import { UploadService } from './upload.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { GetUser } from '../auth/decorators/get-user.decorator';
 import { UserRole } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
+import type { AuthenticatedRequestUser } from '../common/types/authenticated-request';
 
 @Controller('upload')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -38,7 +39,7 @@ export class UploadController {
       }),
     }),
   )
-  async uploadImage(@UploadedFile() file: Express.Multer.File) {
+  uploadImage(@UploadedFile() file: Express.Multer.File) {
     this.uploadService.validateFile(file, 'image');
 
     const url = this.uploadService.generateFileUrl(file.filename, 'image');
@@ -65,7 +66,7 @@ export class UploadController {
       }),
     }),
   )
-  async uploadVideo(@UploadedFile() file: Express.Multer.File) {
+  uploadVideo(@UploadedFile() file: Express.Multer.File) {
     this.uploadService.validateFile(file, 'video');
 
     const url = this.uploadService.generateFileUrl(file.filename, 'video');
@@ -92,7 +93,7 @@ export class UploadController {
       }),
     }),
   )
-  async uploadDocument(@UploadedFile() file: Express.Multer.File) {
+  uploadDocument(@UploadedFile() file: Express.Multer.File) {
     this.uploadService.validateFile(file, 'document');
 
     const url = this.uploadService.generateFileUrl(file.filename, 'document');
@@ -133,7 +134,7 @@ export class UploadController {
   )
   async uploadAvatar(
     @UploadedFile() file: Express.Multer.File,
-    @Request() req: any,
+    @GetUser() user: AuthenticatedRequestUser,
   ) {
     if (!file) {
       throw new BadRequestException('Không có file được tải lên');
@@ -143,8 +144,7 @@ export class UploadController {
 
     const url = this.uploadService.generateFileUrl(file.filename, 'avatar');
 
-    // Update user's avatar URL in database (req.user.id contains the user ID from JWT)
-    await this.usersService.updateUserAvatar(req.user.id, url);
+    await this.usersService.updateUserAvatar(user.id, url);
 
     return {
       success: true,

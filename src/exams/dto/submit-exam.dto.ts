@@ -1,4 +1,14 @@
-import { IsNotEmpty, IsArray, IsObject, IsUUID } from 'class-validator';
+import { IsNotEmpty, IsArray, IsUUID, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+
+export class ExamAnswerDto {
+  @IsUUID()
+  @IsNotEmpty()
+  questionId: string;
+
+  @IsNotEmpty()
+  answer: string | string[];
+}
 
 export class SubmitExamDto {
   @IsUUID()
@@ -6,6 +16,7 @@ export class SubmitExamDto {
   attemptId: string;
 
   @IsArray()
-  @IsNotEmpty()
-  answers: Record<string, any>[];
+  @ValidateNested({ each: true })
+  @Type(() => ExamAnswerDto)
+  answers: ExamAnswerDto[];
 }

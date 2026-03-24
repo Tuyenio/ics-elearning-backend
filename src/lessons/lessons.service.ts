@@ -5,12 +5,20 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
-import { Lesson } from './entities/lesson.entity';
+import { Lesson, LessonResourceItem } from './entities/lesson.entity';
 import { CreateLessonDto } from './dto/create-lesson.dto';
 import { UpdateLessonDto } from './dto/update-lesson.dto';
 import { User, UserRole } from '../users/entities/user.entity';
 import { Course } from '../courses/entities/course.entity';
 import { Resource, ResourceType } from '../resources/entities/resource.entity';
+
+type ResourceInput = {
+  name?: unknown;
+  url?: unknown;
+  type?: unknown;
+};
+
+type MaxOrderRow = { max: number | string | null };
 
 @Injectable()
 export class LessonsService {
@@ -23,19 +31,57 @@ export class LessonsService {
     private readonly resourceRepository: Repository<Resource>,
   ) {}
 
+  private isResourceInput(item: unknown): item is ResourceInput {
+    return typeof item === 'object' && item !== null;
+  }
+
+  private toResourceType(value: unknown): ResourceType {
+    if (typeof value !== 'string') {
+      return ResourceType.DOCUMENT;
+    }
+
+    const normalized = value.trim().toLowerCase();
+    const isValidType = (Object.values(ResourceType) as string[]).includes(
+      normalized,
+    );
+
+    return isValidType ? (normalized as ResourceType) : ResourceType.DOCUMENT;
+  }
+
+  private normalizeResourceList(input: unknown): LessonResourceItem[] {
+    if (!input) return [];
+
+    const items =
+      typeof input === 'string'
+        ? (() => {
+            try {
+              return JSON.parse(input) as unknown;
+            } catch {
+              return [] as unknown[];
+            }
+          })()
+        : input;
+
+    if (!Array.isArray(items)) return [];
+
+    return items
+      .filter((item): item is ResourceInput => this.isResourceInput(item))
+      .map((item) => ({
+        name: typeof item.name === 'string' ? item.name : 'Tai lieu',
+        url: typeof item.url === 'string' ? item.url : '',
+        type: this.toResourceType(item.type),
+      }))
+      .filter((item) => !!item.url);
+  }
+
   // Helper to ensure resources is properly formatted
   private formatLesson(lesson: Lesson): Lesson {
-    if (lesson && lesson.resources && typeof lesson.resources === 'string') {
-      try {
-        lesson.resources = JSON.parse(lesson.resources);
-      } catch (e) {
-        lesson.resources = [];
-      }
-    }
+    const normalizedResources = this.normalizeResourceList(lesson.resources);
+    lesson.resources = [...normalizedResources];
     return lesson;
   }
 
-  private mapResourcesToLesson(resourceRows: Resource[]): Lesson['resources'] {
+  private mapResourcesToLesson(resourceRows: Resource[]): LessonResourceItem[] {
     return resourceRows.map((resource) => ({
       name: resource.title,
       url: resource.url,
@@ -67,36 +113,37 @@ export class LessonsService {
           courseId: createLessonDto.courseId,
         })
         .select('MAX(lesson.order)', 'max')
-        .getRawOne();
+        .getRawOne<MaxOrderRow>();
 
-      createLessonDto.order = (maxOrder?.max || 0) + 1;
+      const maxOrderValue =
+        typeof maxOrder?.max === 'number'
+          ? maxOrder.max
+          : Number(maxOrder?.max ?? 0);
+      createLessonDto.order =
+        (Number.isFinite(maxOrderValue) ? maxOrderValue : 0) + 1;
     }
 
     const lesson = this.lessonRepository.create(createLessonDto);
     const saved = await this.lessonRepository.save(lesson);
 
-    if (
-      Array.isArray(createLessonDto.resources) &&
-      createLessonDto.resources.length
-    ) {
-      const resourcesToSave = createLessonDto.resources
-        .filter((item) => item && item.url)
-        .map((item) => {
-          const type = item.type as ResourceType;
-          return this.resourceRepository.create({
-            title: item.name || 'Tai lieu',
-            type: type || ResourceType.DOCUMENT,
-            url: item.url,
-            courseId: saved.courseId,
-            lessonId: saved.id,
-            uploadedBy: user.id,
-            isPublic: false,
-          });
-        });
+    const normalizedResources = this.normalizeResourceList(
+      createLessonDto.resources,
+    );
 
-      if (resourcesToSave.length) {
-        await this.resourceRepository.save(resourcesToSave);
-      }
+    if (normalizedResources.length) {
+      const resourcesToSave = normalizedResources.map((item) =>
+        this.resourceRepository.create({
+          title: item.name || 'Tai lieu',
+          type: this.toResourceType(item.type),
+          url: item.url,
+          courseId: saved.courseId,
+          lessonId: saved.id,
+          uploadedBy: user.id,
+          isPublic: false,
+        }),
+      );
+
+      await this.resourceRepository.save(resourcesToSave);
     }
 
     return this.formatLesson(saved);
@@ -206,22 +253,21 @@ export class LessonsService {
 
     if (Array.isArray(resources)) {
       await this.resourceRepository.delete({ lessonId: id });
-      const resourcesToSave = resources
-        .filter((item) => item && item.url)
-        .map((item) => {
-          const type = item.type as ResourceType;
-          return this.resourceRepository.create({
+      const normalizedResources = this.normalizeResourceList(resources);
+
+      if (normalizedResources.length) {
+        const resourcesToSave = normalizedResources.map((item) =>
+          this.resourceRepository.create({
             title: item.name || 'Tai lieu',
-            type: type || ResourceType.DOCUMENT,
+            type: this.toResourceType(item.type),
             url: item.url,
             courseId: lesson.courseId,
             lessonId: lesson.id,
             uploadedBy: user.id,
             isPublic: false,
-          });
-        });
+          }),
+        );
 
-      if (resourcesToSave.length) {
         await this.resourceRepository.save(resourcesToSave);
       }
     }
@@ -302,16 +348,20 @@ export class LessonsService {
     });
 
     // Update order for each lesson
-    const updates = lessonIds.map((id, index) => {
-      const lesson = lessons.find((l) => l.id === id);
-      if (lesson) {
-        lesson.order = index + 1;
-        return this.lessonRepository.save(lesson);
-      }
-      return null;
-    });
+    const updates: Array<Promise<Lesson> | null> = lessonIds.map(
+      (id, index) => {
+        const lesson = lessons.find((l) => l.id === id);
+        if (lesson) {
+          lesson.order = index + 1;
+          return this.lessonRepository.save(lesson);
+        }
+        return null;
+      },
+    );
 
-    await Promise.all(updates.filter(Boolean));
+    await Promise.all(
+      updates.filter((item): item is Promise<Lesson> => item !== null),
+    );
 
     return this.findByCourse(courseId);
   }

@@ -13,6 +13,9 @@ import { ScheduleService } from './schedule.service';
 import { CreateScheduleDto } from './dto/create-schedule.dto';
 import { UpdateScheduleDto } from './dto/update-schedule.dto';
 
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : 'Unknown error';
+
 @Controller('schedule')
 export class ScheduleController {
   constructor(private readonly service: ScheduleService) {}
@@ -22,11 +25,11 @@ export class ScheduleController {
     try {
       const items = await this.service.findAll();
       return { success: true, data: items };
-    } catch (error) {
+    } catch (error: unknown) {
       throw new HttpException(
         {
           success: false,
-          message: error.message || 'Failed to fetch schedule',
+          message: getErrorMessage(error) || 'Failed to fetch schedule',
         },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
@@ -38,11 +41,11 @@ export class ScheduleController {
     try {
       const item = await this.service.create(dto);
       return { success: true, data: item };
-    } catch (error) {
+    } catch (error: unknown) {
       throw new HttpException(
         {
           success: false,
-          message: error.message || 'Failed to create schedule',
+          message: getErrorMessage(error) || 'Failed to create schedule',
         },
         HttpStatus.BAD_REQUEST,
       );
@@ -54,11 +57,11 @@ export class ScheduleController {
     try {
       const item = await this.service.update(id, dto);
       return { success: true, data: item };
-    } catch (error) {
+    } catch (error: unknown) {
       throw new HttpException(
         {
           success: false,
-          message: error.message || 'Failed to update schedule',
+          message: getErrorMessage(error) || 'Failed to update schedule',
         },
         HttpStatus.BAD_REQUEST,
       );
@@ -70,11 +73,11 @@ export class ScheduleController {
     try {
       const result = await this.service.remove(id);
       return { success: true, message: result.message };
-    } catch (error) {
+    } catch (error: unknown) {
       throw new HttpException(
         {
           success: false,
-          message: error.message || 'Failed to delete schedule',
+          message: getErrorMessage(error) || 'Failed to delete schedule',
         },
         HttpStatus.BAD_REQUEST,
       );

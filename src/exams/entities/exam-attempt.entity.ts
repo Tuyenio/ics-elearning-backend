@@ -24,6 +24,46 @@ export interface QuestionAnswer {
   earnedPoints?: number;
 }
 
+function toSafeText(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  return '';
+}
+
+function normalizeQuestionAnswers(value: unknown): QuestionAnswer[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const normalized: QuestionAnswer[] = value
+    .filter((item): item is Record<string, unknown> => {
+      return typeof item === 'object' && item !== null;
+    })
+    .map((item) => {
+      const rawAnswer = item.answer;
+      const normalizedAnswer = Array.isArray(rawAnswer)
+        ? rawAnswer.map((entry) => toSafeText(entry)).filter(Boolean)
+        : toSafeText(rawAnswer);
+
+      return {
+        questionId: toSafeText(item.questionId),
+        answer: normalizedAnswer,
+        isCorrect:
+          typeof item.isCorrect === 'boolean' ? item.isCorrect : undefined,
+        earnedPoints:
+          typeof item.earnedPoints === 'number' ? item.earnedPoints : undefined,
+      };
+    });
+
+  return normalized;
+}
+
+function serializeQuestionAnswers(value: unknown): QuestionAnswer[] {
+  return normalizeQuestionAnswers(value);
+}
+
 @Entity('exam_attempts', { schema: 'learning' })
 export class ExamAttempt {
   @PrimaryGeneratedColumn('uuid')
@@ -45,7 +85,20 @@ export class ExamAttempt {
   @Column()
   studentId: string;
 
-  @Column({ type: 'simple-json', nullable: true })
+  @Column({
+    type: 'simple-json',
+    nullable: true,
+    transformer: {
+      to: (value: unknown) => {
+        if (value === null || value === undefined) {
+          return null;
+        }
+        return serializeQuestionAnswers(value);
+      },
+      from: (value: unknown): QuestionAnswer[] =>
+        normalizeQuestionAnswers(value),
+    },
+  })
   answers: QuestionAnswer[];
 
   @Column({ type: 'float', default: 0 })

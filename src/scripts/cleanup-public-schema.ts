@@ -9,6 +9,30 @@ import * as dotenv from 'dotenv';
 
 dotenv.config();
 
+type PublicEnumRow = { typname: string };
+type PublicTableRow = { tablename: string };
+
+const readStringRows = <T extends string>(
+  rows: unknown,
+  key: T,
+): Array<Record<T, string>> => {
+  if (!Array.isArray(rows)) {
+    return [];
+  }
+
+  return rows
+    .filter(
+      (row): row is Record<string, unknown> =>
+        typeof row === 'object' && row !== null,
+    )
+    .map((row) => ({
+      [key]: typeof row[key] === 'string' ? row[key] : '',
+    })) as Array<Record<T, string>>;
+};
+
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
+
 const AppDataSource = new DataSource({
   type: 'postgres',
   url: process.env.DATABASE_URL,
@@ -27,7 +51,7 @@ async function cleanupPublicSchema() {
 
   try {
     // Lấy danh sách các enum type trong public schema
-    const enumsRes = await qr.query(
+    const enumsRes: unknown = await qr.query(
       `SELECT t.typname
        FROM pg_type t
        JOIN pg_namespace n ON t.typnamespace = n.oid
@@ -37,7 +61,7 @@ async function cleanupPublicSchema() {
     );
 
     // Lấy danh sách bảng trong public schema, bỏ qua bảng migrations
-    const tablesRes = await qr.query(
+    const tablesRes: unknown = await qr.query(
       `SELECT tablename
        FROM pg_tables
        WHERE schemaname = 'public'
@@ -45,8 +69,12 @@ async function cleanupPublicSchema() {
        ORDER BY tablename`,
     );
 
-    const tables: string[] = tablesRes.map((r: any) => r.tablename);
-    const enums: string[] = enumsRes.map((r: any) => r.typname);
+    const tables: string[] = readStringRows(tablesRes, 'tablename').map(
+      (r: PublicTableRow) => r.tablename,
+    );
+    const enums: string[] = readStringRows(enumsRes, 'typname').map(
+      (r: PublicEnumRow) => r.typname,
+    );
 
     console.log(
       `📊 Tìm thấy ${tables.length} bảng cần xóa trong schema public:`,
@@ -81,22 +109,25 @@ async function cleanupPublicSchema() {
     }
 
     // Kiểm tra lại sau khi xóa
-    const remaining = await qr.query(
+    const remaining: unknown = await qr.query(
       `SELECT tablename FROM pg_tables WHERE schemaname = 'public'`,
     );
-    const remainingEnums = await qr.query(
+    const remainingEnums: unknown = await qr.query(
       `SELECT t.typname FROM pg_type t
        JOIN pg_namespace n ON t.typnamespace = n.oid
        WHERE t.typtype = 'e' AND n.nspname = 'public'`,
     );
 
+    const remainingTables = readStringRows(remaining, 'tablename').map(
+      (r: PublicTableRow) => r.tablename,
+    );
+    const remainingEnumNames = readStringRows(remainingEnums, 'typname').map(
+      (r: PublicEnumRow) => r.typname,
+    );
+
     console.log(`✅ Schema public còn lại:`);
-    console.log(
-      `   - Bảng: ${remaining.map((r: any) => r.tablename).join(', ') || '(trống)'}`,
-    );
-    console.log(
-      `   - Enum: ${remainingEnums.map((r: any) => r.typname).join(', ') || '(trống)'}`,
-    );
+    console.log(`   - Bảng: ${remainingTables.join(', ') || '(trống)'}`);
+    console.log(`   - Enum: ${remainingEnumNames.join(', ') || '(trống)'}`);
     console.log('\n🎉 Dọn dẹp schema public hoàn tất!');
   } finally {
     await qr.release();
@@ -105,6 +136,6 @@ async function cleanupPublicSchema() {
 }
 
 cleanupPublicSchema().catch((err) => {
-  console.error('\n❌ Lỗi:', err.message);
+  console.error('\n❌ Lỗi:', getErrorMessage(err));
   process.exit(1);
 });

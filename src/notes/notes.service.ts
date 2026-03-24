@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-argument */
 import {
   Injectable,
   NotFoundException,
@@ -12,12 +11,69 @@ import { CreateNoteDto } from './dto/create-note.dto';
 import { UpdateNoteDto } from './dto/update-note.dto';
 import { User } from '../users/entities/user.entity';
 
+type StyledCell = XLSX.CellObject & { s?: Record<string, unknown> };
+
+const setCellStyle = (
+  worksheet: XLSX.WorkSheet,
+  cellRef: string,
+  style: Record<string, unknown>,
+): void => {
+  const current = worksheet[cellRef] as StyledCell | undefined;
+  if (!current) {
+    return;
+  }
+
+  current.s = style;
+  worksheet[cellRef] = current;
+};
+
+const setCellValueAndStyle = (
+  worksheet: XLSX.WorkSheet,
+  cellRef: string,
+  value: string | number,
+  style: Record<string, unknown>,
+): void => {
+  const cell =
+    (worksheet[cellRef] as StyledCell | undefined) ??
+    ({
+      t: typeof value === 'number' ? 'n' : 's',
+      v: value,
+    } as StyledCell);
+
+  cell.v = value;
+  cell.s = style;
+  worksheet[cellRef] = cell;
+};
+
+const writeWorkbookBuffer = (workbook: XLSX.WorkBook): Buffer => {
+  const output: unknown = XLSX.write(workbook, {
+    bookType: 'xlsx',
+    type: 'buffer',
+  });
+
+  if (Buffer.isBuffer(output)) {
+    return output;
+  }
+
+  if (output instanceof Uint8Array) {
+    return Buffer.from(output) as Buffer<ArrayBufferLike>;
+  }
+
+  return Buffer.from(String(output)) as Buffer<ArrayBufferLike>;
+};
+
 @Injectable()
 export class NotesService {
   constructor(
     @InjectRepository(Note)
     private readonly noteRepository: Repository<Note>,
   ) {}
+
+  private toExportRows(
+    rows: Array<(string | number | undefined)[]>,
+  ): string[][] {
+    return rows.map((row) => row.map((cell) => (cell ?? '').toString()));
+  }
 
   async create(createNoteDto: CreateNoteDto, student: User): Promise<Note> {
     if (!student?.id) {
@@ -162,25 +218,20 @@ export class NotesService {
     // Apply styling to banner (row 0)
     for (let c = 0; c <= 6; c++) {
       const cell = XLSX.utils.encode_cell({ r: 0, c });
-      worksheet[cell] = {
-        ...worksheet[cell],
-        s: {
-          font: { bold: true, size: 14, color: { rgb: 'FFFFFF' } },
-          fill: { fgColor: { rgb: '1F4788' } },
-          alignment: { horizontal: 'center', vertical: 'center' },
-        },
-      };
+      setCellStyle(worksheet, cell, {
+        font: { bold: true, size: 14, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: '1F4788' } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+      });
     }
 
     // Style row 1 (date info)
     for (let c = 0; c <= 6; c++) {
       const cell = XLSX.utils.encode_cell({ r: 1, c });
-      if (worksheet[cell]) {
-        worksheet[cell].s = {
-          font: { size: 10, italic: true },
-          fill: { fgColor: { rgb: 'E7E6E6' } },
-        };
-      }
+      setCellStyle(worksheet, cell, {
+        font: { size: 10, italic: true },
+        fill: { fgColor: { rgb: 'E7E6E6' } },
+      });
     }
 
     // Style header row (row 3)
@@ -195,20 +246,17 @@ export class NotesService {
     ];
     for (let c = 0; c < headers.length; c++) {
       const cell = XLSX.utils.encode_cell({ r: 3, c });
-      worksheet[cell] = {
-        v: headers[c],
-        s: {
-          font: { bold: true, color: { rgb: 'FFFFFF' } },
-          fill: { fgColor: { rgb: '4472C4' } },
-          alignment: { horizontal: 'center', vertical: 'center' },
-          border: {
-            top: { style: 'thin', color: { rgb: '000000' } },
-            bottom: { style: 'thin', color: { rgb: '000000' } },
-            left: { style: 'thin', color: { rgb: '000000' } },
-            right: { style: 'thin', color: { rgb: '000000' } },
-          },
+      setCellValueAndStyle(worksheet, cell, headers[c], {
+        font: { bold: true, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: '4472C4' } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+        border: {
+          top: { style: 'thin', color: { rgb: '000000' } },
+          bottom: { style: 'thin', color: { rgb: '000000' } },
+          left: { style: 'thin', color: { rgb: '000000' } },
+          right: { style: 'thin', color: { rgb: '000000' } },
         },
-      };
+      });
     }
 
     // Style data rows with alternating colors
@@ -219,23 +267,20 @@ export class NotesService {
           r: 4 + rowIndex,
           c: colIndex,
         });
-        worksheet[cellRef] = {
-          v: cell,
-          s: {
-            fill: { fgColor: { rgb: isEvenRow ? 'F2F2F2' : 'FFFFFF' } },
-            alignment: {
-              horizontal: 'left',
-              vertical: 'center',
-              wrapText: true,
-            },
-            border: {
-              top: { style: 'thin', color: { rgb: 'CCCCCC' } },
-              bottom: { style: 'thin', color: { rgb: 'CCCCCC' } },
-              left: { style: 'thin', color: { rgb: 'CCCCCC' } },
-              right: { style: 'thin', color: { rgb: 'CCCCCC' } },
-            },
+        setCellValueAndStyle(worksheet, cellRef, cell, {
+          fill: { fgColor: { rgb: isEvenRow ? 'F2F2F2' : 'FFFFFF' } },
+          alignment: {
+            horizontal: 'left',
+            vertical: 'center',
+            wrapText: true,
           },
-        };
+          border: {
+            top: { style: 'thin', color: { rgb: 'CCCCCC' } },
+            bottom: { style: 'thin', color: { rgb: 'CCCCCC' } },
+            left: { style: 'thin', color: { rgb: 'CCCCCC' } },
+            right: { style: 'thin', color: { rgb: 'CCCCCC' } },
+          },
+        });
       });
     });
 
@@ -244,7 +289,7 @@ export class NotesService {
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Ghi chú');
 
     // Generate Excel file as buffer
-    return XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer' });
+    return writeWorkbookBuffer(workbook);
   }
 
   async exportSingleNoteToExcel(
@@ -258,7 +303,7 @@ export class NotesService {
     }
 
     let noteTypeLabel = '';
-    let data: any[] = [];
+    let data: Array<Array<string | number>> = [];
     let headers: string[] = [];
 
     // Format data based on type
@@ -337,44 +382,36 @@ export class NotesService {
     // Apply styling to banner (row 0)
     for (let c = 0; c < colCount; c++) {
       const cell = XLSX.utils.encode_cell({ r: 0, c });
-      worksheet[cell] = {
-        ...worksheet[cell],
-        s: {
-          font: { bold: true, size: 14, color: { rgb: 'FFFFFF' } },
-          fill: { fgColor: { rgb: '1F4788' } },
-          alignment: { horizontal: 'center', vertical: 'center' },
-        },
-      };
+      setCellStyle(worksheet, cell, {
+        font: { bold: true, size: 14, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: '1F4788' } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+      });
     }
 
     // Style row 1 (info)
     for (let c = 0; c < colCount; c++) {
       const cell = XLSX.utils.encode_cell({ r: 1, c });
-      if (worksheet[cell]) {
-        worksheet[cell].s = {
-          font: { size: 10, italic: true },
-          fill: { fgColor: { rgb: 'E7E6E6' } },
-        };
-      }
+      setCellStyle(worksheet, cell, {
+        font: { size: 10, italic: true },
+        fill: { fgColor: { rgb: 'E7E6E6' } },
+      });
     }
 
     // Style header row (row 3)
     for (let c = 0; c < colCount; c++) {
       const cell = XLSX.utils.encode_cell({ r: 3, c });
-      worksheet[cell] = {
-        v: headers[c],
-        s: {
-          font: { bold: true, color: { rgb: 'FFFFFF' } },
-          fill: { fgColor: { rgb: '4472C4' } },
-          alignment: { horizontal: 'center', vertical: 'center' },
-          border: {
-            top: { style: 'thin', color: { rgb: '000000' } },
-            bottom: { style: 'thin', color: { rgb: '000000' } },
-            left: { style: 'thin', color: { rgb: '000000' } },
-            right: { style: 'thin', color: { rgb: '000000' } },
-          },
+      setCellValueAndStyle(worksheet, cell, headers[c], {
+        font: { bold: true, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: '4472C4' } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+        border: {
+          top: { style: 'thin', color: { rgb: '000000' } },
+          bottom: { style: 'thin', color: { rgb: '000000' } },
+          left: { style: 'thin', color: { rgb: '000000' } },
+          right: { style: 'thin', color: { rgb: '000000' } },
         },
-      };
+      });
     }
 
     // Style data rows with alternating colors
@@ -385,23 +422,20 @@ export class NotesService {
           r: 4 + rowIndex,
           c: colIndex,
         });
-        worksheet[cellRef] = {
-          v: cell,
-          s: {
-            fill: { fgColor: { rgb: isEvenRow ? 'F2F2F2' : 'FFFFFF' } },
-            alignment: {
-              horizontal: 'left',
-              vertical: 'center',
-              wrapText: true,
-            },
-            border: {
-              top: { style: 'thin', color: { rgb: 'CCCCCC' } },
-              bottom: { style: 'thin', color: { rgb: 'CCCCCC' } },
-              left: { style: 'thin', color: { rgb: 'CCCCCC' } },
-              right: { style: 'thin', color: { rgb: 'CCCCCC' } },
-            },
+        setCellValueAndStyle(worksheet, cellRef, cell, {
+          fill: { fgColor: { rgb: isEvenRow ? 'F2F2F2' : 'FFFFFF' } },
+          alignment: {
+            horizontal: 'left',
+            vertical: 'center',
+            wrapText: true,
           },
-        };
+          border: {
+            top: { style: 'thin', color: { rgb: 'CCCCCC' } },
+            bottom: { style: 'thin', color: { rgb: 'CCCCCC' } },
+            left: { style: 'thin', color: { rgb: 'CCCCCC' } },
+            right: { style: 'thin', color: { rgb: 'CCCCCC' } },
+          },
+        });
       });
     });
 
@@ -410,7 +444,7 @@ export class NotesService {
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Chi tiết');
 
     // Generate Excel file as buffer
-    return XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer' });
+    return writeWorkbookBuffer(workbook);
   }
 
   async toggleFavorite(id: string, userId: string): Promise<Note> {

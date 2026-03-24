@@ -20,6 +20,12 @@ export enum LessonType {
   RESOURCE = 'resource',
 }
 
+export type LessonResourceItem = {
+  name: string;
+  url: string;
+  type: string;
+};
+
 @Entity('lessons', { schema: 'learning' })
 export class Lesson {
   @PrimaryGeneratedColumn('uuid')
@@ -51,7 +57,7 @@ export class Lesson {
   content: string; // For article type
 
   @Column({ type: 'jsonb', nullable: true })
-  resources: any[]; // Downloadable resources
+  resources: LessonResourceItem[]; // Downloadable resources
 
   @Column({ default: 0 })
   order: number;

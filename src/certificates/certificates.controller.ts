@@ -9,7 +9,10 @@ import {
   Delete,
 } from '@nestjs/common';
 import { CertificatesService } from './certificates.service';
-import { TemplateStatus } from './entities/certificate-template.entity';
+import {
+  CertificateTemplate,
+  TemplateStatus,
+} from './entities/certificate-template.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -22,7 +25,7 @@ export class CertificatesController {
 
   @Get()
   @UseGuards(JwtAuthGuard)
-  findAll(@GetUser() user: User) {
+  findAll() {
     return this.certificatesService.findAllForAdmin();
   }
 
@@ -86,7 +89,11 @@ export class CertificatesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   getTemplates(@GetUser() user: User) {
-    return this.certificatesService.findTemplatesForAdmin();
+    if (user.role === UserRole.ADMIN) {
+      return this.certificatesService.findTemplatesForAdmin();
+    }
+
+    return this.certificatesService.findTemplatesByTeacher(user.id);
   }
 
   @Get('templates/my')
@@ -102,7 +109,10 @@ export class CertificatesController {
   @Post('templates')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
-  createTemplate(@GetUser() user: User, @Body() data: any) {
+  createTemplate(
+    @GetUser() user: User,
+    @Body() data: Partial<CertificateTemplate>,
+  ) {
     return this.certificatesService.createTemplate(user.id, data);
   }
 
@@ -134,7 +144,7 @@ export class CertificatesController {
   updateTemplate(
     @Param('id') id: string,
     @GetUser() user: User,
-    @Body() data: any,
+    @Body() data: Partial<CertificateTemplate>,
   ) {
     return this.certificatesService.updateTemplate(id, user.id, data);
   }

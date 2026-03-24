@@ -22,12 +22,12 @@ export class EmailService {
 
   private createTransporter() {
     this.transporter = nodemailer.createTransport({
-      host: this.configService.get('SMTP_HOST'),
-      port: this.configService.get('SMTP_PORT'),
+      host: this.configService.get<string>('SMTP_HOST'),
+      port: this.configService.get<number>('SMTP_PORT'),
       secure: false, // true for 465, false for other ports
       auth: {
-        user: this.configService.get('SMTP_USER'),
-        pass: this.configService.get('SMTP_PASS'),
+        user: this.configService.get<string>('SMTP_USER'),
+        pass: this.configService.get<string>('SMTP_PASS'),
       },
     });
   }
@@ -36,8 +36,8 @@ export class EmailService {
     const frontendUrl = this.getFrontendUrl();
     const verificationUrl = `${frontendUrl}/verify-email?token=${token}`;
 
-    const mailOptions = {
-      from: this.configService.get('SMTP_FROM'),
+    const mailOptions: nodemailer.SendMailOptions = {
+      from: this.configService.get<string>('SMTP_FROM'),
       to: email,
       subject: 'Verify your email address - ICS Learning',
       html: `
@@ -95,8 +95,8 @@ export class EmailService {
     const frontendUrl = this.getFrontendUrl();
     const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
 
-    const mailOptions = {
-      from: this.configService.get('SMTP_FROM'),
+    const mailOptions: nodemailer.SendMailOptions = {
+      from: this.configService.get<string>('SMTP_FROM'),
       to: email,
       subject: 'Reset your password - ICS Learning',
       html: `
@@ -154,8 +154,8 @@ export class EmailService {
     const frontendUrl = this.getFrontendUrl();
     const dashboardUrl = `${frontendUrl}/dashboard`;
 
-    const mailOptions = {
-      from: this.configService.get('SMTP_FROM'),
+    const mailOptions: nodemailer.SendMailOptions = {
+      from: this.configService.get<string>('SMTP_FROM'),
       to: email,
       subject: 'Welcome to ICS Learning!',
       html: `
@@ -222,8 +222,8 @@ export class EmailService {
     const frontendUrl = this.getFrontendUrl();
     const loginUrl = `${frontendUrl}/login`;
 
-    const mailOptions = {
-      from: this.configService.get('SMTP_FROM'),
+    const mailOptions: nodemailer.SendMailOptions = {
+      from: this.configService.get<string>('SMTP_FROM'),
       to: email,
       subject: 'Your ICS Learning Account Has Been Created',
       html: `

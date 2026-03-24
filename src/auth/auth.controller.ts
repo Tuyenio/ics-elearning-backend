@@ -3,20 +3,15 @@ import {
   Post,
   Body,
   UseGuards,
-  Request,
   Get,
   Query,
   HttpCode,
   HttpStatus,
+  Req,
   Res,
 } from '@nestjs/common';
-import type { Response } from 'express';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiBearerAuth,
-  ApiResponse,
-} from '@nestjs/swagger';
+import type { Request, Response } from 'express';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from '../users/dto/create-user.dto';
@@ -31,6 +26,16 @@ import { GetUser } from './decorators/get-user.decorator';
 import { User } from '../users/entities/user.entity';
 import { ConfigService } from '@nestjs/config';
 import { resolveFrontendUrl } from '../common/utils/frontend-url.util';
+
+type GoogleAuthUser = {
+  id: string;
+  email: string;
+  role: string;
+  status: string;
+  emailVerified: boolean;
+};
+
+type GoogleAuthRequest = Request & { user?: unknown };
 
 @ApiTags('auth')
 @Controller('auth')
@@ -64,7 +69,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Đăng nhập hệ thống' })
   @ApiResponse({ status: 200, description: 'Đăng nhập thành công' })
   @ApiResponse({ status: 401, description: 'Sai email hoặc mật khẩu' })
-  async login(@Request() req, @Body() loginDto: LoginDto) {
+  login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
   }
 
@@ -106,7 +111,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  async logout() {
+  logout() {
     // Since we're using stateless JWT, logout is handled on the client side
     // by removing the token. But we can add token blacklisting later if needed
     return { message: 'Đã đăng xuất thành công' };
@@ -129,16 +134,35 @@ export class AuthController {
   @Get('google')
   @UseGuards(GoogleAuthGuard)
   @ApiOperation({ summary: 'Google OAuth login' })
-  async googleAuth(@Request() req) {
+  googleAuth() {
     // Redirect to Google will be handled by Passport
+  }
+
+  private isGoogleAuthUser(value: unknown): value is GoogleAuthUser {
+    if (!value || typeof value !== 'object') {
+      return false;
+    }
+
+    const user = value as Partial<GoogleAuthUser>;
+    return (
+      typeof user.id === 'string' &&
+      typeof user.email === 'string' &&
+      typeof user.role === 'string' &&
+      typeof user.status === 'string' &&
+      typeof user.emailVerified === 'boolean'
+    );
   }
 
   @Get('google/callback')
   @UseGuards(GoogleAuthGuard)
   @ApiOperation({ summary: 'Google OAuth callback' })
-  async googleAuthRedirect(@Request() req, @Res() res: Response) {
+  googleAuthRedirect(@Req() req: GoogleAuthRequest, @Res() res: Response) {
     try {
       const user = req.user;
+      if (!this.isGoogleAuthUser(user)) {
+        throw new Error('Không thể xác thực tài khoản Google');
+      }
+
       const frontendUrl = this.getFrontendUrl();
 
       // Kiểm tra status và emailVerified

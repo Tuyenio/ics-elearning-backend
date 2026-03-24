@@ -10,12 +10,7 @@ import {
   Query,
   UseInterceptors,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiBearerAuth,
-  ApiQuery,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 import { CoursesService } from './courses.service';
 import { CreateCourseDto } from './dto/create-course.dto';
@@ -25,6 +20,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { GetUser } from '../auth/decorators/get-user.decorator';
 import { UserRole, User } from '../users/entities/user.entity';
+import { CourseStatus } from './entities/course.entity';
 
 @ApiTags('courses')
 @Controller('courses')
@@ -113,11 +109,20 @@ export class CoursesController {
     try {
       return this.coursesService.update(id, updateCourseDto, user);
     } catch (error) {
-      // Log validation errors in detail
-      if (error && error.response && error.response.message) {
+      const hasResponseMessage =
+        typeof error === 'object' &&
+        error !== null &&
+        'response' in error &&
+        (error as { response?: unknown }).response &&
+        typeof (error as { response: { message?: unknown } }).response ===
+          'object' &&
+        (error as { response: { message?: unknown } }).response !== null &&
+        'message' in (error as { response: { message?: unknown } }).response;
+
+      if (hasResponseMessage) {
         console.error(
           'PATCH /courses/:id validation error:',
-          error.response.message,
+          (error as { response: { message?: unknown } }).response.message,
         );
       } else {
         console.error('PATCH /courses/:id error:', error);
@@ -138,7 +143,7 @@ export class CoursesController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   findPending() {
-    return this.coursesService.findByStatus('pending');
+    return this.coursesService.findByStatus(CourseStatus.PENDING);
   }
 
   @Get('admin/all')

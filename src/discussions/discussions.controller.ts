@@ -6,21 +6,16 @@ import {
   Patch,
   Param,
   Delete,
-  Query,
   UseGuards,
-  Req,
   ForbiddenException,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiBearerAuth,
-  ApiResponse,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { DiscussionsService } from './discussions.service';
 import { CreateDiscussionDto } from './dto/create-discussion.dto';
 import { UpdateDiscussionDto } from './dto/update-discussion.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { GetUser } from '../auth/decorators/get-user.decorator';
+import { User } from '../users/entities/user.entity';
 
 @ApiTags('discussions')
 @ApiBearerAuth()
@@ -31,8 +26,11 @@ export class DiscussionsController {
 
   @Post()
   @ApiOperation({ summary: 'Tạo thảo luận mới' })
-  create(@Body() createDiscussionDto: CreateDiscussionDto, @Req() req: any) {
-    return this.discussionsService.create(createDiscussionDto, req.user.id);
+  create(
+    @Body() createDiscussionDto: CreateDiscussionDto,
+    @GetUser() user: User,
+  ) {
+    return this.discussionsService.create(createDiscussionDto, user.id);
   }
 
   @Get('course/:courseId')
@@ -58,11 +56,11 @@ export class DiscussionsController {
   async update(
     @Param('id') id: string,
     @Body() updateDiscussionDto: UpdateDiscussionDto,
-    @Req() req: any,
+    @GetUser() user: User,
   ) {
     // Kiểm tra quyền sở hữu
     const discussion = await this.discussionsService.findOne(id);
-    if (discussion.authorId !== req.user.id) {
+    if (discussion.authorId !== user.id) {
       throw new ForbiddenException(
         'Bạn không có quyền chỉnh sửa thảo luận này',
       );
@@ -72,10 +70,10 @@ export class DiscussionsController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Xóa thảo luận' })
-  async remove(@Param('id') id: string, @Req() req: any) {
+  async remove(@Param('id') id: string, @GetUser() user: User) {
     // Kiểm tra quyền sở hữu
     const discussion = await this.discussionsService.findOne(id);
-    if (discussion.authorId !== req.user.id) {
+    if (discussion.authorId !== user.id) {
       throw new ForbiddenException('Bạn không có quyền xóa thảo luận này');
     }
     return this.discussionsService.remove(id);
@@ -86,12 +84,12 @@ export class DiscussionsController {
   createReply(
     @Param('id') id: string,
     @Body() createDiscussionDto: CreateDiscussionDto,
-    @Req() req: any,
+    @GetUser() user: User,
   ) {
     return this.discussionsService.createReply(
       id,
       createDiscussionDto,
-      req.user.userId,
+      user.id,
     );
   }
 

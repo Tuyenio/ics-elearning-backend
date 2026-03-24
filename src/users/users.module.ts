@@ -14,7 +14,7 @@ import { SystemSettingsModule } from '../system-settings/system-setting.module';
     SystemSettingsModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
+      useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET'),
         signOptions: { expiresIn: '24h' },
       }),

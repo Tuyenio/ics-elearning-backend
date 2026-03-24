@@ -5,6 +5,7 @@ import {
   BadRequestException,
   Inject,
   forwardRef,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
@@ -20,6 +21,8 @@ import { UserRole } from '../users/entities/user.entity';
 
 @Injectable()
 export class ExamsService {
+  private readonly logger = new Logger(ExamsService.name);
+
   constructor(
     @InjectRepository(Exam)
     private examRepository: Repository<Exam>,
@@ -34,6 +37,23 @@ export class ExamsService {
     @Inject(forwardRef(() => CertificatesService))
     private certificatesService: CertificatesService,
   ) {}
+
+  private debugLog(...args: unknown[]): void {
+    if (process.env.NODE_ENV !== 'production') {
+      this.logger.debug(args.map((item) => this.safeStringify(item)).join(' '));
+    }
+  }
+
+  private safeStringify(value: unknown): string {
+    if (typeof value === 'string') {
+      return value;
+    }
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  }
 
   // ==================== TEACHER METHODS ====================
 
@@ -101,7 +121,7 @@ export class ExamsService {
       createExamDto.availableUntil,
     );
 
-    console.log(
+    this.debugLog(
       '[create] createExamDto.questions.length:',
       createExamDto.questions?.length,
     );
@@ -116,13 +136,16 @@ export class ExamsService {
 
       // Check if first item is an array (indicates structure issue)
       if (Array.isArray(firstItem)) {
-        console.log('[create] Detected array type for question item');
-        console.log('[create] First item Array.length:', firstItem.length);
-        console.log('[create] First item Object.keys:', Object.keys(firstItem));
+        this.debugLog('[create] Detected array type for question item');
+        this.debugLog('[create] First item Array.length:', firstItem.length);
+        this.debugLog(
+          '[create] First item Object.keys:',
+          Object.keys(firstItem),
+        );
 
         // If it's an empty array with properties, extract the properties as question objects
         if (firstItem.length === 0 && Object.keys(firstItem).length > 0) {
-          console.log(
+          this.debugLog(
             '[create] Array has properties but no numeric indices - extracting objects',
           );
           questionsToSave = questionsToSave.map((item) => {
@@ -132,15 +155,15 @@ export class ExamsService {
             }
             return obj;
           });
-          console.log(
+          this.debugLog(
             '[create] After extraction: length =',
             questionsToSave.length,
           );
         } else if (firstItem.length > 0) {
           // If it's a proper array with items, just flatten it
-          console.log('[create] Array has numeric indices - flattening');
+          this.debugLog('[create] Array has numeric indices - flattening');
           questionsToSave = questionsToSave.flat();
-          console.log(
+          this.debugLog(
             '[create] After flatten: length =',
             questionsToSave.length,
           );
@@ -162,7 +185,7 @@ export class ExamsService {
       rejectionReason: null,
     };
 
-    console.log(
+    this.debugLog(
       '[create] examData.questions sample (first 2):',
       examData.questions?.slice(0, 2),
     );
@@ -170,7 +193,7 @@ export class ExamsService {
     // Log the structure of first question to debug serialization
     if (examData.questions && examData.questions.length > 0) {
       const firstQuestion = examData.questions[0];
-      console.log('[create] First question structure:', {
+      this.debugLog('[create] First question structure:', {
         hasId: 'id' in firstQuestion,
         hasType: 'type' in firstQuestion,
         hasQuestion: 'question' in firstQuestion,
@@ -183,29 +206,29 @@ export class ExamsService {
     const exam = this.examRepository.create(examData) as unknown as Exam;
 
     // Log exam object before save
-    console.log(
+    this.debugLog(
       '[create] exam.questions before save first 2:',
       (exam.questions as any[])?.slice(0, 2),
     );
-    console.log(
+    this.debugLog(
       '[create] exam.questions.length:',
       (exam.questions as any[])?.length,
     );
 
     if ((exam.questions as any[])?.length > 0) {
       const firstQuestion = (exam.questions as any[])[0];
-      console.log('[create] First question before save:', firstQuestion);
+      this.debugLog('[create] First question before save:', firstQuestion);
     }
 
     const saved = await this.examRepository.save(exam);
 
     // Log after save
-    console.log(
+    this.debugLog(
       '[create] saved.questions.length after save:',
       (saved.questions as any[])?.length,
     );
     if ((saved.questions as any[])?.length > 0) {
-      console.log(
+      this.debugLog(
         '[create] saved.questions first 2 after save:',
         (saved.questions as any[])?.slice(0, 2),
       );
@@ -251,7 +274,7 @@ export class ExamsService {
         normalizedQuestions.length > 0
           ? normalizedQuestions
           : this.buildQuestionsFallback(rawQuestions);
-      console.log(
+      this.debugLog(
         '[update] Saving',
         normalizedQuestions.length,
         'questions for exam',
@@ -328,7 +351,7 @@ export class ExamsService {
         normalizedQuestions.length > 0
           ? normalizedQuestions
           : this.buildQuestionsFallback(rawQuestions);
-      console.log(
+      this.debugLog(
         '[updateAny] raw type:',
         typeof rawQuestions,
         'normalized:',
@@ -389,7 +412,7 @@ export class ExamsService {
     );
     const questionsRaw = rawRows?.[0]?.questions ?? null;
     const questionsArray = this.coerceQuestionsArray(questionsRaw);
-    console.log(
+    this.debugLog(
       '[submitForApproval] exam:',
       id,
       'questionsArray.length:',
@@ -710,7 +733,7 @@ export class ExamsService {
   private normalizeQuestionsPayload(rawQuestions: any): any[] {
     const questionsArray = this.coerceQuestionsArray(rawQuestions);
 
-    console.log(
+    this.debugLog(
       '[normalizeQuestionsPayload] Processing',
       questionsArray.length,
       'raw questions',
@@ -718,14 +741,14 @@ export class ExamsService {
     const normalized = questionsArray
       .map((raw, index) => {
         const result = this.normalizeSingleQuestion(raw, index);
-        console.log(
+        this.debugLog(
           `[normalizeQuestionsPayload] Question ${index}: ${result ? 'kept' : 'filtered'}`,
         );
         return result;
       })
       .filter((item) => item !== null);
 
-    console.log(
+    this.debugLog(
       '[normalizeQuestionsPayload] After normalize:',
       normalized.length,
       'questions',
@@ -759,7 +782,7 @@ export class ExamsService {
     const questionsArray = this.coerceQuestionsArray(rawQuestions);
 
     if (questionsArray.length === 0) {
-      console.log(
+      this.debugLog(
         '[hasAnyQuestionContent] Not array or empty:',
         Array.isArray(questionsArray),
         questionsArray?.length,
@@ -779,7 +802,7 @@ export class ExamsService {
     };
 
     const result = questionsArray.some((question) => hasContent(question));
-    console.log(
+    this.debugLog(
       '[hasAnyQuestionContent] result:',
       result,
       'for',
@@ -796,7 +819,7 @@ export class ExamsService {
       try {
         data = JSON.parse(data);
       } catch (e) {
-        console.log(
+        this.debugLog(
           '[coerceQuestionsArray] Failed to parse string questions:',
           e?.message || e,
         );
@@ -1125,14 +1148,14 @@ export class ExamsService {
     }
 
     if (Array.isArray(questionData)) {
-      console.log(
+      this.debugLog(
         `[normalizeSingleQuestion] index=${index}, input is array, calling parseFromArray`,
       );
       return parseFromArray(questionData);
     }
 
     if (!questionData || typeof questionData !== 'object') {
-      console.log(
+      this.debugLog(
         `[normalizeSingleQuestion] index=${index}, input is not object/array, returning NULL`,
       );
       return null;
@@ -1150,7 +1173,7 @@ export class ExamsService {
 
     // Nếu có bất kỳ text nào, vẫn giữ lại câu hỏi (không trả về null)
     if (!question) {
-      console.log(
+      this.debugLog(
         `[normalizeSingleQuestion] index=${index}, no question text found, checking options...`,
       );
       const options = Array.isArray(questionData.options)
@@ -1171,7 +1194,7 @@ export class ExamsService {
         asString(questionData.explanation) || asString(questionData.explain);
 
       if (options.length > 0 || asString(answerValue) || image || explanation) {
-        console.log(
+        this.debugLog(
           `[normalizeSingleQuestion] index=${index}, keeping partial question with preserved content`,
         );
         const normalizedOptions = normalizeOptions(options);
@@ -1193,7 +1216,7 @@ export class ExamsService {
         };
       }
       // Nếu không có text và không có option, trả về null
-      console.log(
+      this.debugLog(
         `[normalizeSingleQuestion] index=${index}, no question text and no options, returning NULL`,
       );
       return null;
@@ -1209,7 +1232,7 @@ export class ExamsService {
             .filter(Boolean)
         : [];
 
-    console.log(
+    this.debugLog(
       `[normalizeSingleQuestion] index=${index}, type=${questionData.type}, question="${question.substring(0, 30)}...", options.length=${options.length}`,
     );
 
@@ -1279,7 +1302,7 @@ export class ExamsService {
       explanation,
     };
 
-    console.log(
+    this.debugLog(
       `[normalizeSingleQuestion] index=${index}, question="${effectiveQuestion.substring(0, 50)}", type=${normalizedType}, options=${finalOptions.length}, returning=`,
       normalized ? 'object' : 'null',
     );

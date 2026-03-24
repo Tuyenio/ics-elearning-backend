@@ -18,6 +18,18 @@ export interface ExtractedQuestionAnswer {
   earnedPoints?: number;
 }
 
+export interface ExtractedQuestionResult {
+  id: string;
+  type: 'multiple_choice' | 'true_false' | 'fill_in';
+  question: string;
+  image?: string;
+  options: string[];
+  userAnswer: string | string[] | undefined;
+  correctAnswer: string | string[];
+  explanation?: string;
+  isCorrect: boolean;
+}
+
 @Entity('extracted_exam_attempts', { schema: 'learning' })
 export class ExtractedExamAttempt {
   @PrimaryGeneratedColumn('uuid')
@@ -43,7 +55,7 @@ export class ExtractedExamAttempt {
   answers: ExtractedQuestionAnswer[];
 
   @Column({ type: 'jsonb', nullable: true })
-  questionResults: any[];
+  questionResults: ExtractedQuestionResult[];
 
   @Column({ type: 'float', default: 0 })
   score: number;

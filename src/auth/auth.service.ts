@@ -9,6 +9,16 @@ import { User, UserRole, UserStatus } from '../users/entities/user.entity';
 import { EmailService } from '../common/services/email.service';
 import { SystemSettingsService } from '../system-settings/system-setting.service';
 
+type AuthUserPayload = Omit<
+  User,
+  | 'password'
+  | 'emailVerificationToken'
+  | 'passwordResetToken'
+  | 'hashPassword'
+  | 'hashPasswordOnUpdate'
+  | 'validatePassword'
+>;
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger('AuthService');
@@ -20,7 +30,10 @@ export class AuthService {
     private systemSettingsService: SystemSettingsService,
   ) {}
 
-  async validateUser(email: string, password: string): Promise<any> {
+  async validateUser(
+    email: string,
+    password: string,
+  ): Promise<AuthUserPayload | null> {
     try {
       const user = await this.usersService.findByEmail(email);
 
@@ -43,7 +56,10 @@ export class AuthService {
         this.logger.log(
           `✅ Successful login for user: ${email} (role: ${user.role})`,
         );
-        const { password, ...result } = user;
+        const result: AuthUserPayload = {
+          ...user,
+        };
+        delete (result as Partial<User>).password;
         return result;
       } else {
         this.logger.warn(
@@ -69,7 +85,7 @@ export class AuthService {
       );
     }
 
-    if (user.status === UserStatus.INACTIVE || user.status === 'inactive') {
+    if (user.status === UserStatus.INACTIVE) {
       throw new UnauthorizedException(
         'Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ với đội ngũ hỗ trợ để được kích hoạt lại.',
       );
@@ -139,8 +155,12 @@ export class AuthService {
       verificationToken,
     );
 
-    const { password, emailVerificationToken, passwordResetToken, ...result } =
-      user;
+    const result: AuthUserPayload = {
+      ...user,
+    };
+    delete (result as Partial<User>).password;
+    delete (result as Partial<User>).emailVerificationToken;
+    delete (result as Partial<User>).passwordResetToken;
 
     const message =
       'User registered successfully. Please check your email for verification.';
@@ -191,7 +211,7 @@ export class AuthService {
     return { message: 'Password reset successfully' };
   }
 
-  async refreshToken(user: User) {
+  refreshToken(user: User) {
     const payload = {
       email: user.email,
       sub: user.id,

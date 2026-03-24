@@ -15,6 +15,16 @@ export class MaintenanceGuard implements CanActivate {
     private readonly jwtService: JwtService,
   ) {}
 
+  private hasRole(payload: unknown): payload is { role: string } {
+    if (!payload || typeof payload !== 'object') {
+      return false;
+    }
+    if (!('role' in payload)) {
+      return false;
+    }
+    return typeof (payload as { role?: unknown }).role === 'string';
+  }
+
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
     const path = request.path || request.url || '';
@@ -43,8 +53,8 @@ export class MaintenanceGuard implements CanActivate {
 
     const authHeader = request.headers.authorization;
     const token = authHeader?.split(' ')[1];
-    const payload = token ? this.jwtService.decode(token) : null;
-    const role = payload?.role;
+    const payload: unknown = token ? this.jwtService.decode(token) : null;
+    const role = this.hasRole(payload) ? payload.role : undefined;
 
     if (role === 'admin') {
       return true;

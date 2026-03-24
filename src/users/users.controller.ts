@@ -7,12 +7,11 @@ import {
   Param,
   Delete,
   UseGuards,
-  Request,
   ClassSerializerInterceptor,
   UseInterceptors,
   Query,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -20,6 +19,8 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole, UserStatus } from './entities/user.entity';
+import { GetUser } from '../auth/decorators/get-user.decorator';
+import type { AuthenticatedRequestUser } from '../common/types/authenticated-request';
 
 @ApiTags('users')
 @Controller('users')
@@ -66,8 +67,8 @@ export class UsersController {
 
   @Get('profile')
   @UseGuards(JwtAuthGuard)
-  getProfile(@Request() req) {
-    return this.usersService.findOne(req.user.id);
+  getProfile(@GetUser() user: AuthenticatedRequestUser) {
+    return this.usersService.findOne(user.id);
   }
 
   @Get(':id')
@@ -78,8 +79,11 @@ export class UsersController {
 
   @Patch('profile')
   @UseGuards(JwtAuthGuard)
-  updateProfile(@Request() req, @Body() updateUserDto: UpdateUserDto) {
-    return this.usersService.update(req.user.id, updateUserDto);
+  updateProfile(
+    @GetUser() user: AuthenticatedRequestUser,
+    @Body() updateUserDto: UpdateUserDto,
+  ) {
+    return this.usersService.update(user.id, updateUserDto);
   }
 
   @Patch(':id')

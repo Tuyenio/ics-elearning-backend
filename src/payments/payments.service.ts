@@ -22,6 +22,43 @@ import { LessonProgress } from '../lesson-progress/entities/lesson-progress.enti
 import { CouponsService } from '../coupons/coupons.service';
 import PDFDocument from 'pdfkit';
 
+type PaymentFilters = {
+  page: number;
+  limit: number;
+  status?: string;
+  userId?: string;
+  courseId?: string;
+  teacherId?: string;
+  startDate?: string;
+  endDate?: string;
+  search?: string;
+};
+
+type PdfTextAlign = 'left' | 'center' | 'right' | 'justify';
+
+type PdfDocumentLike = {
+  on(
+    event: 'data',
+    listener: (chunk: Buffer | string) => void,
+  ): PdfDocumentLike;
+  on(event: 'end', listener: () => void): PdfDocumentLike;
+  on(event: 'error', listener: (error: Error) => void): PdfDocumentLike;
+  fontSize(size: number): PdfDocumentLike;
+  font(name: string): PdfDocumentLike;
+  text(
+    text: string,
+    x?: number,
+    y?: number,
+    options?: { align?: PdfTextAlign },
+  ): PdfDocumentLike;
+  moveTo(x: number, y: number): PdfDocumentLike;
+  lineTo(x: number, y: number): PdfDocumentLike;
+  stroke(): PdfDocumentLike;
+  end(): void;
+};
+
+type RevenueRow = { total: string | null };
+
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
@@ -39,6 +76,13 @@ export class PaymentsService {
     private readonly lessonProgressRepository: Repository<LessonProgress>,
     private readonly couponsService: CouponsService,
   ) {}
+
+  private sanitizeMetadata(metadata: unknown): Record<string, unknown> {
+    if (!metadata || typeof metadata !== 'object') {
+      return {};
+    }
+    return { ...(metadata as Record<string, unknown>) };
+  }
 
   async create(
     createPaymentDto: CreatePaymentDto,
@@ -116,7 +160,7 @@ export class PaymentsService {
         finalAmount === 0 ? PaymentStatus.COMPLETED : PaymentStatus.PENDING,
       ...(finalAmount === 0 ? { paidAt: new Date() } : {}),
       metadata: {
-        ...(createPaymentDto.metadata || {}),
+        ...this.sanitizeMetadata(createPaymentDto.metadata),
         ...(couponCode ? { couponCode } : {}),
       },
     });
@@ -236,7 +280,12 @@ export class PaymentsService {
         });
         const savedEnrollment = await manager.save(Enrollment, enrollment);
 
-        await manager.increment(Course, { id: payment.courseId }, 'enrollmentCount', 1);
+        await manager.increment(
+          Course,
+          { id: payment.courseId },
+          'enrollmentCount',
+          1,
+        );
 
         // Create lesson progress entries for all lessons in the course
         const lessons = await manager.find(Lesson, {
@@ -260,7 +309,12 @@ export class PaymentsService {
       });
     } catch (error) {
       // ✅ Handle duplicate key error gracefully
-      if (error.code === '23505') {
+      if (
+        error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        (error as { code?: unknown }).code === '23505'
+      ) {
         // PostgreSQL unique violation
         this.logger.log(
           `Duplicate enrollment prevented for student ${payment.studentId}`,
@@ -348,17 +402,7 @@ export class PaymentsService {
     return { data, total, page, limit };
   }
 
-  async findAllWithFilters(filters: {
-    page: number;
-    limit: number;
-    status?: string;
-    userId?: string;
-    courseId?: string;
-    teacherId?: string;
-    startDate?: string;
-    endDate?: string;
-    search?: string;
-  }) {
+  async findAllWithFilters(filters: PaymentFilters) {
     const {
       page,
       limit,
@@ -464,18 +508,20 @@ export class PaymentsService {
       .createQueryBuilder('payment')
       .select('SUM(payment.finalAmount)', 'total')
       .where('payment.status = :status', { status: PaymentStatus.COMPLETED })
-      .getRawOne();
+      .getRawOne<RevenueRow>();
+
+    const totalRevenue = revenue?.total ? Number.parseFloat(revenue.total) : 0;
 
     return {
       totalTransactions: total,
       completedTransactions: completed,
       pendingTransactions: pending,
       failedTransactions: failed,
-      totalRevenue: parseFloat(revenue?.total) || 0,
+      totalRevenue: Number.isFinite(totalRevenue) ? totalRevenue : 0,
     };
   }
 
-  async exportToCSV(filters: any): Promise<string> {
+  async exportToCSV(filters: Partial<PaymentFilters>): Promise<string> {
     const { data } = await this.findAllWithFilters({
       page: 1,
       limit: 10000, // Large limit for export
@@ -527,13 +573,19 @@ export class PaymentsService {
       throw new ForbiddenException('Bạn chỉ có thể xem hóa đơn của mình');
     }
 
-    return new Promise((resolve, reject) => {
-      const doc = new PDFDocument({ margin: 50 });
+    return new Promise<Buffer>((resolve, reject) => {
+      const doc = new PDFDocument({ margin: 50 }) as unknown as PdfDocumentLike;
       const chunks: Buffer[] = [];
 
-      doc.on('data', (chunk) => chunks.push(chunk));
+      doc.on('data', (chunk: Buffer | string) => {
+        if (Buffer.isBuffer(chunk)) {
+          chunks.push(chunk);
+          return;
+        }
+        chunks.push(Buffer.from(chunk));
+      });
       doc.on('end', () => resolve(Buffer.concat(chunks)));
-      doc.on('error', reject);
+      doc.on('error', (error: Error) => reject(error));
 
       // Header
       doc

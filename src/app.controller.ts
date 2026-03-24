@@ -26,7 +26,7 @@ export class AppController {
       await this.dataSource.query('SELECT 1');
       dbResponseTime = Date.now() - dbStartTime;
       dbStatus = 'up';
-    } catch (error) {
+    } catch {
       dbStatus = 'down';
     }
 
