@@ -15,6 +15,16 @@ import { Course } from '../courses/entities/course.entity';
 import { QuizQuestion } from './entities/quiz-question.entity';
 import { QuizAnswer } from './entities/quiz-answer.entity';
 
+type SerializedQuiz = Quiz & { questions: QuestionBankItem[] };
+type StudentQuizAnswer = string | number | Array<string | number> | undefined;
+type RawRecord = Record<string, unknown>;
+type RawAnswerRecord = {
+  content?: unknown;
+  text?: unknown;
+  is_correct?: unknown;
+  isCorrect?: unknown;
+};
+
 type QuestionBankItem = {
   id?: string;
   question: string;
@@ -66,7 +76,39 @@ export class QuizzesService {
     private readonly quizAnswerRepository: Repository<QuizAnswer>,
   ) {}
 
-  async create(createQuizDto: CreateQuizDto, user: User): Promise<any> {
+  private toSafeString(value: unknown): string {
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number' || typeof value === 'boolean') {
+      return String(value);
+    }
+    return '';
+  }
+
+  private normalizeSubmittedAnswers(raw: unknown[]): StudentQuizAnswer[] {
+    return raw.map((item) => {
+      if (
+        typeof item === 'string' ||
+        typeof item === 'number' ||
+        item === undefined
+      ) {
+        return item;
+      }
+
+      if (Array.isArray(item)) {
+        return item.filter(
+          (entry): entry is string | number =>
+            typeof entry === 'string' || typeof entry === 'number',
+        );
+      }
+
+      return undefined;
+    });
+  }
+
+  async create(
+    createQuizDto: CreateQuizDto,
+    user: User,
+  ): Promise<SerializedQuiz> {
     const course = await this.courseRepository.findOne({
       where: { id: createQuizDto.courseId },
     });
@@ -100,7 +142,7 @@ export class QuizzesService {
     return this.findOne(savedQuiz.id);
   }
 
-  async findByCourse(courseId: string): Promise<any[]> {
+  async findByCourse(courseId: string): Promise<SerializedQuiz[]> {
     const quizzes = await this.quizRepository.find({
       where: { courseId },
       relations: ['quizQuestions', 'quizQuestions.answers'],
@@ -110,7 +152,7 @@ export class QuizzesService {
     return quizzes.map((quiz) => this.serializeQuiz(quiz));
   }
 
-  async findOne(id: string): Promise<any> {
+  async findOne(id: string): Promise<SerializedQuiz> {
     const quiz = await this.quizRepository.findOne({
       where: { id },
       relations: ['course', 'lesson', 'quizQuestions', 'quizQuestions.answers'],
@@ -127,7 +169,7 @@ export class QuizzesService {
     id: string,
     updateQuizDto: Partial<CreateQuizDto>,
     user: User,
-  ): Promise<any> {
+  ): Promise<SerializedQuiz> {
     const quiz = await this.quizRepository.findOne({
       where: { id },
       relations: ['course', 'quizQuestions', 'quizQuestions.answers'],
@@ -235,13 +277,17 @@ export class QuizzesService {
       throw new BadRequestException('Bài làm đã hoàn thành rồi');
     }
 
-    // Calculate score
-    const { score, passed } = this.calculateScore(
-      attempt.quiz,
+    const normalizedAnswers = this.normalizeSubmittedAnswers(
       submitQuizDto.answers,
     );
 
-    attempt.answers = submitQuizDto.answers;
+    // Calculate score
+    const { score, passed } = this.calculateScore(
+      attempt.quiz,
+      normalizedAnswers,
+    );
+
+    attempt.answers = normalizedAnswers;
     attempt.score = score;
     attempt.passed = passed;
     attempt.status = AttemptStatus.COMPLETED;
@@ -286,7 +332,7 @@ export class QuizzesService {
 
   private calculateScore(
     quiz: Quiz,
-    answers: any[],
+    answers: StudentQuizAnswer[],
   ): { score: number; passed: boolean } {
     const questions = this.getQuestionBank(quiz);
     if (questions.length === 0) {
@@ -308,10 +354,12 @@ export class QuizzesService {
     return { score, passed };
   }
 
-  private isAnswerCorrect(question: any, studentAnswer: any): boolean {
-    const normalizedType = String(
-      question?.type || 'multiple-choice',
-    ).toLowerCase();
+  private isAnswerCorrect(
+    question: QuestionBankItem,
+    studentAnswer: StudentQuizAnswer,
+  ): boolean {
+    const normalizedType =
+      this.toSafeString(question?.type).toLowerCase() || 'multiple-choice';
     const primaryCorrect = this.toInt(question?.correctAnswer);
 
     if (
@@ -327,7 +375,7 @@ export class QuizzesService {
     if (normalizedType === 'multiple-select') {
       const correctAnswers = Array.isArray(question?.correctAnswers)
         ? question.correctAnswers
-            .map((value: any) => this.toInt(value))
+            .map((value: unknown) => this.toInt(value))
             .filter(
               (value: number | undefined): value is number =>
                 value !== undefined,
@@ -335,7 +383,7 @@ export class QuizzesService {
         : [];
       const studentAnswers = Array.isArray(studentAnswer)
         ? studentAnswer
-            .map((value: any) => this.toInt(value))
+            .map((value: unknown) => this.toInt(value))
             .filter(
               (value: number | undefined): value is number =>
                 value !== undefined,
@@ -352,7 +400,7 @@ export class QuizzesService {
     return false;
   }
 
-  private serializeQuiz(quiz: Quiz): any {
+  private serializeQuiz(quiz: Quiz): SerializedQuiz {
     return {
       ...quiz,
       questions: this.getQuestionBank(quiz),
@@ -428,15 +476,17 @@ export class QuizzesService {
     return normalizedRaw
       .map((item) => {
         if (!item || typeof item !== 'object') return null;
-        const q = item as Record<string, any>;
+        const q = item as RawRecord;
         const options = Array.isArray(q.options)
-          ? q.options.map((opt: any) => String(opt ?? '')).filter(Boolean)
+          ? q.options
+              .map((opt: unknown) => this.toSafeString(opt))
+              .filter(Boolean)
           : [];
 
         const correctAnswer = this.toInt(q.correctAnswer);
         const correctAnswers = Array.isArray(q.correctAnswers)
           ? q.correctAnswers
-              .map((value: any) => this.toInt(value))
+              .map((value: unknown) => this.toInt(value))
               .filter(
                 (value: number | undefined): value is number =>
                   value !== undefined,
@@ -444,63 +494,91 @@ export class QuizzesService {
           : [];
 
         return {
-          question: String(
-            q.question ?? this.stripHtml(String(q.content ?? '')),
-          ),
-          content: q.content,
-          contentHtml: q.contentHtml ?? q.content_html,
-          content_html: q.content_html ?? q.contentHtml,
-          image: q.image,
+          question:
+            this.toSafeString(q.question) ||
+            this.stripHtml(this.toSafeString(q.content)),
+          content: this.toSafeString(q.content) || undefined,
+          contentHtml:
+            this.toSafeString(q.contentHtml) ||
+            this.toSafeString(q.content_html),
+          content_html:
+            this.toSafeString(q.content_html) ||
+            this.toSafeString(q.contentHtml),
+          image: this.toSafeString(q.image) || undefined,
           difficulty:
             this.toInt(q.difficulty) !== undefined
               ? this.toInt(q.difficulty)
               : undefined,
-          topic: q.topic,
-          learningObj: q.learningObj ?? q.learning_obj,
-          globalObj: q.globalObj ?? q.global_obj,
-          type: String(q.type || 'multiple-choice'),
+          topic: this.toSafeString(q.topic) || undefined,
+          learningObj:
+            this.toSafeString(q.learningObj) ||
+            this.toSafeString(q.learning_obj),
+          globalObj:
+            this.toSafeString(q.globalObj) || this.toSafeString(q.global_obj),
+          type: this.toSafeString(q.type) || 'multiple-choice',
           options,
           correctAnswer: correctAnswer,
           correctAnswers:
             correctAnswers.length > 1 ? correctAnswers : undefined,
-          answers: Array.isArray(q.answers) ? q.answers : undefined,
+          answers: Array.isArray(q.answers)
+            ? q.answers
+                .filter(
+                  (answer): answer is RawRecord =>
+                    typeof answer === 'object' && answer !== null,
+                )
+                .map((answer) => ({
+                  id: typeof answer.id === 'string' ? answer.id : undefined,
+                  question_id:
+                    typeof answer.question_id === 'string'
+                      ? answer.question_id
+                      : undefined,
+                  content: this.toSafeString(answer.content),
+                  is_correct:
+                    answer.is_correct === true || answer.isCorrect === true,
+                  isCorrect:
+                    answer.isCorrect === true || answer.is_correct === true,
+                }))
+            : undefined,
         } as QuestionBankItem;
       })
       .filter((item): item is QuestionBankItem => item !== null);
   }
 
   private normalizeIncomingQuestions(
-    rawQuestions: any[],
+    rawQuestions: unknown[],
   ): NormalizedIncomingQuestion[] {
     if (!Array.isArray(rawQuestions)) return [];
 
     return rawQuestions
       .map((raw) => {
         if (!raw || typeof raw !== 'object') return null;
-        const question = raw as Record<string, any>;
+        const question = raw as RawRecord;
 
-        const contentHtml = String(
-          question.content_html ??
-            question.contentHtml ??
-            question.content ??
-            question.question ??
-            '',
+        const contentHtml = (
+          this.toSafeString(question.content_html) ||
+          this.toSafeString(question.contentHtml) ||
+          this.toSafeString(question.content) ||
+          this.toSafeString(question.question)
         ).trim();
         if (!contentHtml) return null;
 
         const answersPayload = Array.isArray(question.answers)
           ? question.answers.filter(
-              (answer: any) => answer && typeof answer === 'object',
+              (answer): answer is RawAnswerRecord =>
+                !!answer && typeof answer === 'object',
             )
           : [];
         const optionsFromPayload = Array.isArray(question.options)
           ? question.options
-              .map((opt: any) => String(opt ?? '').trim())
+              .map((opt: unknown) => this.toSafeString(opt).trim())
               .filter(Boolean)
           : [];
         const optionsFromAnswers = answersPayload
-          .map((answer: any) =>
-            String(answer.content ?? answer.text ?? '').trim(),
+          .map((answer) =>
+            (
+              this.toSafeString(answer.content) ||
+              this.toSafeString(answer.text)
+            ).trim(),
           )
           .filter(Boolean);
         const options =
@@ -511,7 +589,7 @@ export class QuizzesService {
         let correctAnswerIndices: number[] = [];
         if (Array.isArray(question.correctAnswers)) {
           correctAnswerIndices = question.correctAnswers
-            .map((value: any) => this.toInt(value))
+            .map((value: unknown) => this.toInt(value))
             .filter(
               (value: number | undefined): value is number =>
                 value !== undefined,
@@ -528,12 +606,12 @@ export class QuizzesService {
 
         if (correctAnswerIndices.length === 0 && answersPayload.length > 0) {
           correctAnswerIndices = answersPayload
-            .map((answer: any, index: number) => {
+            .map((answer, index: number) => {
               const rawFlag = answer.is_correct ?? answer.isCorrect;
               const isCorrect =
                 rawFlag === true ||
                 rawFlag === 1 ||
-                String(rawFlag).toLowerCase() === 'true';
+                this.toSafeString(rawFlag).toLowerCase() === 'true';
               return isCorrect ? index : -1;
             })
             .filter((index: number) => index >= 0);
@@ -547,22 +625,25 @@ export class QuizzesService {
           options,
           correctAnswerIndices,
         );
-        const declaredType = String(question.type || '')
+        const declaredType = this.toSafeString(question.type)
           .trim()
           .toLowerCase();
 
         return {
           contentHtml,
-          image: String(question.image || '').trim() || undefined,
+          image: this.toSafeString(question.image).trim() || undefined,
           difficulty: this.toInt(question.difficulty),
-          topic: String(question.topic || '').trim() || undefined,
+          topic: this.toSafeString(question.topic).trim() || undefined,
           learningObj:
-            String(
-              question.learningObj ?? question.learning_obj ?? '',
+            (
+              this.toSafeString(question.learningObj) ||
+              this.toSafeString(question.learning_obj)
             ).trim() || undefined,
           globalObj:
-            String(question.globalObj ?? question.global_obj ?? '').trim() ||
-            undefined,
+            (
+              this.toSafeString(question.globalObj) ||
+              this.toSafeString(question.global_obj)
+            ).trim() || undefined,
           type: declaredType || inferredType,
           options,
           correctAnswerIndices,

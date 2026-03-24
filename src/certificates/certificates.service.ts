@@ -12,7 +12,6 @@ import {
   CertificateTemplate,
   TemplateStatus,
 } from './entities/certificate-template.entity';
-import { User } from '../users/entities/user.entity';
 import {
   Enrollment,
   EnrollmentStatus,

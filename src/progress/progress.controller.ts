@@ -1,9 +1,11 @@
-import { Controller, Get, Param, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { ProgressService } from './progress.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
+import { GetUser } from '../auth/decorators/get-user.decorator';
+import { User } from '../users/entities/user.entity';
 
 @Controller('progress')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -12,27 +14,30 @@ export class ProgressController {
   constructor(private readonly progressService: ProgressService) {}
 
   @Get('overview')
-  getOverview(@Req() req: any) {
-    return this.progressService.getOverview(req.user.userId);
+  getOverview(@GetUser() user: User) {
+    return this.progressService.getOverview(user.id);
   }
 
   @Get('weekly')
-  getWeeklyProgress(@Req() req: any) {
-    return this.progressService.getWeeklyProgress(req.user.userId);
+  getWeeklyProgress(@GetUser() user: User) {
+    return this.progressService.getWeeklyProgress(user.id);
   }
 
   @Get('courses')
-  getAllCourseProgress(@Req() req: any) {
-    return this.progressService.getAllCourseProgress(req.user.userId);
+  getAllCourseProgress(@GetUser() user: User) {
+    return this.progressService.getAllCourseProgress(user.id);
   }
 
   @Get('course/:courseId')
-  getCourseProgress(@Param('courseId') courseId: string, @Req() req: any) {
-    return this.progressService.getCourseProgress(req.user.userId, courseId);
+  getCourseProgress(
+    @Param('courseId') courseId: string,
+    @GetUser() user: User,
+  ) {
+    return this.progressService.getCourseProgress(user.id, courseId);
   }
 
   @Get('achievements')
-  getAchievements(@Req() req: any) {
-    return this.progressService.getAchievements(req.user.userId);
+  getAchievements(@GetUser() user: User) {
+    return this.progressService.getAchievements(user.id);
   }
 }

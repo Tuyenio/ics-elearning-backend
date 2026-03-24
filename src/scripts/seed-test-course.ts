@@ -32,7 +32,7 @@ import { Note } from '../notes/entities/note.entity';
 import { Quiz } from '../quizzes/entities/quiz.entity';
 import { QuizAttempt } from '../quizzes/entities/quiz-attempt.entity';
 
-ConfigModule.forRoot();
+void ConfigModule.forRoot();
 
 const AppDataSource = new DataSource({
   type: 'postgres',
@@ -153,7 +153,7 @@ async function seedTestCourse() {
   console.log('👋 Database connection closed');
 }
 
-seedTestCourse().catch((error) => {
+void seedTestCourse().catch((error) => {
   console.error('❌ Error seeding test course:', error);
   process.exit(1);
 });

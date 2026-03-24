@@ -6,7 +6,7 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Course } from '../courses/entities/course.entity';
 import { User, UserRole } from '../users/entities/user.entity';
 import { UpsertPlanDto } from './dto/upsert-plan.dto';
@@ -41,6 +41,23 @@ export class InstructorSubscriptionsService implements OnModuleInit {
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
   ) {}
+
+  private toText(value: unknown): string {
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number' || typeof value === 'boolean') {
+      return String(value);
+    }
+    return '';
+  }
+
+  private toNullableText(value: unknown): string | null {
+    const text = this.toText(value).trim();
+    return text.length > 0 ? text : null;
+  }
+
+  private toBool(value: unknown): boolean {
+    return value === true;
+  }
 
   async onModuleInit() {
     await this.ensureDefaultPlans();
@@ -303,7 +320,7 @@ export class InstructorSubscriptionsService implements OnModuleInit {
 
   async createTeacherPaymentMethod(
     teacherId: string,
-    dto: Record<string, any>,
+    dto: Record<string, unknown>,
   ) {
     const type = dto.type as InstructorPaymentMethodType;
     if (!Object.values(InstructorPaymentMethodType).includes(type)) {
@@ -314,10 +331,10 @@ export class InstructorSubscriptionsService implements OnModuleInit {
       (await this.paymentMethodRepo.count({ where: { teacherId } })) > 0;
 
     if (type === InstructorPaymentMethodType.BANK_CARD) {
-      const cardNumberRaw = String(dto.cardNumber || '').replace(/\s+/g, '');
-      const cvv = String(dto.cvv || '').trim();
-      const cardHolderName = String(dto.cardHolderName || '').trim();
-      const cardExpiry = String(dto.cardExpiry || '').trim();
+      const cardNumberRaw = this.toText(dto.cardNumber).replace(/\s+/g, '');
+      const cvv = this.toText(dto.cvv).trim();
+      const cardHolderName = this.toText(dto.cardHolderName).trim();
+      const cardExpiry = this.toText(dto.cardExpiry).trim();
 
       if (cardNumberRaw.length < 12 || cvv.length < 3) {
         throw new BadRequestException('Thong tin the khong hop le');
@@ -328,9 +345,9 @@ export class InstructorSubscriptionsService implements OnModuleInit {
       }
 
       const cardLast4 = cardNumberRaw.slice(-4);
-      const label = dto.label || `The ****${cardLast4}`;
+      const label = this.toText(dto.label) || `The ****${cardLast4}`;
 
-      if (!hasAnyMethod || dto.isDefault === true) {
+      if (!hasAnyMethod || this.toBool(dto.isDefault)) {
         await this.paymentMethodRepo.update(
           { teacherId },
           { isDefault: false },
@@ -347,27 +364,27 @@ export class InstructorSubscriptionsService implements OnModuleInit {
           cardHolderName,
           cardExpiry,
           walletPhone: null,
-          isDefault: !hasAnyMethod || dto.isDefault === true,
+          isDefault: !hasAnyMethod || this.toBool(dto.isDefault),
           metadata: {
-            brand: dto.brand || null,
+            brand: this.toNullableText(dto.brand),
             masked: `**** **** **** ${cardLast4}`,
           },
         }),
       );
     }
 
-    const provider = String(dto.provider || '').toLowerCase();
+    const provider = this.toText(dto.provider).toLowerCase();
     if (!provider || !['momo', 'zalopay'].includes(provider)) {
       throw new BadRequestException('Vi dien tu chi ho tro momo hoac zalopay');
     }
 
-    if (!hasAnyMethod || dto.isDefault === true) {
+    if (!hasAnyMethod || this.toBool(dto.isDefault)) {
       await this.paymentMethodRepo.update({ teacherId }, { isDefault: false });
     }
 
-    const walletPhone = dto.walletPhone ? String(dto.walletPhone).trim() : null;
+    const walletPhone = this.toNullableText(dto.walletPhone);
     const label =
-      dto.label ||
+      this.toText(dto.label) ||
       `${provider.toUpperCase()}${walletPhone ? ` - ${walletPhone}` : ''}`;
 
     return this.paymentMethodRepo.save(
@@ -380,10 +397,10 @@ export class InstructorSubscriptionsService implements OnModuleInit {
         cardHolderName: null,
         cardExpiry: null,
         walletPhone,
-        isDefault: !hasAnyMethod || dto.isDefault === true,
+        isDefault: !hasAnyMethod || this.toBool(dto.isDefault),
         metadata: {
           deeplink: provider === 'momo' ? 'momo://app' : 'zalopay://app',
-          returnUrl: dto.returnUrl || null,
+          returnUrl: this.toNullableText(dto.returnUrl),
         },
       }),
     );

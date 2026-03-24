@@ -113,9 +113,9 @@ export class EnrollmentsService {
     const limit = options?.limit || 20;
     const skip = (page - 1) * limit;
 
-    const where: any = { studentId };
+    const where: Partial<Enrollment> & { studentId: string } = { studentId };
     if (options?.status) {
-      where.status = options.status;
+      where.status = options.status as EnrollmentStatus;
     }
 
     const [data, total] = await this.enrollmentRepository.findAndCount({

@@ -5,7 +5,6 @@ import {
   IsOptional,
   IsDateString,
   Min,
-  Max,
   IsUUID,
 } from 'class-validator';
 import { CouponType } from '../entities/coupon.entity';

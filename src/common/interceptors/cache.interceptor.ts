@@ -6,14 +6,20 @@ import {
 } from '@nestjs/common';
 import { Observable, of } from 'rxjs';
 import { tap } from 'rxjs/operators';
+import { Request } from 'express';
+
+type CacheEntry = {
+  data: unknown;
+  timestamp: number;
+};
 
 @Injectable()
 export class HttpCacheInterceptor implements NestInterceptor {
-  private cache = new Map<string, any>();
+  private cache = new Map<string, CacheEntry>();
   private readonly TTL = 5 * 60 * 1000; // 5 minutes
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    const request = context.switchToHttp().getRequest();
+    const request = context.switchToHttp().getRequest<Request>();
     const key = `${request.method}_${request.url}`;
 
     // Only cache GET requests

@@ -1,6 +1,23 @@
 import { DataSource } from 'typeorm';
 import { exit } from 'process';
 
+type LearningTableRow = { tablename: string };
+
+const toTableRows = (rows: unknown): LearningTableRow[] => {
+  if (!Array.isArray(rows)) {
+    return [];
+  }
+
+  return rows
+    .filter(
+      (row): row is Record<string, unknown> =>
+        typeof row === 'object' && row !== null,
+    )
+    .map((row) => ({
+      tablename: typeof row.tablename === 'string' ? row.tablename : '',
+    }));
+};
+
 const AppDataSource = new DataSource({
   type: 'postgres',
   url: 'postgresql://postgres.mmmhqscxluurkgudarcq:Minhlanhim1511@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres',
@@ -22,14 +39,15 @@ async function dropAllTables() {
     const queryRunner = AppDataSource.createQueryRunner();
 
     // Get all table names from learning schema
-    const tables = await queryRunner.query(`
+    const tablesRaw: unknown = await queryRunner.query(`
       SELECT tablename 
       FROM pg_tables 
       WHERE schemaname = 'learning'
     `);
+    const tables = toTableRows(tablesRaw);
 
     console.log(`📊 Tìm thấy ${tables.length} bảng:\n`);
-    tables.forEach((table: any) => {
+    tables.forEach((table) => {
       console.log(`   - ${table.tablename}`);
     });
     console.log('');
@@ -62,4 +80,4 @@ async function dropAllTables() {
   }
 }
 
-dropAllTables();
+void dropAllTables();

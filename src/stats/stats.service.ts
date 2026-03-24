@@ -12,6 +12,25 @@ import {
   FeaturedCourse,
 } from './dto/public-stats.dto';
 
+type AvgRatingRow = { avg: string | null };
+type TopCategoryRow = {
+  id: string;
+  name: string;
+  courseCount: string;
+  enrollmentCount: string;
+};
+type FeaturedCourseRow = {
+  id: string;
+  title: string;
+  thumbnail: string | null;
+  teacherName: string;
+  price: string;
+  discountPrice: string | null;
+  rating: string;
+  enrollmentCount: string;
+  level: string;
+};
+
 @Injectable()
 export class StatsService {
   constructor(
@@ -26,6 +45,16 @@ export class StatsService {
     @InjectRepository(Category)
     private readonly categoryRepo: Repository<Category>,
   ) {}
+
+  private toNumber(value: string | null | undefined): number {
+    const parsed = Number.parseFloat(value ?? '0');
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  private toInt(value: string | null | undefined): number {
+    const parsed = Number.parseInt(value ?? '0', 10);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
 
   async getPublicStats(): Promise<PublicStats> {
     const [
@@ -49,9 +78,9 @@ export class StatsService {
       .createQueryBuilder('review')
       .select('AVG(review.rating)', 'avg')
       .where('review.isPublished = :published', { published: true })
-      .getRawOne();
+      .getRawOne<AvgRatingRow>();
 
-    const averageRating = parseFloat(avgRatingResult?.avg || '0');
+    const averageRating = this.toNumber(avgRatingResult?.avg);
 
     // Get top categories
     const topCategories = await this.getTopCategories();
@@ -86,13 +115,13 @@ export class StatsService {
       .addGroupBy('category.name')
       .orderBy('enrollmentCount', 'DESC')
       .limit(6)
-      .getRawMany();
+      .getRawMany<TopCategoryRow>();
 
-    return result.map((r) => ({
+    return result.map((r: TopCategoryRow) => ({
       id: r.id,
       name: r.name,
-      courseCount: parseInt(r.courseCount) || 0,
-      enrollmentCount: parseInt(r.enrollmentCount) || 0,
+      courseCount: this.toInt(r.courseCount),
+      enrollmentCount: this.toInt(r.enrollmentCount),
     }));
   }
 
@@ -122,17 +151,18 @@ export class StatsService {
       .addGroupBy('course.level')
       .orderBy('enrollmentCount', 'DESC')
       .limit(8)
-      .getRawMany();
+      .getRawMany<FeaturedCourseRow>();
 
-    return result.map((r) => ({
+    return result.map((r: FeaturedCourseRow) => ({
       id: r.id,
       title: r.title,
-      thumbnail: r.thumbnail,
+      thumbnail: r.thumbnail ?? '',
       teacherName: r.teacherName,
-      price: parseFloat(r.price) || 0,
-      discountPrice: r.discountPrice ? parseFloat(r.discountPrice) : null,
-      rating: parseFloat(r.rating) || 0,
-      enrollmentCount: parseInt(r.enrollmentCount) || 0,
+      price: this.toNumber(r.price),
+      discountPrice:
+        r.discountPrice !== null ? this.toNumber(r.discountPrice) : null,
+      rating: this.toNumber(r.rating),
+      enrollmentCount: this.toInt(r.enrollmentCount),
       level: r.level,
     }));
   }

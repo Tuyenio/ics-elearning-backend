@@ -11,8 +11,6 @@ import {
 import { TwoFactorAuthService } from './two-factor-auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
-class SetupTOTPDto {}
-
 class VerifyTOTPDto {
   token: string;
 }

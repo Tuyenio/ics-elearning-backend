@@ -10,6 +10,7 @@ import {
   ExtractedExamStatus,
   ExtractedExamType,
   ExamVariant,
+  ExtractedExamQuestion,
 } from './entities/extracted-exam.entity';
 import {
   CreateExtractedExamDto,
@@ -23,6 +24,34 @@ import {
 import { Course } from '../courses/entities/course.entity';
 import { UserRole } from '../users/entities/user.entity';
 import { ExtractedExamAttempt } from './entities/extracted-exam-attempt.entity';
+
+type StudentAnswerPayload = { questionId: string; answer: string | string[] };
+
+type QuestionResult = {
+  id: string;
+  type: ExtractedExamQuestion['type'];
+  question: string;
+  image?: string;
+  options: string[];
+  userAnswer: string | string[] | undefined;
+  correctAnswer: string | string[];
+  explanation?: string;
+  isCorrect: boolean;
+};
+
+type NormalizedQuestion = ExtractedExamQuestion & { options: string[] };
+
+const STATUS_MAP: Record<ExtractedExamStatusDto, ExtractedExamStatus> = {
+  [ExtractedExamStatusDto.DRAFT]: ExtractedExamStatus.DRAFT,
+  [ExtractedExamStatusDto.PENDING]: ExtractedExamStatus.PENDING,
+  [ExtractedExamStatusDto.APPROVED]: ExtractedExamStatus.APPROVED,
+  [ExtractedExamStatusDto.REJECTED]: ExtractedExamStatus.REJECTED,
+};
+
+const TYPE_MAP: Record<ExtractedExamTypeDto, ExtractedExamType> = {
+  [ExtractedExamTypeDto.PRACTICE]: ExtractedExamType.PRACTICE,
+  [ExtractedExamTypeDto.OFFICIAL]: ExtractedExamType.OFFICIAL,
+};
 
 @Injectable()
 export class ExtractedExamsService {
@@ -49,7 +78,10 @@ export class ExtractedExamsService {
   /** Create `count` exam variants from the question pool.
    *  Each variant has the same questions in a different random order;
    *  variant codes start at 101. */
-  private generateVariants(questions: any[], count: number): ExamVariant[] {
+  private generateVariants(
+    questions: NormalizedQuestion[],
+    count: number,
+  ): ExamVariant[] {
     if (!questions.length || count <= 1) return [];
     const variants: ExamVariant[] = [];
     for (let i = 0; i < count; i++) {
@@ -65,22 +97,12 @@ export class ExtractedExamsService {
     status?: ExtractedExamStatusDto,
   ): ExtractedExamStatus {
     if (!status) return ExtractedExamStatus.APPROVED;
-    const normalized = String(status).toLowerCase();
-    if (normalized === ExtractedExamStatus.DRAFT)
-      return ExtractedExamStatus.DRAFT;
-    if (normalized === ExtractedExamStatus.PENDING)
-      return ExtractedExamStatus.PENDING;
-    if (normalized === ExtractedExamStatus.REJECTED)
-      return ExtractedExamStatus.REJECTED;
-    return ExtractedExamStatus.APPROVED;
+    return STATUS_MAP[status] ?? ExtractedExamStatus.APPROVED;
   }
 
   private normalizeType(type?: ExtractedExamTypeDto): ExtractedExamType {
     if (!type) return ExtractedExamType.PRACTICE;
-    const normalized = String(type).toLowerCase();
-    return normalized === ExtractedExamType.OFFICIAL
-      ? ExtractedExamType.OFFICIAL
-      : ExtractedExamType.PRACTICE;
+    return TYPE_MAP[type] ?? ExtractedExamType.PRACTICE;
   }
 
   private validateOfficial(dto: CreateExtractedExamDto) {
@@ -112,11 +134,18 @@ export class ExtractedExamsService {
     }
 
     // Normalize datetime strings to Date to satisfy entity typing
-    const availableFrom = dto.availableFrom ? new Date(dto.availableFrom) : undefined;
-    const availableUntil = dto.availableUntil ? new Date(dto.availableUntil) : undefined;
+    const availableFrom = dto.availableFrom
+      ? new Date(dto.availableFrom)
+      : undefined;
+    const availableUntil = dto.availableUntil
+      ? new Date(dto.availableUntil)
+      : undefined;
 
     const variantCount = Math.max(1, Number(dto.variantCount) || 1);
-    const variants = variantCount > 1 ? this.generateVariants(normalizedQuestions, variantCount) : [];
+    const variants =
+      variantCount > 1
+        ? this.generateVariants(normalizedQuestions, variantCount)
+        : [];
 
     const payload: Partial<ExtractedExam> = {
       ...dto,
@@ -217,14 +246,20 @@ export class ExtractedExamsService {
     }
 
     const nextVariantCount =
-      dto.variantCount !== undefined ? Math.max(1, Number(dto.variantCount)) : undefined;
+      dto.variantCount !== undefined
+        ? Math.max(1, Number(dto.variantCount))
+        : undefined;
     const effectiveVariantCount = nextVariantCount ?? exam.variantCount ?? 1;
-    const questionsForVariants = nextQuestions ?? exam.questions ?? [];
+    const normalizedQuestionsForVariants =
+      nextQuestions ?? this.normalizeQuestionsPayload(exam.questions ?? []);
     const shouldRegenerateVariants =
       nextQuestions !== undefined || nextVariantCount !== undefined;
     const nextVariants = shouldRegenerateVariants
       ? effectiveVariantCount > 1
-        ? this.generateVariants(questionsForVariants, effectiveVariantCount)
+        ? this.generateVariants(
+            normalizedQuestionsForVariants,
+            effectiveVariantCount,
+          )
         : []
       : undefined;
 
@@ -233,7 +268,9 @@ export class ExtractedExamsService {
       ...(nextQuestions ? { questions: nextQuestions } : {}),
       status: nextStatus ?? exam.status,
       type: nextType ?? exam.type,
-      ...(nextVariantCount !== undefined ? { variantCount: effectiveVariantCount } : {}),
+      ...(nextVariantCount !== undefined
+        ? { variantCount: effectiveVariantCount }
+        : {}),
       ...(nextVariants !== undefined
         ? { variants: nextVariants.length > 0 ? nextVariants : null }
         : {}),
@@ -328,7 +365,11 @@ export class ExtractedExamsService {
 
       const matchedVariant = exam.variants.find((v) => v.code === variantCode);
       if (matchedVariant) {
-        return { ...exam, questions: matchedVariant.questions, assignedVariantCode: variantCode };
+        return {
+          ...exam,
+          questions: matchedVariant.questions,
+          assignedVariantCode: variantCode,
+        };
       }
     }
 
@@ -338,24 +379,24 @@ export class ExtractedExamsService {
   async submitForStudent(
     id: string,
     studentId: string,
-    answers: Array<{ questionId: string; answer: string | string[] }>,
+    answers: StudentAnswerPayload[],
     variantCode?: number,
   ) {
     const exam = await this.findOneForStudent(id, studentId);
 
     // Determine which questions to grade against
-    let questions: any[];
+    let questions: NormalizedQuestion[];
     let resolvedVariantCode: number | null = null;
     if (variantCode && exam.variants && exam.variants.length > 0) {
       const variant = exam.variants.find((v) => v.code === variantCode);
       if (variant) {
-        questions = Array.isArray(variant.questions) ? variant.questions : [];
+        questions = this.normalizeQuestionsPayload(variant.questions);
         resolvedVariantCode = variantCode;
       } else {
-        questions = Array.isArray(exam.questions) ? exam.questions : [];
+        questions = this.normalizeQuestionsPayload(exam.questions);
       }
     } else {
-      questions = Array.isArray(exam.questions) ? exam.questions : [];
+      questions = this.normalizeQuestionsPayload(exam.questions);
     }
 
     const attemptCount = await this.extractedExamAttemptRepo.count({
@@ -372,15 +413,15 @@ export class ExtractedExamsService {
 
     let earnedPoints = 0;
     const totalPoints = questions.reduce(
-      (sum, q: any) => sum + Number(q?.points || 0),
+      (sum, q) => sum + Number(q.points || 0),
       0,
     );
 
-    const questionResults = questions.map((question: any) => {
+    const questionResults: QuestionResult[] = questions.map((question) => {
       const answer = answers.find((a) => a.questionId === question.id);
       const userAnswer = answer?.answer;
       const isCorrect = this.checkAnswer(question.correctAnswer, userAnswer);
-      const points = isCorrect ? Number(question?.points || 0) : 0;
+      const points = isCorrect ? Number(question.points || 0) : 0;
       earnedPoints += points;
 
       return {
@@ -448,7 +489,9 @@ export class ExtractedExamsService {
     }
 
     if (role !== UserRole.ADMIN && exam.teacherId !== teacherId) {
-      throw new BadRequestException('Bạn không có quyền xem lượt làm của đề thi này');
+      throw new BadRequestException(
+        'Bạn không có quyền xem lượt làm của đề thi này',
+      );
     }
 
     const attempts = await this.extractedExamAttemptRepo.find({
@@ -486,10 +529,14 @@ export class ExtractedExamsService {
     teacherId: string,
     role: UserRole,
   ) {
-    const exam = await this.extractedExamRepo.findOne({ where: { id: examId } });
+    const exam = await this.extractedExamRepo.findOne({
+      where: { id: examId },
+    });
     if (!exam) throw new NotFoundException('Không tìm thấy đề thi');
     if (role !== UserRole.ADMIN && exam.teacherId !== teacherId) {
-      throw new BadRequestException('Bạn không có quyền xem chi tiết lượt thi này');
+      throw new BadRequestException(
+        'Bạn không có quyền xem chi tiết lượt thi này',
+      );
     }
 
     const attempt = await this.extractedExamAttemptRepo.findOne({
@@ -522,7 +569,10 @@ export class ExtractedExamsService {
     };
   }
 
-  private checkAnswer(correctAnswer: any, userAnswer: any): boolean {
+  private checkAnswer(
+    correctAnswer: string | string[],
+    userAnswer: string | string[] | undefined,
+  ): boolean {
     if (Array.isArray(correctAnswer) && Array.isArray(userAnswer)) {
       return (
         correctAnswer.length === userAnswer.length &&
@@ -539,14 +589,16 @@ export class ExtractedExamsService {
     return false;
   }
 
-  private normalizeQuestionsPayload(rawQuestions: any): any[] {
+  private normalizeQuestionsPayload(
+    rawQuestions: unknown,
+  ): NormalizedQuestion[] {
     const questionsArray = this.coerceQuestionsArray(rawQuestions);
     return questionsArray
       .map((question, index) => this.normalizeSingleQuestion(question, index))
-      .filter((question) => question !== null);
+      .filter((question): question is NormalizedQuestion => question !== null);
   }
 
-  private coerceQuestionsArray(rawQuestions: any): any[] {
+  private coerceQuestionsArray(rawQuestions: unknown): unknown[] {
     let data = rawQuestions;
 
     while (typeof data === 'string') {
@@ -565,27 +617,33 @@ export class ExtractedExamsService {
       return [];
     }
 
-    const keys = Object.keys(data);
+    const keys = Object.keys(data as Record<string, unknown>);
     const numericKeys = keys.filter((key) => /^\d+$/.test(key));
     if (numericKeys.length > 0) {
       return numericKeys
         .sort((a, b) => Number(a) - Number(b))
-        .map((key) => (data as any)[key]);
+        .map((key) => (data as Record<string, unknown>)[key]);
     }
 
-    if (Array.isArray((data as any).questions)) {
-      return (data as any).questions;
+    const dataWithQuestions = data as { questions?: unknown };
+    if (Array.isArray(dataWithQuestions.questions)) {
+      return dataWithQuestions.questions;
     }
 
     return [data];
   }
 
-  private normalizeSingleQuestion(rawQuestion: any, index: number): any | null {
+  private normalizeSingleQuestion(
+    rawQuestion: unknown,
+    index: number,
+  ): NormalizedQuestion | null {
     if (!rawQuestion || typeof rawQuestion !== 'object') {
       return null;
     }
 
-    const toText = (value: any): string => {
+    const record = rawQuestion as Record<string, unknown>;
+
+    const toText = (value: unknown): string => {
       if (value === null || value === undefined) return '';
       if (typeof value === 'string') return value.trim();
       if (typeof value === 'number' || typeof value === 'boolean') {
@@ -594,25 +652,38 @@ export class ExtractedExamsService {
       return '';
     };
 
-    const options = Array.isArray(rawQuestion.options)
-      ? rawQuestion.options.map((option: any) => toText(option)).filter(Boolean)
-      : Array.isArray(rawQuestion.answers)
-        ? rawQuestion.answers.map((option: any) => toText(option)).filter(Boolean)
+    const normalizeCorrectAnswer = (value: unknown): string | string[] => {
+      if (Array.isArray(value)) {
+        const values = value.map((entry) => toText(entry)).filter(Boolean);
+        return values.length > 0 ? values : '';
+      }
+
+      return toText(value);
+    };
+
+    const options = Array.isArray(record.options)
+      ? record.options.map((option) => toText(option)).filter(Boolean)
+      : Array.isArray((record as { answers?: unknown[] }).answers)
+        ? (record as { answers: unknown[] }).answers
+            .map((option) => toText(option))
+            .filter(Boolean)
         : [];
 
     const questionText =
-      toText(rawQuestion.question) ||
-      toText(rawQuestion.text) ||
-      toText(rawQuestion.questionText) ||
-      toText(rawQuestion.content) ||
-      toText(rawQuestion.prompt) ||
-      toText(rawQuestion.stem);
+      toText(record.question) ||
+      toText((record as { text?: unknown }).text) ||
+      toText((record as { questionText?: unknown }).questionText) ||
+      toText((record as { content?: unknown }).content) ||
+      toText((record as { prompt?: unknown }).prompt) ||
+      toText((record as { stem?: unknown }).stem);
 
     if (!questionText && options.length === 0) {
       return null;
     }
 
-    const rawType = String(rawQuestion.type || '').toLowerCase().trim();
+    const rawTypeValue = (record as { type?: unknown }).type;
+    const rawType =
+      typeof rawTypeValue === 'string' ? rawTypeValue.toLowerCase().trim() : '';
     const type =
       rawType === 'true_false' || rawType === 'true-false'
         ? 'true_false'
@@ -620,18 +691,32 @@ export class ExtractedExamsService {
           ? 'fill_in'
           : 'multiple_choice';
 
+    const rawCorrectAnswer =
+      (record as { correctAnswer?: unknown }).correctAnswer ??
+      (record as { answer?: unknown }).answer ??
+      (record as { correct?: unknown }).correct;
+
     return {
-      id: toText(rawQuestion.id) || `q-${index + 1}`,
+      id: toText(record.id) || `q-${index + 1}`,
       type,
       question: questionText,
-      image: toText(rawQuestion.image) || toText(rawQuestion.imageUrl) || undefined,
+      image:
+        toText(record.image) ||
+        toText((record as { imageUrl?: unknown }).imageUrl) ||
+        undefined,
       options,
-      correctAnswer:
-        rawQuestion.correctAnswer ?? rawQuestion.answer ?? rawQuestion.correct ?? '',
-      points: Number(rawQuestion.points) > 0 ? Number(rawQuestion.points) : 1,
-      explanation: toText(rawQuestion.explanation) || '',
-      chapter: toText(rawQuestion.chapter) || undefined,
-      difficulty: rawQuestion.difficulty,
+      correctAnswer: normalizeCorrectAnswer(rawCorrectAnswer),
+      points:
+        Number((record as { points?: unknown }).points) > 0
+          ? Number((record as { points?: unknown }).points)
+          : 1,
+      explanation:
+        toText((record as { explanation?: unknown }).explanation) || '',
+      chapter: toText((record as { chapter?: unknown }).chapter) || undefined,
+      difficulty: (record as { difficulty?: unknown }).difficulty as
+        | number
+        | string
+        | undefined,
     };
   }
 }

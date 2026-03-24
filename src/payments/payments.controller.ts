@@ -26,6 +26,7 @@ import { VNPayService } from './vnpay.service';
 import type { VNPayReturnData } from './vnpay.service';
 import { MomoService } from './momo.service';
 import type { MomoCallbackData } from './momo.service';
+import type { AuthenticatedRequestUser } from '../common/types/authenticated-request';
 
 // DTOs for payment requests
 class CreateVNPayPaymentDto {
@@ -41,6 +42,24 @@ class CreateMomoPaymentDto {
   amount: number;
   orderInfo?: string;
 }
+
+type MomoReturnQuery = {
+  resultCode: string;
+  orderId: string;
+  message?: string;
+};
+
+type PaymentExportFilters = {
+  page?: number;
+  limit?: number;
+  status?: string;
+  userId?: string;
+  courseId?: string;
+  teacherId?: string;
+  startDate?: string;
+  endDate?: string;
+  search?: string;
+};
 
 @Controller('payments')
 export class PaymentsController {
@@ -116,7 +135,10 @@ export class PaymentsController {
   @Post('admin/export')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  async exportPayments(@Body() filters: any, @Res() res: Response) {
+  async exportPayments(
+    @Body() filters: PaymentExportFilters,
+    @Res() res: Response,
+  ) {
     const csv = await this.paymentsService.exportToCSV(filters);
     res.header('Content-Type', 'text/csv');
     res.header('Content-Disposition', 'attachment; filename="payments.csv"');
@@ -134,13 +156,10 @@ export class PaymentsController {
   @Roles(UserRole.STUDENT)
   async generateInvoice(
     @Param('id') id: string,
-    @Req() req: any,
+    @GetUser() user: AuthenticatedRequestUser,
     @Res() res: Response,
   ) {
-    const pdfBuffer = await this.paymentsService.generateInvoice(
-      id,
-      req.user.userId,
-    );
+    const pdfBuffer = await this.paymentsService.generateInvoice(id, user.id);
 
     res.set({
       'Content-Type': 'application/pdf',
@@ -323,8 +342,8 @@ export class PaymentsController {
    * Momo return URL handler
    */
   @Get('momo/return')
-  async momoReturn(@Query() query: any, @Res() res: Response) {
-    const resultCode = parseInt(query.resultCode);
+  momoReturn(@Query() query: MomoReturnQuery, @Res() res: Response) {
+    const resultCode = parseInt(query.resultCode, 10);
 
     if (resultCode === 0) {
       return res.redirect(

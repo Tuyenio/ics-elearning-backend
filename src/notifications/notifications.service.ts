@@ -37,7 +37,7 @@ export class NotificationsService {
     page: number;
     totalPages: number;
   }> {
-    const where: any = { userId };
+    const where: Partial<Notification> & { userId: string } = { userId };
     if (status) {
       where.status = status;
     }

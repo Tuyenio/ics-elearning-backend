@@ -15,7 +15,7 @@ export class ScheduleService {
   async findAll() {
     try {
       return await this.repo.find({ order: { dueDate: 'ASC', time: 'ASC' } });
-    } catch (error) {
+    } catch {
       throw new BadRequestException('Failed to fetch schedule items');
     }
   }
@@ -27,7 +27,7 @@ export class ScheduleService {
         tags: dto.tags || [],
       });
       return await this.repo.save(item);
-    } catch (error) {
+    } catch {
       throw new BadRequestException('Failed to create schedule item');
     }
   }
@@ -46,7 +46,7 @@ export class ScheduleService {
         tags: dto.tags !== undefined ? dto.tags : item.tags,
       });
       return await this.repo.save(item);
-    } catch (error) {
+    } catch {
       throw new BadRequestException('Failed to update schedule item');
     }
   }
@@ -59,7 +59,7 @@ export class ScheduleService {
       }
       await this.repo.remove(item);
       return { success: true, message: 'Schedule item deleted successfully' };
-    } catch (error) {
+    } catch {
       throw new BadRequestException('Failed to delete schedule item');
     }
   }

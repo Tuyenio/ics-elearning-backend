@@ -10,6 +10,14 @@ import {
   Index,
 } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
+import { Course } from '../../courses/entities/course.entity';
+import { Enrollment } from '../../enrollments/entities/enrollment.entity';
+import { Review } from '../../reviews/entities/review.entity';
+import { Wishlist } from '../../wishlists/entities/wishlist.entity';
+import { Payment } from '../../payments/entities/payment.entity';
+import { Note } from '../../notes/entities/note.entity';
+import { Notification } from '../../notifications/entities/notification.entity';
+import { Cart } from '../../cart/entities/cart.entity';
 
 export enum UserRole {
   STUDENT = 'student',
@@ -90,29 +98,29 @@ export class User {
   updatedAt: Date;
 
   // Relationships
-  @OneToMany('Course', (course: any) => course.teacher)
-  courses: any[];
+  @OneToMany(() => Course, (course) => course.teacher)
+  courses: Course[];
 
-  @OneToMany('Enrollment', (enrollment: any) => enrollment.student)
-  enrollments: any[];
+  @OneToMany(() => Enrollment, (enrollment) => enrollment.student)
+  enrollments: Enrollment[];
 
-  @OneToMany('Review', (review: any) => review.student)
-  reviews: any[];
+  @OneToMany(() => Review, (review) => review.student)
+  reviews: Review[];
 
-  @OneToMany('Wishlist', (wishlist: any) => wishlist.student)
-  wishlists: any[];
+  @OneToMany(() => Wishlist, (wishlist) => wishlist.student)
+  wishlists: Wishlist[];
 
-  @OneToMany('Payment', (payment: any) => payment.student)
-  payments: any[];
+  @OneToMany(() => Payment, (payment) => payment.student)
+  payments: Payment[];
 
-  @OneToMany('Note', (note: any) => note.student)
-  notes: any[];
+  @OneToMany(() => Note, (note) => note.student)
+  notes: Note[];
 
-  @OneToMany('Notification', (notification: any) => notification.user)
-  notifications: any[];
+  @OneToMany(() => Notification, (notification) => notification.user)
+  notifications: Notification[];
 
-  @OneToMany('Cart', (cart: any) => cart.user)
-  cartItems: any[];
+  @OneToMany(() => Cart, (cart) => cart.user)
+  cartItems: Cart[];
 
   @BeforeInsert()
   async hashPassword() {
@@ -129,7 +137,7 @@ export class User {
         .substring(0, 2)
         .toUpperCase();
       // Use a default avatar service or generate a colored placeholder
-      this.avatar = `https://ui-avatars.com/?name=${encodeURIComponent(this.name)}&background=random&size=200`;
+      this.avatar = `https://ui-avatars.com/?name=${encodeURIComponent(initials)}&background=random&size=200`;
     }
   }
 

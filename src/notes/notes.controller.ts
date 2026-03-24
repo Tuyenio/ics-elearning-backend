@@ -7,9 +7,9 @@ import {
   Param,
   Delete,
   UseGuards,
-  Query,
   Response,
 } from '@nestjs/common';
+import type { Response as ExpressResponse } from 'express';
 import { NotesService } from './notes.service';
 import { CreateNoteDto } from './dto/create-note.dto';
 import { UpdateNoteDto } from './dto/update-note.dto';
@@ -47,7 +47,7 @@ export class NotesController {
   @Get('export/excel')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.STUDENT)
-  async exportToExcel(@GetUser() user: User, @Response() res: any) {
+  async exportToExcel(@GetUser() user: User, @Response() res: ExpressResponse) {
     try {
       const fileBuffer = await this.notesService.exportToExcel(user.id);
 
@@ -61,7 +61,7 @@ export class NotesController {
       });
 
       res.end(fileBuffer);
-    } catch (error) {
+    } catch {
       res.status(500).send({ success: false, message: 'Xuất Excel thất bại' });
     }
   }
@@ -72,7 +72,7 @@ export class NotesController {
   async exportSingleNoteToExcel(
     @Param('id') id: string,
     @GetUser() user: User,
-    @Response() res: any,
+    @Response() res: ExpressResponse,
   ) {
     try {
       const fileBuffer = await this.notesService.exportSingleNoteToExcel(
@@ -90,7 +90,7 @@ export class NotesController {
       });
 
       res.end(fileBuffer);
-    } catch (error) {
+    } catch {
       res.status(500).send({ success: false, message: 'Xuất Excel thất bại' });
     }
   }

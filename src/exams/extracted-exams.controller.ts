@@ -6,23 +6,16 @@ import {
   Patch,
   Post,
   Delete,
-  Request,
   UseGuards,
 } from '@nestjs/common';
-import { Request as ExpressRequest } from 'express';
 import { ExtractedExamsService } from './extracted-exams.service';
 import { CreateExtractedExamDto } from './dto/create-extracted-exam.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
-
-type AuthenticatedRequest = ExpressRequest & {
-  user: {
-    id: string;
-    role: UserRole;
-  };
-};
+import { GetUser } from '../auth/decorators/get-user.decorator';
+import type { AuthenticatedRequestUser } from '../common/types/authenticated-request';
 
 @Controller('extracted-exams')
 @UseGuards(JwtAuthGuard)
@@ -32,8 +25,8 @@ export class ExtractedExamsController {
   @Get('available')
   @UseGuards(RolesGuard)
   @Roles(UserRole.STUDENT)
-  findAvailableForStudent(@Request() req: AuthenticatedRequest) {
-    return this.service.findAvailableForStudent(req.user.id);
+  findAvailableForStudent(@GetUser() user: AuthenticatedRequestUser) {
+    return this.service.findAvailableForStudent(user.id);
   }
 
   @Get('student/:id')
@@ -41,9 +34,9 @@ export class ExtractedExamsController {
   @Roles(UserRole.STUDENT)
   findOneForStudent(
     @Param('id') id: string,
-    @Request() req: AuthenticatedRequest,
+    @GetUser() user: AuthenticatedRequestUser,
   ) {
-    return this.service.findOneForStudent(id, req.user.id);
+    return this.service.findOneForStudent(id, user.id);
   }
 
   @Post(':id/submit')
@@ -51,19 +44,26 @@ export class ExtractedExamsController {
   @Roles(UserRole.STUDENT)
   submitForStudent(
     @Param('id') id: string,
-    @Body() body: {
-      variantCode: number | undefined; answers: Array<{ questionId: string; answer: string | string[] }> 
-},
-    @Request() req,
+    @Body()
+    body: {
+      variantCode: number | undefined;
+      answers: Array<{ questionId: string; answer: string | string[] }>;
+    },
+    @GetUser() user: AuthenticatedRequestUser,
   ) {
-    return this.service.submitForStudent(id, req.user.id, body?.answers || [], body?.variantCode);
+    return this.service.submitForStudent(
+      id,
+      user.id,
+      body?.answers || [],
+      body?.variantCode,
+    );
   }
 
   @Get('my')
   @UseGuards(RolesGuard)
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
-  findMy(@Request() req: AuthenticatedRequest) {
-    return this.service.findMy(req.user.id);
+  findMy(@GetUser() user: AuthenticatedRequestUser) {
+    return this.service.findMy(user.id);
   }
 
   @Post()
@@ -71,16 +71,19 @@ export class ExtractedExamsController {
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   create(
     @Body() dto: CreateExtractedExamDto,
-    @Request() req: AuthenticatedRequest,
+    @GetUser() user: AuthenticatedRequestUser,
   ) {
-    return this.service.create(dto, req.user.id, req.user.role);
+    return this.service.create(dto, user.id, user.role);
   }
 
   @Get(':id/attempts')
   @UseGuards(RolesGuard)
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
-  getAttempts(@Param('id') id: string, @Request() req) {
-    return this.service.getAttemptsForTeacher(id, req.user.id, req.user.role);
+  getAttempts(
+    @Param('id') id: string,
+    @GetUser() user: AuthenticatedRequestUser,
+  ) {
+    return this.service.getAttemptsForTeacher(id, user.id, user.role);
   }
 
   @Get(':id/attempts/:attemptId')
@@ -89,16 +92,21 @@ export class ExtractedExamsController {
   getAttemptDetail(
     @Param('id') id: string,
     @Param('attemptId') attemptId: string,
-    @Request() req,
+    @GetUser() user: AuthenticatedRequestUser,
   ) {
-    return this.service.getAttemptDetailForTeacher(id, attemptId, req.user.id, req.user.role);
+    return this.service.getAttemptDetailForTeacher(
+      id,
+      attemptId,
+      user.id,
+      user.role,
+    );
   }
 
   @Get(':id')
   @UseGuards(RolesGuard)
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
-  findOne(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
-    return this.service.findOne(id, req.user.id);
+  findOne(@Param('id') id: string, @GetUser() user: AuthenticatedRequestUser) {
+    return this.service.findOne(id, user.id);
   }
 
   @Patch(':id')
@@ -107,15 +115,15 @@ export class ExtractedExamsController {
   update(
     @Param('id') id: string,
     @Body() dto: Partial<CreateExtractedExamDto>,
-    @Request() req: AuthenticatedRequest,
+    @GetUser() user: AuthenticatedRequestUser,
   ) {
-    return this.service.update(id, req.user.id, req.user.role, dto);
+    return this.service.update(id, user.id, user.role, dto);
   }
 
   @Delete(':id')
   @UseGuards(RolesGuard)
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
-  remove(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
-    return this.service.remove(id, req.user.id);
+  remove(@Param('id') id: string, @GetUser() user: AuthenticatedRequestUser) {
+    return this.service.remove(id, user.id);
   }
 }

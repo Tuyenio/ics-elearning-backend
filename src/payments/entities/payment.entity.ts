@@ -5,13 +5,11 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
-  OneToOne,
   JoinColumn,
   Index,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Course } from '../../courses/entities/course.entity';
-import { Enrollment } from '../../enrollments/entities/enrollment.entity';
 
 export enum PaymentStatus {
   PENDING = 'pending',

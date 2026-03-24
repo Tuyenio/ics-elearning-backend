@@ -120,7 +120,7 @@ export class CategoriesService {
     // ✅ clear cache để FE refresh thấy ngay
     await this.cacheManager.del('categories_all');
     await this.cacheManager.del('categories_active');
-    return this.categoryRepository.save(category);
+    return updatedCategory;
   }
 
   async remove(id: string): Promise<void> {

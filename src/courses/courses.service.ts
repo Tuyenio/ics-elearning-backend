@@ -5,7 +5,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, ILike } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Course, CourseStatus } from './entities/course.entity';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
@@ -18,6 +18,8 @@ import {
 } from './dto/course-filters.dto';
 import { Category } from '../categories/entities/category.entity';
 import { InstructorSubscriptionsService } from '../instructor-subscriptions/instructor-subscriptions.service';
+
+type FilterRow = { value: string; label: string; count: string };
 
 @Injectable()
 export class CoursesService {
@@ -330,9 +332,9 @@ export class CoursesService {
     );
   }
 
-  async findByStatus(status: string): Promise<Course[]> {
+  async findByStatus(status: CourseStatus): Promise<Course[]> {
     return this.courseRepository.find({
-      where: { status: status as any },
+      where: { status },
       relations: ['teacher', 'category'],
       order: { createdAt: 'DESC' },
     });
@@ -399,7 +401,7 @@ export class CoursesService {
       .groupBy('category.id')
       .addGroupBy('category.name')
       .orderBy('count', 'DESC')
-      .getRawMany();
+      .getRawMany<FilterRow>();
 
     const categories: FilterOption[] = categoriesData.map((c) => ({
       value: c.value,
@@ -415,7 +417,7 @@ export class CoursesService {
       .addSelect('COUNT(*)', 'count')
       .where('course.isPublished = :published', { published: true })
       .groupBy('course.level')
-      .getRawMany();
+      .getRawMany<FilterRow>();
 
     const levels: FilterOption[] = levelsData.map((l) => ({
       value: l.value,
@@ -453,7 +455,7 @@ export class CoursesService {
       .addSelect('COUNT(*)', 'count')
       .where('course.isPublished = :published', { published: true })
       .groupBy('course.language')
-      .getRawMany();
+      .getRawMany<FilterRow>();
 
     const languages: FilterOption[] = languagesData.map((l) => ({
       value: l.value,
@@ -491,7 +493,7 @@ export class CoursesService {
   }
 
   private formatLevel(level: string): string {
-    const levels = {
+    const levels: Record<string, string> = {
       beginner: 'Cơ bản',
       intermediate: 'Trung bình',
       advanced: 'Nâng cao',
@@ -501,7 +503,7 @@ export class CoursesService {
   }
 
   private formatLanguage(language: string): string {
-    const languages = {
+    const languages: Record<string, string> = {
       en: 'Tiếng Anh',
       vi: 'Tiếng Việt',
       'vi-en': 'Tiếng Việt & Tiếng Anh',

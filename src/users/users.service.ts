@@ -4,7 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like, In } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { User, UserStatus, UserRole } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -220,24 +220,32 @@ export class UsersService {
 
     switch (action) {
       case 'activate':
-        const activateResult = await this.usersRepository.update(
-          { id: In(ids) },
-          { status: UserStatus.ACTIVE },
-        );
-        affected = activateResult.affected || 0;
+        {
+          const activateResult = await this.usersRepository.update(
+            { id: In(ids) },
+            { status: UserStatus.ACTIVE },
+          );
+          affected = activateResult.affected || 0;
+        }
         break;
 
       case 'deactivate':
-        const deactivateResult = await this.usersRepository.update(
-          { id: In(ids) },
-          { status: UserStatus.INACTIVE },
-        );
-        affected = deactivateResult.affected || 0;
+        {
+          const deactivateResult = await this.usersRepository.update(
+            { id: In(ids) },
+            { status: UserStatus.INACTIVE },
+          );
+          affected = deactivateResult.affected || 0;
+        }
         break;
 
       case 'delete':
-        const deleteResult = await this.usersRepository.delete({ id: In(ids) });
-        affected = deleteResult.affected || 0;
+        {
+          const deleteResult = await this.usersRepository.delete({
+            id: In(ids),
+          });
+          affected = deleteResult.affected || 0;
+        }
         break;
 
       default:

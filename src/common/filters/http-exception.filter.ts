@@ -18,27 +18,53 @@ import {
 export class GlobalExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(GlobalExceptionFilter.name);
 
+  private isLocalizedResponse(
+    payload: unknown,
+  ): payload is { message?: unknown; errorCode?: unknown; details?: unknown } {
+    return typeof payload === 'object' && payload !== null;
+  }
+
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
-    let message = 'Internal server error';
-    let errorCode = ERROR_CODES.INTERNAL_ERROR;
-    let details: any = null;
+    let message: string | string[] = 'Internal server error';
+    let errorCode: string = ERROR_CODES.INTERNAL_ERROR;
+    let details: unknown = null;
     const language = getRequestLanguage(request);
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const exceptionResponse = exception.getResponse();
 
-      if (typeof exceptionResponse === 'object') {
-        message = (exceptionResponse as any).message || message;
-        errorCode = (exceptionResponse as any).errorCode || errorCode;
-        details = (exceptionResponse as any).details || null;
+      if (this.isLocalizedResponse(exceptionResponse)) {
+        const {
+          message: responseMessage,
+          errorCode: responseCode,
+          details: responseDetails,
+        } = exceptionResponse;
+
+        if (
+          typeof responseMessage === 'string' ||
+          Array.isArray(responseMessage)
+        ) {
+          message = responseMessage;
+        }
+
+        if (typeof responseCode === 'string') {
+          errorCode = responseCode;
+        }
+
+        if (responseDetails !== undefined) {
+          details = responseDetails ?? null;
+        }
       } else {
-        message = exceptionResponse;
+        message =
+          typeof exceptionResponse === 'string'
+            ? exceptionResponse
+            : 'Internal server error';
       }
     } else if (exception instanceof Error) {
       message = exception.message;
@@ -49,7 +75,9 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     }
 
     const localizedMessage =
-      typeof message === 'string' ? localizeMessage(message, language) : message;
+      typeof message === 'string'
+        ? localizeMessage(message, language)
+        : message;
     const localizedDetails = localizePayloadMessages(details, language);
 
     const errorResponse = {
@@ -67,8 +95,11 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     };
 
     // Log error for debugging
+    const messageForLog = Array.isArray(localizedMessage)
+      ? localizedMessage.join('; ')
+      : localizedMessage;
     this.logger.error(
-      `${request.method} ${request.url} - Status: ${status} - Message: ${localizedMessage}`,
+      `${request.method} ${request.url} - Status: ${status} - Message: ${messageForLog}`,
     );
 
     response.status(status).json(errorResponse);

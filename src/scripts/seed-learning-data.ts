@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access, no-useless-escape */
 import { DataSource } from 'typeorm';
 import * as dotenv from 'dotenv';
 

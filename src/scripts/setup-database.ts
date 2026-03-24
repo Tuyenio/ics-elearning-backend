@@ -28,4 +28,4 @@ async function setupDatabase() {
   }
 }
 
-setupDatabase();
+void setupDatabase();

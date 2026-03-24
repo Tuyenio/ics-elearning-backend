@@ -128,10 +128,7 @@ export class VNPayService {
    * Verify VNPay return data
    */
   verifyReturnUrl(vnpParams: VNPayReturnData): PaymentResult {
-    const secureHash = vnpParams.vnp_SecureHash;
-
-    // Remove hash params for verification - create new object without these properties
-    const { vnp_SecureHash, vnp_SecureHashType, ...verifyParams } = vnpParams;
+    const { vnp_SecureHash: secureHash, ...verifyParams } = vnpParams;
 
     // Sort and create signature
     const sortedParams = this.sortObject(
