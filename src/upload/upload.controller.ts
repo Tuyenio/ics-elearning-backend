@@ -80,7 +80,7 @@ export class UploadController {
   }
 
   @Post('document')
-  @Roles(UserRole.TEACHER, UserRole.ADMIN)
+  @Roles(UserRole.TEACHER, UserRole.ADMIN, UserRole.STUDENT)
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({

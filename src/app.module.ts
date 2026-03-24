@@ -104,6 +104,10 @@ import { InstructorSubscriptionsModule } from './instructor-subscriptions/instru
               }
             : false,
         extra: {
+          // Connection pool configuration for high concurrency (up to 1000 concurrent users)
+          max: 100, // Maximum pooled connections - supports ~1000 concurrent users with keep-alive
+          idleTimeoutMillis: 30000, // Close idle connections after 30s
+          connectionTimeoutMillis: 10000, // Timeout for acquiring connection from pool
           // Set search_path so that "learning" schema is resolved first, then "public"
           // Safe even before "learning" schema exists (PG skips non-existent schemas)
           options: '-c search_path=learning,public',

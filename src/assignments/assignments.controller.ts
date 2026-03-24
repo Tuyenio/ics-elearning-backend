@@ -75,7 +75,18 @@ export class AssignmentsController {
   @ApiOperation({ summary: 'Nộp bài tập (Student)' })
   submitAssignment(
     @Param('id') id: string,
-    @Body() body: { content: string; attachments?: string[] },
+    @Body()
+    body: {
+      content: string;
+      attachments?: Array<
+        | string
+        | {
+            url?: string;
+            name?: string;
+            filename?: string;
+          }
+      >;
+    },
     @Req() req: any,
   ) {
     return this.assignmentsService.submitAssignment(
@@ -90,8 +101,12 @@ export class AssignmentsController {
   @UseGuards(RolesGuard)
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
   @ApiOperation({ summary: 'Lấy danh sách bài nộp (Teacher/Admin)' })
-  getSubmissions(@Param('id') id: string) {
-    return this.assignmentsService.getSubmissionsByAssignment(id);
+  getSubmissions(@Param('id') id: string, @Req() req: any) {
+    return this.assignmentsService.getSubmissionsByAssignment(
+      id,
+      req.user.id,
+      req.user.role,
+    );
   }
 
   @Get(':id/my-submission')
@@ -124,6 +139,7 @@ export class AssignmentsController {
       body.feedback,
       body.gradingDetails,
       req.user.id,
+      req.user.role,
     );
   }
 }

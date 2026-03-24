@@ -41,6 +41,14 @@ export class TeacherController {
     return this.teacherService.getStudentList(req.user.id);
   }
 
+  @Get('courses/:courseId/students-progress')
+  getCourseStudentsProgress(
+    @Req() req: any,
+    @Param('courseId') courseId: string,
+  ) {
+    return this.teacherService.getCourseStudentsProgress(req.user.id, courseId);
+  }
+
   @Post('students/export')
   async exportStudents(@Req() req: any, @Res() res: Response) {
     const csv = await this.teacherService.exportStudentsToCSV(req.user.id);

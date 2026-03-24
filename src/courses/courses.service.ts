@@ -39,16 +39,9 @@ export class CoursesService {
       );
     }
 
-    const slug =
+    const baseSlug =
       createCourseDto.slug || this.generateSlug(createCourseDto.title);
-
-    const existingCourse = await this.courseRepository.findOne({
-      where: { slug },
-    });
-
-    if (existingCourse) {
-      throw new ConflictException('Khóa học với slug này đã tồn tại');
-    }
+    const slug = await this.generateUniqueSlug(baseSlug);
 
     const course = this.courseRepository.create({
       ...createCourseDto,
@@ -152,6 +145,10 @@ export class CoursesService {
 
     if (options?.status && options.status !== 'all') {
       qb.andWhere('course.status = :status', { status: options.status });
+    } else {
+      qb.andWhere('course.status != :draftStatus', {
+        draftStatus: CourseStatus.DRAFT,
+      });
     }
 
     if (options?.search) {
@@ -519,5 +516,24 @@ export class CoursesService {
       .replace(/[^\w\s-]/g, '')
       .replace(/[\s_-]+/g, '-')
       .replace(/^-+|-+$/g, '');
+  }
+
+  private async generateUniqueSlug(baseSlug: string): Promise<string> {
+    const safeBase = (baseSlug || `khoa-hoc-${Date.now()}`)
+      .trim()
+      .toLowerCase();
+    let candidate = safeBase;
+    let index = 1;
+
+    while (true) {
+      const existing = await this.courseRepository.findOne({
+        where: { slug: candidate },
+      });
+      if (!existing) {
+        return candidate;
+      }
+      index += 1;
+      candidate = `${safeBase}-${index}`;
+    }
   }
 }

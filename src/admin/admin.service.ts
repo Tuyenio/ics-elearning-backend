@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, MoreThan } from 'typeorm';
 import { User, UserRole } from '../users/entities/user.entity';
-import { Course } from '../courses/entities/course.entity';
+import { Course, CourseStatus } from '../courses/entities/course.entity';
 import { Payment, PaymentStatus } from '../payments/entities/payment.entity';
 import { Enrollment } from '../enrollments/entities/enrollment.entity';
 import { Category } from '../categories/entities/category.entity';
@@ -704,10 +704,16 @@ export class AdminService {
   }
 
   async getCourses() {
-    const courses = await this.courseRepo.find({
-      relations: ['teacher', 'category', 'enrollments', 'lessons', 'reviews'],
-      order: { createdAt: 'DESC' },
-    });
+    const courses = await this.courseRepo
+      .createQueryBuilder('course')
+      .leftJoinAndSelect('course.teacher', 'teacher')
+      .leftJoinAndSelect('course.category', 'category')
+      .leftJoinAndSelect('course.enrollments', 'enrollments')
+      .leftJoinAndSelect('course.lessons', 'lessons')
+      .leftJoinAndSelect('course.reviews', 'reviews')
+      .where('course.status != :draftStatus', { draftStatus: CourseStatus.DRAFT })
+      .orderBy('course.createdAt', 'DESC')
+      .getMany();
 
     return courses.map((course) => ({
       id: course.id,

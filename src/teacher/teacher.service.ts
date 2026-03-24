@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { Course, CourseStatus } from '../courses/entities/course.entity';
@@ -7,6 +7,11 @@ import { Payment, PaymentStatus } from '../payments/entities/payment.entity';
 import { Review } from '../reviews/entities/review.entity';
 import { TeacherDashboardStats, EarningsData } from './dto/teacher-stats.dto';
 import { EnrollmentStatus } from '../enrollments/entities/enrollment.entity';
+import {
+  Assignment,
+  AssignmentSubmission,
+  SubmissionStatus,
+} from '../assignments/entities/assignment.entity';
 
 @Injectable()
 export class TeacherService {
@@ -19,7 +24,147 @@ export class TeacherService {
     private readonly paymentRepo: Repository<Payment>,
     @InjectRepository(Review)
     private readonly reviewRepo: Repository<Review>,
+    @InjectRepository(Assignment)
+    private readonly assignmentRepo: Repository<Assignment>,
+    @InjectRepository(AssignmentSubmission)
+    private readonly assignmentSubmissionRepo: Repository<AssignmentSubmission>,
   ) {}
+
+  async getCourseStudentsProgress(teacherId: string, courseId: string) {
+    const course = await this.courseRepo.findOne({
+      where: { id: courseId, teacherId },
+    });
+
+    if (!course) {
+      throw new NotFoundException('Khóa học không tồn tại hoặc không thuộc quyền quản lý của giảng viên');
+    }
+
+    const enrollments = await this.enrollmentRepo.find({
+      where: { courseId },
+      relations: ['student'],
+      order: { createdAt: 'DESC' },
+    });
+
+    const assignments = await this.assignmentRepo.find({ where: { courseId } });
+    const assignmentIds = assignments.map((item) => item.id);
+
+    const submissions = assignmentIds.length
+      ? await this.assignmentSubmissionRepo.find({
+          where: { assignmentId: In(assignmentIds) },
+        })
+      : [];
+
+    const assignmentById = assignments.reduce<Record<string, Assignment>>(
+      (acc, item) => {
+        acc[item.id] = item;
+        return acc;
+      },
+      {},
+    );
+
+    const scoreByStudent = submissions.reduce<
+      Record<
+        string,
+        {
+          gradedCount: number;
+          submittedCount: number;
+          totalScore: number;
+          maxScoreTotal: number;
+        }
+      >
+    >((acc, submission) => {
+      const assignment = assignmentById[submission.assignmentId];
+      if (!assignment) return acc;
+      if (!acc[submission.studentId]) {
+        acc[submission.studentId] = {
+          gradedCount: 0,
+          submittedCount: 0,
+          totalScore: 0,
+          maxScoreTotal: 0,
+        };
+      }
+
+      if (submission.status !== SubmissionStatus.NOT_SUBMITTED) {
+        acc[submission.studentId].submittedCount += 1;
+      }
+
+      if (
+        submission.status === SubmissionStatus.GRADED &&
+        typeof submission.score === 'number'
+      ) {
+        acc[submission.studentId].gradedCount += 1;
+        acc[submission.studentId].totalScore += Number(submission.score);
+        acc[submission.studentId].maxScoreTotal += Number(assignment.maxScore || 0);
+      }
+
+      return acc;
+    }, {});
+
+    const students = enrollments.map((enrollment) => {
+      const stats = scoreByStudent[enrollment.studentId] || {
+        gradedCount: 0,
+        submittedCount: 0,
+        totalScore: 0,
+        maxScoreTotal: 0,
+      };
+
+      const scorePercentage =
+        stats.maxScoreTotal > 0
+          ? Math.round((stats.totalScore / stats.maxScoreTotal) * 1000) / 10
+          : null;
+
+      return {
+        enrollmentId: enrollment.id,
+        studentId: enrollment.studentId,
+        studentName: enrollment.student?.name || 'N/A',
+        studentEmail: enrollment.student?.email || '',
+        progress: Number(enrollment.progress || 0),
+        enrollmentStatus: enrollment.status,
+        joinedAt: enrollment.createdAt,
+        lastActiveAt: enrollment.lastAccessedAt || enrollment.updatedAt,
+        gradedAssignments: stats.gradedCount,
+        submittedAssignments: stats.submittedCount,
+        totalAssignments: assignments.length,
+        scorePercentage,
+      };
+    });
+
+    const averageProgress =
+      students.length > 0
+        ? Math.round(
+            (students.reduce((sum, item) => sum + Number(item.progress || 0), 0) /
+              students.length) *
+              10,
+          ) / 10
+        : 0;
+
+    const scoredStudents = students.filter(
+      (item) => typeof item.scorePercentage === 'number',
+    );
+    const averageScore =
+      scoredStudents.length > 0
+        ? Math.round(
+            (scoredStudents.reduce(
+              (sum, item) => sum + Number(item.scorePercentage || 0),
+              0,
+            ) /
+              scoredStudents.length) *
+              10,
+          ) / 10
+        : 0;
+
+    return {
+      courseId: course.id,
+      courseTitle: course.title,
+      summary: {
+        totalStudents: students.length,
+        totalAssignments: assignments.length,
+        averageProgress,
+        averageScore,
+      },
+      students,
+    };
+  }
 
   async getDashboardStats(teacherId: string): Promise<TeacherDashboardStats> {
     const now = new Date();
