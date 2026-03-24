@@ -8,6 +8,11 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { ERROR_CODES } from '../constants/app.constants';
+import {
+  getRequestLanguage,
+  localizeMessage,
+  localizePayloadMessages,
+} from '../i18n/message-localizer';
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
@@ -22,6 +27,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     let message = 'Internal server error';
     let errorCode = ERROR_CODES.INTERNAL_ERROR;
     let details: any = null;
+    const language = getRequestLanguage(request);
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
@@ -42,12 +48,16 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       );
     }
 
+    const localizedMessage =
+      typeof message === 'string' ? localizeMessage(message, language) : message;
+    const localizedDetails = localizePayloadMessages(details, language);
+
     const errorResponse = {
       success: false,
       error: {
         code: errorCode,
-        message,
-        details,
+        message: localizedMessage,
+        details: localizedDetails,
       },
       meta: {
         timestamp: new Date().toISOString(),
@@ -58,7 +68,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     // Log error for debugging
     this.logger.error(
-      `${request.method} ${request.url} - Status: ${status} - Message: ${message}`,
+      `${request.method} ${request.url} - Status: ${status} - Message: ${localizedMessage}`,
     );
 
     response.status(status).json(errorResponse);
