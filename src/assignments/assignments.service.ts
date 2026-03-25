@@ -14,6 +14,9 @@ import {
   SubmissionStatus,
 } from './entities/assignment.entity';
 import { UserRole } from '../users/entities/user.entity';
+import { LessonProgress } from '../lesson-progress/entities/lesson-progress.entity';
+import { Enrollment } from '../enrollments/entities/enrollment.entity';
+import { EnrollmentsService } from '../enrollments/enrollments.service';
 
 type SubmissionAttachmentInput =
   | string
@@ -37,6 +40,11 @@ export class AssignmentsService {
     private readonly assignmentRepo: Repository<Assignment>,
     @InjectRepository(AssignmentSubmission)
     private readonly submissionRepo: Repository<AssignmentSubmission>,
+    @InjectRepository(LessonProgress)
+    private readonly lessonProgressRepo: Repository<LessonProgress>,
+    @InjectRepository(Enrollment)
+    private readonly enrollmentRepo: Repository<Enrollment>,
+    private readonly enrollmentsService: EnrollmentsService,
   ) {}
 
   async create(createAssignmentDto: CreateAssignmentDto, userId: string) {
@@ -133,7 +141,47 @@ export class AssignmentsService {
       submittedAt: now,
     });
 
-    return this.submissionRepo.save(submission);
+    const savedSubmission = await this.submissionRepo.save(submission);
+
+    // Writing submission counts as lesson completion when assignment is bound to a lesson.
+    if (assignment.lessonId) {
+      const enrollment = await this.enrollmentRepo.findOne({
+        where: {
+          studentId: userId,
+          courseId: assignment.courseId,
+        },
+      });
+
+      if (enrollment) {
+        let lessonProgress = await this.lessonProgressRepo.findOne({
+          where: {
+            enrollmentId: enrollment.id,
+            lessonId: assignment.lessonId,
+          },
+        });
+
+        if (!lessonProgress) {
+          lessonProgress = this.lessonProgressRepo.create({
+            enrollmentId: enrollment.id,
+            lessonId: assignment.lessonId,
+            progress: 100,
+            isCompleted: true,
+            completedAt: now,
+          });
+        } else {
+          lessonProgress.progress = 100;
+          lessonProgress.isCompleted = true;
+          if (!lessonProgress.completedAt) {
+            lessonProgress.completedAt = now;
+          }
+        }
+
+        await this.lessonProgressRepo.save(lessonProgress);
+        await this.enrollmentsService.updateProgress(enrollment.id);
+      }
+    }
+
+    return savedSubmission;
   }
 
   async getSubmissionsByAssignment(
