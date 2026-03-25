@@ -283,16 +283,28 @@ export class InstructorSubscriptionsService implements OnModuleInit {
     const now = new Date();
     const endDate = this.addMonths(now, plan.durationMonths || 1);
 
-    const subscription = await this.subscriptionRepo.findOne({
+    const activeSubscriptions = await this.subscriptionRepo.find({
       where: { teacherId, status: InstructorSubscriptionStatus.ACTIVE },
       order: { createdAt: 'DESC' },
     });
+
+    const subscription = activeSubscriptions[0];
+
+    if (activeSubscriptions.length > 1) {
+      for (const extra of activeSubscriptions.slice(1)) {
+        extra.status = InstructorSubscriptionStatus.CANCELLED;
+        extra.cancelReason =
+          extra.cancelReason || 'Replaced by newer active subscription';
+      }
+      await this.subscriptionRepo.save(activeSubscriptions.slice(1));
+    }
 
     if (subscription) {
       subscription.planId = plan.id;
       subscription.startDate = now;
       subscription.endDate = endDate;
       subscription.status = InstructorSubscriptionStatus.ACTIVE;
+      subscription.autoRenew = false;
       subscription.cancelReason = null;
       subscription.paymentMethod = paymentMethod || subscription.paymentMethod;
       return this.subscriptionRepo.save(subscription);
@@ -557,28 +569,48 @@ export class InstructorSubscriptionsService implements OnModuleInit {
   }
 
   async cancelSubscription(teacherId: string, reason?: string) {
-    const subscription = await this.subscriptionRepo.findOne({
+    const freePlan = await this.getOrCreateFreePlan();
+
+    const activeSubscriptions = await this.subscriptionRepo.find({
       where: { teacherId, status: InstructorSubscriptionStatus.ACTIVE },
-      relations: ['plan'],
       order: { createdAt: 'DESC' },
     });
 
-    if (!subscription) {
-      throw new NotFoundException('Khong tim thay goi dang su dung');
+    if (activeSubscriptions.length === 0) {
+      const now = new Date();
+      await this.subscriptionRepo.save(
+        this.subscriptionRepo.create({
+          teacherId,
+          planId: freePlan.id,
+          status: InstructorSubscriptionStatus.ACTIVE,
+          startDate: now,
+          endDate: this.addMonths(now, freePlan.durationMonths || 1),
+          autoRenew: false,
+          paymentMethod: null,
+          cancelReason: reason || 'Cancelled to free plan',
+        }),
+      );
+      return this.getTeacherSubscription(teacherId);
     }
 
-    const freePlan = await this.getOrCreateFreePlan();
+    const current = activeSubscriptions[0];
+    const now = new Date();
 
-    subscription.planId = freePlan.id;
-    subscription.status = InstructorSubscriptionStatus.ACTIVE;
-    subscription.startDate = new Date();
-    subscription.endDate = this.addMonths(
-      new Date(),
-      freePlan.durationMonths || 1,
-    );
-    subscription.cancelReason = reason || 'User cancelled';
+    current.planId = freePlan.id;
+    current.status = InstructorSubscriptionStatus.ACTIVE;
+    current.startDate = now;
+    current.endDate = this.addMonths(now, freePlan.durationMonths || 1);
+    current.autoRenew = false;
+    current.paymentMethod = null;
+    current.cancelReason = reason || 'User cancelled';
 
-    await this.subscriptionRepo.save(subscription);
+    const toClose = activeSubscriptions.slice(1).map((item) => {
+      item.status = InstructorSubscriptionStatus.CANCELLED;
+      item.cancelReason = item.cancelReason || 'Closed after cancellation';
+      return item;
+    });
+
+    await this.subscriptionRepo.save([current, ...toClose]);
 
     return this.getTeacherSubscription(teacherId);
   }
@@ -615,10 +647,21 @@ export class InstructorSubscriptionsService implements OnModuleInit {
   }
 
   async confirmPayment(id: string) {
-    const payment = await this.paymentRepo.findOne({ where: { id } });
+    const payment = await this.paymentRepo.findOne({
+      where: { id },
+      relations: ['plan'],
+    });
     if (!payment) throw new NotFoundException('Khong tim thay giao dich');
+
+    const subscription = await this.applyPlanToTeacher(
+      payment.teacherId,
+      payment.plan,
+      payment.paymentMethod,
+    );
+
     payment.status = InstructorSubscriptionPaymentStatus.PAID;
     payment.paidAt = new Date();
+    payment.subscriptionId = subscription.id;
     return this.paymentRepo.save(payment);
   }
 

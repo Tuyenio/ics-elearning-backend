@@ -39,6 +39,27 @@ export class ExtractedExamsController {
     return this.service.findOneForStudent(id, user.id);
   }
 
+  @Get(':id/my-attempts')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.STUDENT)
+  getMyAttempts(
+    @Param('id') id: string,
+    @GetUser() user: AuthenticatedRequestUser,
+  ) {
+    return this.service.getAttemptsForStudent(id, user.id);
+  }
+
+  @Get(':id/my-attempts/:attemptId')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.STUDENT)
+  getMyAttemptDetail(
+    @Param('id') id: string,
+    @Param('attemptId') attemptId: string,
+    @GetUser() user: AuthenticatedRequestUser,
+  ) {
+    return this.service.getAttemptDetailForStudent(id, attemptId, user.id);
+  }
+
   @Post(':id/submit')
   @UseGuards(RolesGuard)
   @Roles(UserRole.STUDENT)

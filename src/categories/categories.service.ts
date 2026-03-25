@@ -7,6 +7,8 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Category } from './entities/category.entity';
+import { Course } from '../courses/entities/course.entity';
+import { EnrollmentStatus } from '../enrollments/entities/enrollment.entity';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
@@ -17,6 +19,8 @@ export class CategoriesService {
   constructor(
     @InjectRepository(Category)
     private readonly categoryRepository: Repository<Category>,
+    @InjectRepository(Course)
+    private readonly courseRepository: Repository<Course>,
     @Inject(CACHE_MANAGER)
     private cacheManager: Cache,
   ) {}
@@ -47,10 +51,36 @@ export class CategoriesService {
   }
 
   async findAll(): Promise<Category[]> {
-    return this.categoryRepository.find({
+    const categories = await this.categoryRepository.find({
       relations: ['courses'],
       order: { order: 'ASC', name: 'ASC' },
     });
+
+    if (categories.length === 0) {
+      return categories;
+    }
+
+    const categoryIds = categories.map((category) => category.id);
+    const rows = await this.courseRepository
+      .createQueryBuilder('course')
+      .leftJoin('course.enrollments', 'enrollment')
+      .select('course.categoryId', 'categoryId')
+      .addSelect('COUNT(enrollment.id)', 'count')
+      .where('course.categoryId IN (:...categoryIds)', { categoryIds })
+      .andWhere('enrollment.status IN (:...statuses)', {
+        statuses: [EnrollmentStatus.ACTIVE, EnrollmentStatus.COMPLETED],
+      })
+      .groupBy('course.categoryId')
+      .getRawMany<{ categoryId: string; count: string }>();
+
+    const studentCountMap = new Map<string, number>(
+      rows.map((row) => [row.categoryId, Number(row.count || 0)]),
+    );
+
+    return categories.map((category) => ({
+      ...category,
+      students: studentCountMap.get(category.id) ?? 0,
+    }));
   }
 
   async findActive(): Promise<Category[]> {
@@ -70,7 +100,7 @@ export class CategoriesService {
       throw new NotFoundException('Category not found');
     }
 
-    return category;
+    return this.withActualEnrollmentCounts(category);
   }
 
   async findBySlug(slug: string): Promise<Category> {
@@ -82,6 +112,37 @@ export class CategoriesService {
     if (!category) {
       throw new NotFoundException('Category not found');
     }
+
+    return this.withActualEnrollmentCounts(category);
+  }
+
+  private async withActualEnrollmentCounts(category: Category): Promise<Category> {
+    const courses = category.courses ?? [];
+    if (courses.length === 0) {
+      return category;
+    }
+
+    const courseIds = courses.map((course) => course.id);
+    const rows = await this.courseRepository
+      .createQueryBuilder('course')
+      .leftJoin('course.enrollments', 'enrollment')
+      .select('course.id', 'courseId')
+      .addSelect('COUNT(enrollment.id)', 'count')
+      .where('course.id IN (:...courseIds)', { courseIds })
+      .andWhere('enrollment.status IN (:...statuses)', {
+        statuses: [EnrollmentStatus.ACTIVE, EnrollmentStatus.COMPLETED],
+      })
+      .groupBy('course.id')
+      .getRawMany<{ courseId: string; count: string }>();
+
+    const countMap = new Map<string, number>(
+      rows.map((row) => [row.courseId, Number(row.count || 0)]),
+    );
+
+    category.courses = courses.map((course) => ({
+      ...course,
+      enrollmentCount: countMap.get(course.id) ?? 0,
+    }));
 
     return category;
   }

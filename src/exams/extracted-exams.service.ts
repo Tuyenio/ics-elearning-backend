@@ -478,6 +478,105 @@ export class ExtractedExamsService {
     };
   }
 
+  async getAttemptsForStudent(id: string, studentId: string) {
+    const exam = await this.extractedExamRepo.findOne({
+      where: { id, status: ExtractedExamStatus.APPROVED },
+      relations: ['course'],
+    });
+    if (!exam) {
+      throw new NotFoundException('Không tìm thấy đề thi đã trích xuất');
+    }
+
+    const enrollment = await this.enrollmentRepo.findOne({
+      where: {
+        studentId,
+        courseId: exam.courseId,
+      },
+    });
+    if (
+      !enrollment ||
+      ![EnrollmentStatus.ACTIVE, EnrollmentStatus.COMPLETED].includes(
+        enrollment.status,
+      )
+    ) {
+      throw new BadRequestException('Bạn chưa đăng ký khóa học của bài thi này');
+    }
+
+    const attempts = await this.extractedExamAttemptRepo.find({
+      where: { extractedExamId: id, studentId },
+      order: { submittedAt: 'DESC', createdAt: 'DESC' },
+    });
+
+    return {
+      exam: {
+        id: exam.id,
+        title: exam.title,
+        courseName: exam.course?.title || '',
+        passingScore: Number(exam.passingScore || 0),
+        maxAttempts: Number(exam.maxAttempts || 0),
+      },
+      attempts: attempts.map((attempt, index) => ({
+        id: attempt.id,
+        attemptNumber: attempts.length - index,
+        score: Number(attempt.score || 0),
+        passed: Boolean(attempt.passed),
+        timeSpent: Number(attempt.timeSpent || 0),
+        earnedPoints: Number(attempt.earnedPoints || 0),
+        totalPoints: Number(attempt.totalPoints || 0),
+        variantCode: attempt.variantCode ?? null,
+        completedAt: attempt.submittedAt || attempt.createdAt,
+      })),
+    };
+  }
+
+  async getAttemptDetailForStudent(
+    examId: string,
+    attemptId: string,
+    studentId: string,
+  ) {
+    const exam = await this.extractedExamRepo.findOne({
+      where: { id: examId, status: ExtractedExamStatus.APPROVED },
+    });
+    if (!exam) {
+      throw new NotFoundException('Không tìm thấy đề thi đã trích xuất');
+    }
+
+    const enrollment = await this.enrollmentRepo.findOne({
+      where: {
+        studentId,
+        courseId: exam.courseId,
+      },
+    });
+    if (
+      !enrollment ||
+      ![EnrollmentStatus.ACTIVE, EnrollmentStatus.COMPLETED].includes(
+        enrollment.status,
+      )
+    ) {
+      throw new BadRequestException('Bạn chưa đăng ký khóa học của bài thi này');
+    }
+
+    const attempt = await this.extractedExamAttemptRepo.findOne({
+      where: { id: attemptId, extractedExamId: examId, studentId },
+    });
+    if (!attempt) throw new NotFoundException('Không tìm thấy lượt thi');
+
+    return {
+      id: attempt.id,
+      extractedExamId: attempt.extractedExamId,
+      studentId: attempt.studentId,
+      score: attempt.score,
+      passed: attempt.passed,
+      earnedPoints: attempt.earnedPoints,
+      totalPoints: attempt.totalPoints,
+      variantCode: attempt.variantCode ?? null,
+      questionResults: attempt.questionResults ?? [],
+      answers: attempt.answers ?? [],
+      submittedAt: attempt.submittedAt,
+      createdAt: attempt.createdAt,
+    };
+  }
+
   async getAttemptsForTeacher(id: string, teacherId: string, role: UserRole) {
     const exam = await this.extractedExamRepo.findOne({
       where: { id },
