@@ -47,6 +47,16 @@ export class AssignmentsService {
     return this.assignmentRepo.save(assignment);
   }
 
+  async findByTeacher(teacherId: string) {
+    return this.assignmentRepo
+      .createQueryBuilder('assignment')
+      .leftJoinAndSelect('assignment.course', 'course')
+      .leftJoinAndSelect('assignment.lesson', 'lesson')
+      .where('course.teacherId = :teacherId', { teacherId })
+      .orderBy('assignment.createdAt', 'DESC')
+      .getMany();
+  }
+
   async findByCourse(courseId: string) {
     return this.assignmentRepo.find({
       where: { courseId },

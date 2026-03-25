@@ -5,7 +5,7 @@ import * as path from 'path';
 
 dotenv.config();
 
-const maxConnections = Number(process.env.DB_POOL_MAX ?? 20) || 20;
+const maxConnections = Number(process.env.DB_POOL_MAX ?? 1) || 1;
 const idleTimeoutMillis = Number(process.env.DB_IDLE_TIMEOUT_MS ?? 10000) || 10000;
 const connectionTimeoutMillis = Number(process.env.DB_CONN_TIMEOUT_MS ?? 5000) || 5000;
 

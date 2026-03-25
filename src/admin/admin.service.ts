@@ -116,22 +116,14 @@ export class AdminService {
     const courseGrowth =
       oldCourses > 0 ? ((recentCourses - oldCourses) / oldCourses) * 100 : 0;
 
-    // Fetch all remaining data in parallel using Promise.all
-    const [
-      revenueChart,
-      weeklyStats,
-      growthChart,
-      categoryDistribution,
-      topCourses,
-      recentTransactions,
-    ] = await Promise.all([
-      this.getRevenueChart(12),
-      this.getWeeklyStats(),
-      this.buildGrowthChart(),
-      this.getCategoryDistribution(),
-      this.getTopCourses(),
-      this.getRecentTransactions(),
-    ]);
+    // Execute secondary dashboard queries sequentially to avoid pool spikes on
+    // managed Postgres session poolers (e.g. Supabase session mode).
+    const revenueChart = await this.getRevenueChart(12);
+    const weeklyStats = await this.getWeeklyStats();
+    const growthChart = await this.buildGrowthChart();
+    const categoryDistribution = await this.getCategoryDistribution();
+    const topCourses = await this.getTopCourses();
+    const recentTransactions = await this.getRecentTransactions();
 
     return {
       totalRevenue,
@@ -223,21 +215,36 @@ export class AdminService {
         'payment.finalAmount',
         'payment.status',
         'payment.createdAt',
+        'payment.paidAt',
+        'payment.updatedAt',
         'student.name',
         'course.title',
       ])
-      .orderBy('payment.createdAt', 'DESC')
+      .orderBy('payment.paidAt', 'DESC', 'NULLS LAST')
+      .addOrderBy('payment.createdAt', 'DESC')
       .take(limit)
       .getMany();
 
-    return transactions.map((t) => ({
-      id: t.id,
-      studentName: t.student?.name || 'Unknown',
-      courseName: t.course?.title || 'Deleted Course',
-      amount: Number(t.finalAmount || 0),
-      status: t.status,
-      createdAt: t.createdAt,
-    }));
+    return transactions.map((t) => {
+      const resolvedDate = t.paidAt ?? t.createdAt ?? t.updatedAt ?? null;
+      const dateDisplay = resolvedDate
+        ? `${String(resolvedDate.getDate()).padStart(2, '0')}/${String(
+            resolvedDate.getMonth() + 1,
+          ).padStart(2, '0')}/${resolvedDate.getFullYear()}`
+        : null;
+      return {
+        id: t.id,
+        studentName: t.student?.name || 'Unknown',
+        courseName: t.course?.title || 'Deleted Course',
+        amount: Number(t.finalAmount || 0),
+        status: t.status,
+        createdAt: t.createdAt,
+        paidAt: t.paidAt,
+        updatedAt: t.updatedAt,
+        date: resolvedDate,
+        dateDisplay,
+      };
+    });
   }
 
   private async getWeeklyStats() {

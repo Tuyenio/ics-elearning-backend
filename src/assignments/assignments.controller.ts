@@ -33,6 +33,14 @@ export class AssignmentsController {
     return this.assignmentsService.create(createAssignmentDto, req.user.id);
   }
 
+  @Get()
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.TEACHER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Lấy tất cả bài tập của teacher' })
+  findAll(@Req() req: any) {
+    return this.assignmentsService.findByTeacher(req.user.id);
+  }
+
   @Get('course/:courseId')
   @ApiOperation({ summary: 'Lấy bài tập theo khóa học' })
   findByCourse(@Param('courseId') courseId: string) {
