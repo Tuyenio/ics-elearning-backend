@@ -2,6 +2,7 @@ export default () => ({
   // Application
   port: parseInt(process.env.PORT || '5001', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
+  appHost: process.env.APP_HOST || 'http://localhost:5001',
 
   // Database
   database: {
@@ -19,6 +20,13 @@ export default () => ({
 
   // Frontend
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+
+  // Google OAuth
+  google: {
+    clientId: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    callbackURL: `${process.env.APP_HOST || 'http://localhost:5001'}/auth/google/callback`,
+  },
 
   // Email
   email: {

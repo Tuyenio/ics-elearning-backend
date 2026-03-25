@@ -25,12 +25,21 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     private configService: ConfigService,
     private usersService: UsersService,
   ) {
-    super({
-      clientID: configService.get<string>('GOOGLE_CLIENT_ID'),
-      clientSecret: configService.get<string>('GOOGLE_CLIENT_SECRET'),
-      callbackURL: configService.get<string>('GOOGLE_CALLBACK_URL'),
+    const googleConfig = {
+      clientID: configService.get<string>('google.clientId'),
+      clientSecret: configService.get<string>('google.clientSecret'),
+      callbackURL: configService.get<string>('google.callbackURL'),
       scope: ['email', 'profile'],
-    } as any);
+    };
+
+    // Validate required Google OAuth config
+    if (!googleConfig.clientID || !googleConfig.clientSecret) {
+      console.warn(
+        '⚠️  Google OAuth not configured. Sign-in with Google will be unavailable.',
+      );
+    }
+
+    super(googleConfig as any);
   }
 
   async validate(
