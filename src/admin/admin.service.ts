@@ -116,23 +116,22 @@ export class AdminService {
     const courseGrowth =
       oldCourses > 0 ? ((recentCourses - oldCourses) / oldCourses) * 100 : 0;
 
-    // Revenue chart (last 7 days)
-    const revenueChart = await this.getRevenueChart(12);
-
-    // Weekly activity stats
-    const weeklyStats = await this.getWeeklyStats();
-
-    // Growth chart (teachers vs students by month)
-    const growthChart = await this.buildGrowthChart();
-
-    // Category distribution
-    const categoryDistribution = await this.getCategoryDistribution();
-
-    // Top courses
-    const topCourses = await this.getTopCourses();
-
-    // Recent transactions
-    const recentTransactions = await this.getRecentTransactions();
+    // Fetch all remaining data in parallel using Promise.all
+    const [
+      revenueChart,
+      weeklyStats,
+      growthChart,
+      categoryDistribution,
+      topCourses,
+      recentTransactions,
+    ] = await Promise.all([
+      this.getRevenueChart(12),
+      this.getWeeklyStats(),
+      this.buildGrowthChart(),
+      this.getCategoryDistribution(),
+      this.getTopCourses(),
+      this.getRecentTransactions(),
+    ]);
 
     return {
       totalRevenue,
@@ -157,16 +156,20 @@ export class AdminService {
     const data: number[] = [];
     const now = new Date();
 
+    // Query all payments once, then process in memory
+    const allPayments = await this.paymentRepo
+      .createQueryBuilder('payment')
+      .where('payment.status = :status', { status: PaymentStatus.COMPLETED })
+      .getMany();
+
     for (let i = days - 1; i >= 0; i--) {
       const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const nextDate = new Date(date.getFullYear(), date.getMonth() + 1, 1);
 
-      const monthRevenue = await this.paymentRepo
-        .createQueryBuilder('payment')
-        .where('payment.status = :status', { status: PaymentStatus.COMPLETED })
-        .andWhere('payment.createdAt >= :start', { start: date })
-        .andWhere('payment.createdAt < :end', { end: nextDate })
-        .getMany();
+      // Filter already-fetched data in memory instead of querying DB
+      const monthRevenue = allPayments.filter(
+        (p) => p.createdAt >= date && p.createdAt < nextDate
+      );
 
       const total = monthRevenue.reduce(
         (sum, p) => sum + Number(p.finalAmount || 0),
@@ -211,11 +214,21 @@ export class AdminService {
   }
 
   async getRecentTransactions(limit: number = 10) {
-    const transactions = await this.paymentRepo.find({
-      relations: ['student', 'course'],
-      order: { createdAt: 'DESC' },
-      take: limit,
-    });
+    const transactions = await this.paymentRepo
+      .createQueryBuilder('payment')
+      .leftJoinAndSelect('payment.student', 'student')
+      .leftJoinAndSelect('payment.course', 'course')
+      .select([
+        'payment.id',
+        'payment.finalAmount',
+        'payment.status',
+        'payment.createdAt',
+        'student.name',
+        'course.title',
+      ])
+      .orderBy('payment.createdAt', 'DESC')
+      .take(limit)
+      .getMany();
 
     return transactions.map((t) => ({
       id: t.id,
@@ -231,7 +244,22 @@ export class AdminService {
     const stats: { day: string; activeUsers: number; newSignups: number }[] =
       [];
     const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
+    // Fetch all enrollments and users from last 7 days in 2 queries
+    const [enrollments, newUsers] = await Promise.all([
+      this.enrollmentRepo.find({
+        where: { createdAt: Between(sevenDaysAgo, now) },
+      }),
+      this.userRepo.find({
+        where: { 
+          createdAt: Between(sevenDaysAgo, now),
+          role: UserRole.STUDENT 
+        },
+      }),
+    ]);
+
+    // Process data in memory instead of querying DB for each day
     for (let i = 6; i >= 0; i--) {
       const start = new Date(now);
       start.setHours(0, 0, 0, 0);
@@ -239,14 +267,13 @@ export class AdminService {
       const end = new Date(start);
       end.setDate(start.getDate() + 1);
 
-      const [activeUsers, newSignups] = await Promise.all([
-        this.enrollmentRepo.count({
-          where: { createdAt: Between(start, end) },
-        }),
-        this.userRepo.count({
-          where: { createdAt: Between(start, end), role: UserRole.STUDENT },
-        }),
-      ]);
+      const activeUsers = enrollments.filter(
+        (e) => e.createdAt >= start && e.createdAt < end
+      ).length;
+      
+      const newSignups = newUsers.filter(
+        (u) => u.createdAt >= start && u.createdAt < end
+      ).length;
 
       stats.push({
         day: start.toLocaleDateString('vi-VN', { weekday: 'short' }),
