@@ -234,6 +234,7 @@ function localizeUnknown(value: unknown, language: SupportedLanguage): unknown {
   if (Array.isArray(value))
     return value.map((item) => localizeUnknown(item, language));
   if (!value || typeof value !== 'object') return value;
+  if (value instanceof Date) return value;
 
   const source = value as Record<string, unknown>;
   const output: Record<string, unknown> = {};
