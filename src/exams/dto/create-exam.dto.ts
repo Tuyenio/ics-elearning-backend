@@ -20,7 +20,9 @@ export enum ExamType {
 
 export enum ExamStatusDto {
   DRAFT = 'draft',
+  PENDING = 'pending',
   APPROVED = 'approved',
+  REJECTED = 'rejected',
 }
 
 export class CreateExamDto {

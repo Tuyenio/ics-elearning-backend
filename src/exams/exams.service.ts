@@ -172,9 +172,28 @@ export class ExamsService {
     }
 
     const requestedStatus = String(createExamDto?.status || '').toLowerCase();
-    const effectiveStatus =
-      requestedStatus === ExamStatus.DRAFT
-        ? ExamStatus.DRAFT
+    const isTeacher = role === UserRole.TEACHER;
+
+    if (
+      isTeacher &&
+      requestedStatus &&
+      ![ExamStatus.DRAFT, ExamStatus.PENDING].includes(
+        requestedStatus as ExamStatus,
+      )
+    ) {
+      throw new BadRequestException(
+        'Giảng viên chỉ được lưu nháp hoặc gửi chờ duyệt',
+      );
+    }
+
+    const effectiveStatus = isTeacher
+      ? requestedStatus === ExamStatus.PENDING
+        ? ExamStatus.PENDING
+        : ExamStatus.DRAFT
+      : [ExamStatus.DRAFT, ExamStatus.PENDING, ExamStatus.APPROVED, ExamStatus.REJECTED].includes(
+            requestedStatus as ExamStatus,
+          )
+        ? (requestedStatus as ExamStatus)
         : ExamStatus.APPROVED;
 
     const examData = {
@@ -263,10 +282,20 @@ export class ExamsService {
       }
     }
 
-    if (!metaFields.status && exam.status !== ExamStatus.DRAFT) {
-      metaFields.status = ExamStatus.APPROVED;
+    if (
+      metaFields.status &&
+      ![ExamStatus.DRAFT, ExamStatus.PENDING].includes(
+        metaFields.status as ExamStatus,
+      )
+    ) {
+      throw new BadRequestException(
+        'Giảng viên chỉ được lưu nháp hoặc gửi chờ duyệt',
+      );
     }
-    metaFields.rejectionReason = null;
+
+    if (metaFields.status) {
+      metaFields.rejectionReason = null;
+    }
 
     if (rawQuestions !== undefined) {
       const normalizedQuestions = this.normalizeQuestionsPayload(rawQuestions);
@@ -340,10 +369,18 @@ export class ExamsService {
       metaFields.availableUntil,
     );
 
-    if (!metaFields.status && exam.status !== ExamStatus.DRAFT) {
-      metaFields.status = ExamStatus.APPROVED;
+    if (
+      metaFields.status &&
+      ![ExamStatus.DRAFT, ExamStatus.PENDING, ExamStatus.APPROVED, ExamStatus.REJECTED].includes(
+        metaFields.status as ExamStatus,
+      )
+    ) {
+      throw new BadRequestException('Trạng thái bài thi không hợp lệ');
     }
-    metaFields.rejectionReason = null;
+
+    if (metaFields.status) {
+      metaFields.rejectionReason = null;
+    }
 
     if (rawQuestions !== undefined) {
       const normalizedQuestions = this.normalizeQuestionsPayload(rawQuestions);
