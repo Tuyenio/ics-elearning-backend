@@ -91,6 +91,9 @@ export class User {
   @Column({ type: 'timestamp', nullable: true })
   passwordResetExpires?: Date | null;
 
+  @Column({ type: 'timestamp', nullable: true })
+  lastLoginAt?: Date;
+
   @CreateDateColumn()
   createdAt: Date;
 

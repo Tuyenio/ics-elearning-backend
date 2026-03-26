@@ -78,7 +78,7 @@ export class UsersService {
     sortBy = 'createdAt',
     sortOrder: 'ASC' | 'DESC' = 'DESC',
   ): Promise<{
-    data: User[];
+    data: Array<User & { courses?: number; joinDate?: Date }>;
     total: number;
     page: number;
     totalPages: number;
@@ -116,19 +116,45 @@ export class UsersService {
     // Sorting
     queryBuilder.orderBy(`user.${sortBy}`, sortOrder);
 
+    // Relation counts for admin users table
+    queryBuilder.loadRelationCountAndMap('user.coursesCount', 'user.courses');
+    queryBuilder.loadRelationCountAndMap(
+      'user.enrollmentsCount',
+      'user.enrollments',
+    );
+
     // Pagination
     const skip = (page - 1) * limit;
     queryBuilder.skip(skip).take(limit);
 
-    const [data, total] = await queryBuilder.getManyAndCount();
+    const [rawUsers, total] = await queryBuilder.getManyAndCount();
+
+    const usersWithMetrics = rawUsers.map((u: any) => {
+      const teacherCourses = Number(u.coursesCount ?? 0);
+      const studentCourses = Number(u.enrollmentsCount ?? 0);
+
+      return {
+        ...u,
+        courses:
+          u.role === UserRole.TEACHER
+            ? teacherCourses
+            : u.role === UserRole.STUDENT
+              ? studentCourses
+              : 0,
+        joinDate: u.createdAt,
+      };
+    });
 
     // Get stats
     const stats = await this.getStats();
 
     if (maintenanceMode) {
-      const transformed = data.map((u) => {
+      const transformed = usersWithMetrics.map((u) => {
         if (u.role === UserRole.ADMIN) return u;
-        return { ...u, status: UserStatus.INACTIVE } as User;
+        return {
+          ...u,
+          status: UserStatus.INACTIVE,
+        } as User & { courses?: number; joinDate?: Date };
       });
 
       const nonAdminCount = transformed.filter(
@@ -152,7 +178,7 @@ export class UsersService {
     }
 
     return {
-      data,
+      data: usersWithMetrics,
       total,
       page,
       totalPages: Math.ceil(total / limit),
@@ -399,5 +425,9 @@ export class UsersService {
 
   async updateUserAvatar(id: string, avatarUrl: string): Promise<void> {
     await this.usersRepository.update({ id }, { avatar: avatarUrl });
+  }
+
+  async updateLastLoginAt(id: string, at: Date = new Date()): Promise<void> {
+    await this.usersRepository.update({ id }, { lastLoginAt: at });
   }
 }
