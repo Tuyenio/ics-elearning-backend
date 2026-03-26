@@ -10,7 +10,7 @@ import { Course, CourseStatus } from './entities/course.entity';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { User, UserRole } from '../users/entities/user.entity';
-import { EnrollmentStatus } from '../enrollments/entities/enrollment.entity';
+import { Enrollment, EnrollmentStatus } from '../enrollments/entities/enrollment.entity';
 import {
   CourseFilters,
   FilterOption,
@@ -26,10 +26,36 @@ export class CoursesService {
   constructor(
     @InjectRepository(Course)
     private readonly courseRepository: Repository<Course>,
+    @InjectRepository(Enrollment)
+    private readonly enrollmentRepository: Repository<Enrollment>,
     @InjectRepository(Category)
     private readonly categoryRepository: Repository<Category>,
     private readonly instructorSubscriptionsService: InstructorSubscriptionsService,
   ) {}
+
+  async findCourseEnrollments(id: string, user: User): Promise<Enrollment[]> {
+    const course = await this.courseRepository.findOne({
+      where: { id },
+      select: ['id', 'teacherId'],
+    });
+
+    if (!course) {
+      throw new NotFoundException('Khóa học không tìm thấy');
+    }
+
+    // Admin can view all courses; teacher can only view their own course enrollments.
+    if (user.role !== UserRole.ADMIN && course.teacherId !== user.id) {
+      throw new ForbiddenException('Bạn không có quyền truy cập khóa học này');
+    }
+
+    return this.enrollmentRepository.find({
+      where: {
+        courseId: id,
+      },
+      relations: ['student'],
+      order: { createdAt: 'DESC' },
+    });
+  }
 
   async create(
     createCourseDto: CreateCourseDto,

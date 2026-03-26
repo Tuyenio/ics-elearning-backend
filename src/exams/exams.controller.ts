@@ -176,6 +176,16 @@ export class ExamsController {
     return this.examsService.getAttemptResult(attemptId, user.id);
   }
 
+  @Post('attempt/:attemptId/retry-certificate')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.STUDENT)
+  retryIssueCertificate(
+    @Param('attemptId') attemptId: string,
+    @GetUser() user: AuthenticatedRequestUser,
+  ) {
+    return this.examsService.retryIssueCertificate(attemptId, user.id);
+  }
+
   // ==================== PUBLIC ENDPOINTS ====================
 
   @Get(':id')

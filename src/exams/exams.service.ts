@@ -656,6 +656,10 @@ export class ExamsService {
     const score = totalPoints > 0 ? (earnedPoints / totalPoints) * 100 : 0;
     const passed = score >= exam.passingScore;
 
+    console.log(
+      `[SubmitExam] Processing exam submission. ExamID: ${exam.id}, Type: ${exam.type}, Passed: ${passed}`,
+    );
+
     attempt.answers = gradedAnswers;
     attempt.earnedPoints = earnedPoints;
     attempt.totalPoints = totalPoints;
@@ -668,28 +672,72 @@ export class ExamsService {
     );
     const savedAttempt = await this.attemptRepository.save(attempt);
 
+    // Issue certificate if exam passed and is official exam type
     if (savedAttempt.passed && exam.type === ExamType.OFFICIAL) {
-      const enrollment = await this.enrollmentRepository.findOne({
-        where: { studentId, courseId: exam.courseId },
-      });
+      try {
+        console.log(
+          `[Certificate] Student ${studentId} passed official exam ${exam.id}. Looking for enrollment for course ${exam.courseId}`,
+        );
 
-      if (enrollment) {
-        const certificate =
-          await this.certificatesService.generateCertificateForExamPass(
-            enrollment.id,
-            {
-              examId: exam.id,
-              score: savedAttempt.score,
-              attemptId: savedAttempt.id,
-            },
+        const enrollment = await this.enrollmentRepository.findOne({
+          where: { studentId, courseId: exam.courseId },
+          relations: ['student', 'course'],
+        });
+
+        if (enrollment) {
+          try {
+            console.log(
+              `[Certificate] Found enrollment ${enrollment.id}. Generating certificate...`,
+            );
+
+            const certificate =
+              await this.certificatesService.generateCertificateForExamPass(
+                enrollment.id,
+                {
+                  examId: exam.id,
+                  score: savedAttempt.score,
+                  attemptId: savedAttempt.id,
+                },
+              );
+
+            console.log(
+              `[Certificate] Certificate ${certificate.id} created successfully for attempt ${savedAttempt.id}`,
+            );
+
+            savedAttempt.certificateIssued = true;
+            savedAttempt.certificateId = certificate.id;
+            const finalAttempt = await this.attemptRepository.save(savedAttempt);
+
+            console.log(
+              `[Certificate] Attempt updated with certificateId: ${finalAttempt.certificateId}`,
+            );
+
+            return finalAttempt;
+          } catch (certError) {
+            console.error(
+              `[Certificate] Error generating certificate for enrollment ${enrollment.id}:`,
+              certError instanceof Error ? certError.message : certError,
+            );
+            // Still return the attempt even if certificate generation fails
+            // The student passed the exam, certificate can be retried later
+          }
+        } else {
+          console.warn(
+            `[Certificate] No enrollment found for studentId: ${studentId}, courseId: ${exam.courseId}`,
           );
-
-        savedAttempt.certificateIssued = true;
-        savedAttempt.certificateId = certificate.id;
-        return this.attemptRepository.save(savedAttempt);
+        }
+      } catch (error) {
+        console.error(
+          `[Certificate] Error in certificate issuance process:`,
+          error instanceof Error ? error.message : error,
+        );
+        // Continue without certificate - student still passed the exam
       }
     }
 
+    console.log(
+      `[Attempt] Returning attempt ${savedAttempt.id} with certificateIssued=${savedAttempt.certificateIssued}, certificateId=${savedAttempt.certificateId}`,
+    );
     return savedAttempt;
   }
 
@@ -710,7 +758,91 @@ export class ExamsService {
       relations: ['exam', 'exam.course', 'exam.teacher'],
     });
     if (!attempt) throw new NotFoundException('Không tìm thấy kết quả bài thi');
+
+    // Best-effort auto issuance: if student passed an official exam but certificate is still missing,
+    // trigger the retry flow during result fetch so polling/manual refresh can recover automatically.
+    if (attempt.passed && attempt.exam.type === ExamType.OFFICIAL && !attempt.certificateId) {
+      try {
+        const retried = await this.retryIssueCertificate(attemptId, studentId);
+        return retried;
+      } catch (error) {
+        console.warn(
+          `[GetAttemptResult] Auto retry certificate failed for attempt ${attemptId}:`,
+          error instanceof Error ? error.message : error,
+        );
+      }
+    }
+
     return attempt;
+  }
+
+  async retryIssueCertificate(
+    attemptId: string,
+    studentId: string,
+  ): Promise<ExamAttempt> {
+    console.log(
+      `[RetryCertificate] Student ${studentId} requesting certificate retry for attempt ${attemptId}`,
+    );
+
+    const attempt = await this.attemptRepository.findOne({
+      where: { id: attemptId, studentId },
+      relations: ['exam', 'exam.course'],
+    });
+
+    if (!attempt) {
+      throw new NotFoundException('Không tìm thấy bài làm');
+    }
+
+    if (!attempt.passed) {
+      throw new BadRequestException('Bạn chưa đạt để nhận chứng chỉ');
+    }
+
+    if (attempt.exam.type !== ExamType.OFFICIAL) {
+      throw new BadRequestException('Bài thi này không phát hành chứng chỉ');
+    }
+
+    if (attempt.certificateId) {
+      console.log(
+        `[RetryCertificate] Certificate already exists: ${attempt.certificateId}`,
+      );
+      return attempt;
+    }
+
+    // Try to issue certificate
+    try {
+      const enrollment = await this.enrollmentRepository.findOne({
+        where: { studentId, courseId: attempt.exam.courseId },
+        relations: ['student', 'course'],
+      });
+
+      if (!enrollment) {
+        throw new NotFoundException(
+          `Enrollment not found for student ${studentId} in course ${attempt.exam.courseId}`,
+        );
+      }
+
+      console.log(`[RetryCertificate] Retrying certificate generation...`);
+
+      const certificate =
+        await this.certificatesService.generateCertificateForExamPass(
+          enrollment.id,
+          {
+            examId: attempt.exam.id,
+            score: attempt.score,
+            attemptId: attempt.id,
+          },
+        );
+
+      attempt.certificateId = certificate.id;
+      attempt.certificateIssued = true;
+
+      const updated = await this.attemptRepository.save(attempt);
+      console.log(`[RetryCertificate] Certificate issued: ${certificate.id}`);
+      return updated;
+    } catch (error) {
+      console.error(`[RetryCertificate] Error:`, error);
+      throw error;
+    }
   }
 
   private checkAnswer(correctAnswer: any, userAnswer: any): boolean {

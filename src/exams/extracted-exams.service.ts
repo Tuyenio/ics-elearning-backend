@@ -24,6 +24,7 @@ import {
 import { Course } from '../courses/entities/course.entity';
 import { UserRole } from '../users/entities/user.entity';
 import { ExtractedExamAttempt } from './entities/extracted-exam-attempt.entity';
+import { CertificatesService } from '../certificates/certificates.service';
 
 type StudentAnswerPayload = { questionId: string; answer: string | string[] };
 
@@ -64,7 +65,40 @@ export class ExtractedExamsService {
     private readonly enrollmentRepo: Repository<Enrollment>,
     @InjectRepository(Course)
     private readonly courseRepo: Repository<Course>,
+    private readonly certificatesService: CertificatesService,
   ) {}
+
+  private async ensureCertificateForOfficialExtractedPass(
+    exam: ExtractedExam,
+    studentId: string,
+    score?: number,
+  ): Promise<string | null> {
+    if (exam.type !== ExtractedExamType.OFFICIAL) {
+      return null;
+    }
+
+    const enrollment = await this.enrollmentRepo.findOne({
+      where: { studentId, courseId: exam.courseId },
+      relations: ['student', 'course'],
+    });
+
+    if (!enrollment) {
+      console.warn(
+        `[ExtractedCertificate] Enrollment not found for student ${studentId}, course ${exam.courseId}`,
+      );
+      return null;
+    }
+
+    const certificate = await this.certificatesService.generateCertificateForExamPass(
+      enrollment.id,
+      {
+        examId: exam.id,
+        score,
+      },
+    );
+
+    return certificate.id;
+  }
 
   private shuffleArray<T>(arr: T[]): T[] {
     const a = [...arr];
@@ -440,6 +474,24 @@ export class ExtractedExamsService {
     const score = totalPoints > 0 ? (earnedPoints / totalPoints) * 100 : 0;
     const passed = score >= Number(exam.passingScore || 0);
 
+    let issuedCertificateId: string | null = null;
+
+    if (passed && exam.type === ExtractedExamType.OFFICIAL) {
+      try {
+        issuedCertificateId =
+          await this.ensureCertificateForOfficialExtractedPass(
+            exam,
+            studentId,
+            score,
+          );
+      } catch (error) {
+        console.error(
+          `[ExtractedCertificate] Failed to issue certificate for extracted exam ${exam.id}:`,
+          error instanceof Error ? error.message : error,
+        );
+      }
+    }
+
     const savedAttempt = await this.extractedExamAttemptRepo.save(
       this.extractedExamAttemptRepo.create({
         extractedExamId: id,
@@ -465,7 +517,7 @@ export class ExtractedExamsService {
       passed,
       earnedPoints,
       totalPoints,
-      certificateId: null,
+      certificateId: issuedCertificateId,
       totalAttempts,
       remainingAttempts,
       exam: {
@@ -506,6 +558,17 @@ export class ExtractedExamsService {
       where: { extractedExamId: id, studentId },
       order: { submittedAt: 'DESC', createdAt: 'DESC' },
     });
+
+    if (exam.type === ExtractedExamType.OFFICIAL && attempts.some((a) => a.passed)) {
+      try {
+        await this.ensureCertificateForOfficialExtractedPass(exam, studentId);
+      } catch (error) {
+        console.error(
+          `[ExtractedCertificate] Backfill issuance failed for exam ${exam.id}, student ${studentId}:`,
+          error instanceof Error ? error.message : error,
+        );
+      }
+    }
 
     return {
       exam: {

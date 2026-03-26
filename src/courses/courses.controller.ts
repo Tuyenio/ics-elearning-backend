@@ -88,6 +88,14 @@ export class CoursesController {
     return this.coursesService.findByTeacher(user.id);
   }
 
+  @Get(':id/enrollments')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.TEACHER, UserRole.ADMIN)
+  @ApiOperation({ summary: 'Lấy danh sách học viên đã đăng ký theo khóa học' })
+  findEnrollmentsByCourse(@Param('id') id: string, @GetUser() user: User) {
+    return this.coursesService.findCourseEnrollments(id, user);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.coursesService.findOne(id);

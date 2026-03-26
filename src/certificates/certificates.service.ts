@@ -6,7 +6,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Not } from 'typeorm';
 import { Certificate, CertificateStatus } from './entities/certificate.entity';
 import {
   CertificateTemplate,
@@ -78,22 +78,39 @@ export class CertificatesService {
     enrollmentId: string,
     examInfo?: { examId?: string; attemptId?: string; score?: number },
   ): Promise<Certificate> {
+    console.log(
+      `[CertificateService] Generating certificate for exam pass. Enrollment: ${enrollmentId}, ExamInfo:`,
+      examInfo,
+    );
+
     const enrollment = await this.enrollmentRepository.findOne({
       where: { id: enrollmentId },
       relations: ['student', 'course'],
     });
 
     if (!enrollment) {
+      console.error(`[CertificateService] Enrollment not found: ${enrollmentId}`);
       throw new NotFoundException('Đăng ký không tìm thấy');
     }
+
+    console.log(
+      `[CertificateService] Found enrollment. Student: ${enrollment.studentId}, Course: ${enrollment.courseId}`,
+    );
 
     const existingCertificate = await this.certificateRepository.findOne({
       where: { enrollmentId },
     });
 
     if (existingCertificate) {
+      console.log(
+        `[CertificateService] Certificate already exists for this enrollment: ${existingCertificate.id}`,
+      );
       return existingCertificate;
     }
+
+    console.log(
+      `[CertificateService] Creating new certificate for enrollment ${enrollmentId}`,
+    );
 
     const certificate = this.certificateRepository.create({
       certificateNumber: this.generateCertificateNumber(),
@@ -109,7 +126,11 @@ export class CertificatesService {
       },
     });
 
-    return this.certificateRepository.save(certificate);
+    const savedCertificate = await this.certificateRepository.save(certificate);
+    console.log(
+      `[CertificateService] Certificate saved successfully: ${savedCertificate.id}`,
+    );
+    return savedCertificate;
   }
 
   async findByStudent(studentId: string): Promise<Certificate[]> {
@@ -269,7 +290,7 @@ export class CertificatesService {
     status?: TemplateStatus,
   ): Promise<CertificateTemplate[]> {
     return this.templateRepository.find({
-      where: status ? { status } : {},
+      where: status ? { status } : { status: Not(TemplateStatus.DRAFT) },
       relations: ['course', 'teacher'],
       order: { createdAt: 'DESC' },
     });
