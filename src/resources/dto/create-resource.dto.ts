@@ -41,11 +41,11 @@ export class CreateResourceDto {
   @IsOptional()
   fileSize?: number;
 
-  @IsUUID()
+  @IsUUID('all')
   @IsNotEmpty()
   courseId: string;
 
-  @IsUUID()
+  @IsUUID('all')
   @IsOptional()
   lessonId?: string;
 
@@ -53,3 +53,4 @@ export class CreateResourceDto {
   @IsOptional()
   isPublic?: boolean;
 }
+

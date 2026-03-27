@@ -9,15 +9,16 @@ export class CreateDiscussionDto {
   @IsNotEmpty()
   content: string;
 
-  @IsUUID()
+  @IsUUID('all')
   @IsNotEmpty()
   courseId: string;
 
-  @IsUUID()
+  @IsUUID('all')
   @IsOptional()
   lessonId?: string;
 
-  @IsUUID()
+  @IsUUID('all')
   @IsOptional()
   parentId?: string;
 }
+
