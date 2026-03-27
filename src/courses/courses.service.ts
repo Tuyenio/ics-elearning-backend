@@ -21,6 +21,17 @@ import { InstructorSubscriptionsService } from '../instructor-subscriptions/inst
 
 type FilterRow = { value: string; label: string; count: string };
 
+type CourseRatingDistributionItem = {
+  stars: number;
+  count: number;
+  percentage: number;
+};
+
+type CourseWithRatingDistribution = Course & {
+  ratingDistribution: CourseRatingDistributionItem[];
+  publishedReviewCount: number;
+};
+
 @Injectable()
 export class CoursesService {
   constructor(
@@ -261,7 +272,7 @@ export class CoursesService {
     }));
   }
 
-  async findOne(id: string): Promise<Course> {
+  async findOne(id: string): Promise<CourseWithRatingDistribution> {
     const course = await this.courseRepository.findOne({
       where: { id },
       relations: ['teacher', 'category', 'lessons', 'reviews'],
@@ -271,10 +282,10 @@ export class CoursesService {
       throw new NotFoundException('Khóa học không tìm thấy');
     }
 
-    return course;
+    return this.attachRatingDistribution(course);
   }
 
-  async findBySlug(slug: string): Promise<Course> {
+  async findBySlug(slug: string): Promise<CourseWithRatingDistribution> {
     const course = await this.courseRepository.findOne({
       where: { slug },
       relations: ['teacher', 'category', 'lessons', 'reviews'],
@@ -284,7 +295,52 @@ export class CoursesService {
       throw new NotFoundException('Khóa học không tìm thấy');
     }
 
-    return course;
+    return this.attachRatingDistribution(course);
+  }
+
+  private attachRatingDistribution(
+    course: Course,
+  ): CourseWithRatingDistribution {
+    const ratingDistribution = this.buildRatingDistribution(course.reviews);
+    const publishedReviewCount = ratingDistribution.reduce(
+      (sum, item) => sum + item.count,
+      0,
+    );
+
+    return Object.assign(course, {
+      ratingDistribution,
+      publishedReviewCount,
+    });
+  }
+
+  private buildRatingDistribution(
+    reviews: Course['reviews'],
+  ): CourseRatingDistributionItem[] {
+    const buckets = new Map<number, number>([
+      [1, 0],
+      [2, 0],
+      [3, 0],
+      [4, 0],
+      [5, 0],
+    ]);
+
+    for (const review of reviews || []) {
+      if (!review?.isPublished) continue;
+      const stars = Number(review.rating);
+      if (!Number.isInteger(stars) || stars < 1 || stars > 5) continue;
+      buckets.set(stars, (buckets.get(stars) || 0) + 1);
+    }
+
+    const total = Array.from(buckets.values()).reduce(
+      (sum, count) => sum + count,
+      0,
+    );
+
+    return [5, 4, 3, 2, 1].map((stars) => {
+      const count = buckets.get(stars) || 0;
+      const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
+      return { stars, count, percentage };
+    });
   }
 
   async update(
