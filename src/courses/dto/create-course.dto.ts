@@ -6,7 +6,6 @@ import {
   IsArray,
   IsBoolean,
   IsNotEmpty,
-  IsUUID,
   Min,
 } from 'class-validator';
 import { CourseLevel, CourseStatus } from '../entities/course.entity';
@@ -73,7 +72,7 @@ export class CreateCourseDto {
   @IsOptional()
   isFeatured?: boolean;
 
-  @IsUUID()
+  @IsString()
   @IsOptional()
   categoryId?: string;
 }
