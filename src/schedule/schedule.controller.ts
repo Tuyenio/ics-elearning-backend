@@ -8,22 +8,26 @@ import {
   Param,
   HttpException,
   HttpStatus,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
 import { ScheduleService } from './schedule.service';
 import { CreateScheduleDto } from './dto/create-schedule.dto';
 import { UpdateScheduleDto } from './dto/update-schedule.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 const getErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : 'Unknown error';
 
 @Controller('schedule')
+@UseGuards(JwtAuthGuard)
 export class ScheduleController {
   constructor(private readonly service: ScheduleService) {}
 
   @Get()
-  async findAll() {
+  async findAll(@Req() req: any) {
     try {
-      const items = await this.service.findAll();
+      const items = await this.service.findAll(req.user.id);
       return { success: true, data: items };
     } catch (error: unknown) {
       throw new HttpException(
@@ -37,9 +41,9 @@ export class ScheduleController {
   }
 
   @Post()
-  async create(@Body() dto: CreateScheduleDto) {
+  async create(@Body() dto: CreateScheduleDto, @Req() req: any) {
     try {
-      const item = await this.service.create(dto);
+      const item = await this.service.create(dto, req.user.id);
       return { success: true, data: item };
     } catch (error: unknown) {
       throw new HttpException(
@@ -53,9 +57,9 @@ export class ScheduleController {
   }
 
   @Patch(':id')
-  async update(@Param('id') id: string, @Body() dto: UpdateScheduleDto) {
+  async update(@Param('id') id: string, @Body() dto: UpdateScheduleDto, @Req() req: any) {
     try {
-      const item = await this.service.update(id, dto);
+      const item = await this.service.update(id, dto, req.user.id);
       return { success: true, data: item };
     } catch (error: unknown) {
       throw new HttpException(
@@ -69,9 +73,9 @@ export class ScheduleController {
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: string) {
+  async remove(@Param('id') id: string, @Req() req: any) {
     try {
-      const result = await this.service.remove(id);
+      const result = await this.service.remove(id, req.user.id);
       return { success: true, message: result.message };
     } catch (error: unknown) {
       throw new HttpException(

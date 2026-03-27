@@ -12,18 +12,22 @@ export class ScheduleService {
     private repo: Repository<ScheduleItem>,
   ) {}
 
-  async findAll() {
+  async findAll(userId: string) {
     try {
-      return await this.repo.find({ order: { dueDate: 'ASC', time: 'ASC' } });
+      return await this.repo.find({
+        where: { userId },
+        order: { dueDate: 'ASC', time: 'ASC' },
+      });
     } catch {
       throw new BadRequestException('Failed to fetch schedule items');
     }
   }
 
-  async create(dto: CreateScheduleDto) {
+  async create(dto: CreateScheduleDto, userId: string) {
     try {
       const item = this.repo.create({
         ...dto,
+        userId,
         tags: dto.tags || [],
       });
       return await this.repo.save(item);
@@ -32,10 +36,10 @@ export class ScheduleService {
     }
   }
 
-  async update(id: string, dto: UpdateScheduleDto) {
+  async update(id: string, dto: UpdateScheduleDto, userId: string) {
     try {
       // Find the existing item
-      const item = await this.repo.findOne({ where: { id } });
+      const item = await this.repo.findOne({ where: { id, userId } });
       if (!item) {
         throw new BadRequestException('Schedule item not found');
       }
@@ -51,9 +55,9 @@ export class ScheduleService {
     }
   }
 
-  async remove(id: string) {
+  async remove(id: string, userId: string) {
     try {
-      const item = await this.repo.findOne({ where: { id } });
+      const item = await this.repo.findOne({ where: { id, userId } });
       if (!item) {
         throw new BadRequestException('Schedule item not found');
       }
