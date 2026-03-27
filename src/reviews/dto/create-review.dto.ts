@@ -9,7 +9,7 @@ import {
 } from 'class-validator';
 
 export class CreateReviewDto {
-  @IsUUID()
+  @IsUUID('all')
   @IsNotEmpty()
   courseId: string;
 
@@ -23,3 +23,4 @@ export class CreateReviewDto {
   @IsOptional()
   comment?: string;
 }
+

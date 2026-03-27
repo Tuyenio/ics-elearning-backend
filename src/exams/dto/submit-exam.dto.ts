@@ -2,7 +2,7 @@ import { IsNotEmpty, IsArray, IsUUID, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class ExamAnswerDto {
-  @IsUUID()
+  @IsUUID('all')
   @IsNotEmpty()
   questionId: string;
 
@@ -11,7 +11,7 @@ export class ExamAnswerDto {
 }
 
 export class SubmitExamDto {
-  @IsUUID()
+  @IsUUID('all')
   @IsNotEmpty()
   attemptId: string;
 
@@ -20,3 +20,4 @@ export class SubmitExamDto {
   @Type(() => ExamAnswerDto)
   answers: ExamAnswerDto[];
 }
+

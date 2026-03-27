@@ -82,11 +82,12 @@ export class CreateExamDto {
   @IsOptional()
   availableUntil?: string;
 
-  @IsUUID()
+  @IsUUID('all')
   @IsOptional()
   certificateTemplateId?: string;
 
-  @IsUUID()
+  @IsUUID('all')
   @IsNotEmpty()
   courseId: string;
 }
+

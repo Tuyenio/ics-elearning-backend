@@ -36,7 +36,7 @@ export class CreateCouponDto {
   usageLimit?: number;
 
   @IsOptional()
-  @IsUUID()
+  @IsUUID('all')
   courseId?: string;
 
   @IsOptional()
@@ -47,3 +47,4 @@ export class CreateCouponDto {
   @IsDateString()
   validUntil?: string;
 }
+

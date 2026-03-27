@@ -20,11 +20,11 @@ export class CreateAssignmentDto {
   @IsNotEmpty()
   description: string;
 
-  @IsUUID()
+  @IsUUID('all')
   @IsNotEmpty()
   courseId: string;
 
-  @IsUUID()
+  @IsUUID('all')
   @IsOptional()
   lessonId?: string;
 
@@ -52,3 +52,4 @@ export class CreateAssignmentDto {
   @IsOptional()
   attachments?: string[];
 }
+

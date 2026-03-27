@@ -1,7 +1,8 @@
 import { IsUUID, IsNotEmpty } from 'class-validator';
 
 export class AddToCartDto {
-  @IsUUID()
+  @IsUUID('all')
   @IsNotEmpty()
   courseId: string;
 }
+

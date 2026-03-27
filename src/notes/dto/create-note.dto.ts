@@ -42,11 +42,11 @@ class NoteScheduleDto {
 }
 
 export class CreateNoteDto {
-  @IsUUID()
+  @IsUUID('all')
   @IsOptional()
   courseId?: string;
 
-  @IsUUID()
+  @IsUUID('all')
   @IsOptional()
   lessonId?: string;
 
@@ -75,3 +75,4 @@ export class CreateNoteDto {
   @IsOptional()
   schedule?: NoteScheduleDto[];
 }
+

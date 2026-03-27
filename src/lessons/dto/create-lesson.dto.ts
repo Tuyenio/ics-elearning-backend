@@ -61,7 +61,8 @@ export class CreateLessonDto {
   @IsOptional()
   isPublished?: boolean;
 
-  @IsUUID()
+  @IsUUID('all')
   @IsNotEmpty()
   courseId: string;
 }
+

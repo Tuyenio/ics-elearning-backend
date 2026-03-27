@@ -82,15 +82,15 @@ export class CreateExtractedExamDto {
   @IsOptional()
   availableUntil?: string;
 
-  @IsUUID()
+  @IsUUID('all')
   @IsOptional()
   certificateTemplateId?: string;
 
-  @IsUUID()
+  @IsUUID('all')
   @IsOptional()
   sourceExamId?: string;
 
-  @IsUUID()
+  @IsUUID('all')
   @IsNotEmpty()
   courseId: string;
 
@@ -100,3 +100,4 @@ export class CreateExtractedExamDto {
   @IsOptional()
   variantCount?: number;
 }
+
