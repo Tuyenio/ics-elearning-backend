@@ -96,10 +96,20 @@ import { InstructorSubscriptionsModule } from './instructor-subscriptions/instru
           Number(configService.get('DB_IDLE_TIMEOUT_MS') ?? 10000) || 10000;
         const connectionTimeoutMillis =
           Number(configService.get('DB_CONN_TIMEOUT_MS') ?? 5000) || 5000;
+        const databaseUrl = String(configService.get('DATABASE_URL') ?? '').trim();
+        const dbConnection = databaseUrl
+          ? { url: databaseUrl }
+          : {
+              host: configService.get('DB_HOST') || 'localhost',
+              port: Number(configService.get('DB_PORT') ?? 5432) || 5432,
+              username: configService.get('DB_USERNAME') || 'postgres',
+              password: String(configService.get('DB_PASSWORD') ?? ''),
+              database: configService.get('DB_NAME') || 'postgres',
+            };
 
         return {
           type: 'postgres',
-          url: configService.get('DATABASE_URL'),
+          ...dbConnection,
           entities: [__dirname + '/**/*.entity{.ts,.js}'],
           migrations: [join(__dirname, '..', 'migrations', '*{.ts,.js}')],
           synchronize: false,

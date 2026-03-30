@@ -7,6 +7,11 @@ export default () => ({
   // Database
   database: {
     url: process.env.DATABASE_URL,
+    host: process.env.DB_HOST || 'localhost',
+    port: parseInt(process.env.DB_PORT || '5432', 10),
+    username: process.env.DB_USERNAME || 'postgres',
+    password: String(process.env.DB_PASSWORD ?? ''),
+    name: process.env.DB_NAME || 'postgres',
     ssl: process.env.DATABASE_SSL === 'true',
   },
 
@@ -30,11 +35,11 @@ export default () => ({
 
   // Email
   email: {
-    host: process.env.EMAIL_HOST,
-    port: parseInt(process.env.EMAIL_PORT || '587', 10),
-    user: process.env.EMAIL_USER,
-    password: process.env.EMAIL_PASSWORD,
-    from: process.env.EMAIL_FROM || 'noreply@icslearning.com',
+    host: process.env.SMTP_HOST || process.env.EMAIL_HOST,
+    port: parseInt(process.env.SMTP_PORT || process.env.EMAIL_PORT || '587', 10),
+    user: process.env.SMTP_USER || process.env.EMAIL_USER,
+    password: process.env.SMTP_PASS || process.env.EMAIL_PASSWORD,
+    from: process.env.SMTP_FROM || process.env.EMAIL_FROM || 'noreply@icslearning.com',
   },
 
   // Payment - VNPay
