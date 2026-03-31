@@ -1,3 +1,5 @@
+import { join } from 'path';
+
 export default () => ({
   // Application
   port: parseInt(process.env.PORT || '5001', 10),
@@ -63,6 +65,8 @@ export default () => ({
 
   // Upload
   upload: {
+    rootPath: process.env.UPLOAD_ROOT || join(process.cwd(), 'uploads'),
+    baseUrl: process.env.APP_HOST || process.env.BASE_URL || 'http://localhost:5001',
     maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '10485760', 10), // 10MB default
     allowedImageTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
     allowedVideoTypes: ['video/mp4', 'video/webm', 'video/ogg'],

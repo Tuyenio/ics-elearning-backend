@@ -6,6 +6,7 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { CacheModule } from '@nestjs/cache-manager';
 import { APP_GUARD } from '@nestjs/core';
 import { join } from 'path';
+import { mkdirSync, existsSync } from 'fs';
 import configuration from './config/configuration';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -76,9 +77,25 @@ import { InstructorSubscriptionsModule } from './instructor-subscriptions/instru
       },
     ]),
     // Static file serving for uploads
-    ServeStaticModule.forRoot({
-      rootPath: join(process.cwd(), 'uploads'),
-      serveRoot: '/uploads',
+    ServeStaticModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => {
+        const uploadRoot =
+          configService.get<string>('UPLOAD_ROOT') ||
+          join(process.cwd(), 'uploads');
+
+        if (!existsSync(uploadRoot)) {
+          mkdirSync(uploadRoot, { recursive: true });
+        }
+
+        return [
+          {
+            rootPath: uploadRoot,
+            serveRoot: '/uploads',
+          },
+        ];
+      },
     }),
     // Cache configuration
     CacheModule.register({

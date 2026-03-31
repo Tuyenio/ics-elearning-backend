@@ -31,7 +31,7 @@ export class UploadController {
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({
-        destination: './uploads/images',
+        destination: UploadService.getUploadPath('image'),
         filename: (req, file, cb) => {
           const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
           cb(null, `file-${unique}${extname(file.originalname)}`);
@@ -58,7 +58,7 @@ export class UploadController {
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({
-        destination: './uploads/videos',
+        destination: UploadService.getUploadPath('video'),
         filename: (req, file, cb) => {
           const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
           cb(null, `file-${unique}${extname(file.originalname)}`);
@@ -85,7 +85,7 @@ export class UploadController {
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({
-        destination: './uploads/documents',
+        destination: UploadService.getUploadPath('document'),
         filename: (req, file, cb) => {
           const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
           cb(null, `file-${unique}${extname(file.originalname)}`);
@@ -112,7 +112,7 @@ export class UploadController {
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({
-        destination: './uploads/avatars',
+        destination: UploadService.getUploadPath('avatar'),
         filename: (req, file, cb) => {
           const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
           cb(null, `file-${unique}${extname(file.originalname)}`);

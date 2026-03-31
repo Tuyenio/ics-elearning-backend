@@ -70,6 +70,12 @@ $ mau deploy
 
 With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
 
+## Uploads
+
+- Đặt `APP_HOST` (hoặc `BASE_URL`) để URL công khai trỏ đúng domain server.
+- Tùy chọn đặt `UPLOAD_ROOT` tới thư mục tuyệt đối khi cần lưu trữ bền vững (mặc định dùng `<project>/uploads`).
+- Thư mục con `images`, `videos`, `documents`, `avatars` sẽ được tự tạo khi service khởi động; đảm bảo tài khoản chạy service có quyền ghi vào đường dẫn này.
+
 ## Resources
 
 Check out a few resources that may come in handy when working with NestJS:

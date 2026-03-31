@@ -1,10 +1,24 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
-import { extname } from 'path';
+import { Injectable, BadRequestException, OnModuleInit } from '@nestjs/common';
+import { extname, join, resolve } from 'path';
+import { existsSync, mkdirSync } from 'fs';
 import { diskStorage } from 'multer';
 import type { MulterOptions } from '@nestjs/platform-express/multer/interfaces/multer-options.interface';
 
+type UploadFileType = 'image' | 'video' | 'document' | 'avatar';
+
 @Injectable()
-export class UploadService {
+export class UploadService implements OnModuleInit {
+  private static readonly uploadRoot = resolve(
+    process.env.UPLOAD_ROOT || join(process.cwd(), 'uploads'),
+  );
+
+  private static readonly uploadSubdirs: Record<UploadFileType, string> = {
+    image: 'images',
+    video: 'videos',
+    document: 'documents',
+    avatar: 'avatars',
+  };
+
   // Allowed file types
   private readonly imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
   private readonly videoExtensions = ['.mp4', '.webm', '.mov', '.avi'];
@@ -24,8 +38,17 @@ export class UploadService {
   private readonly maxVideoSize = 500 * 1024 * 1024; // 500MB
   private readonly maxDocumentSize = 20 * 1024 * 1024; // 20MB
 
+  onModuleInit() {
+    // Đảm bảo thư mục uploads tồn tại khi khởi động (đặc biệt trên server mới)
+    Object.keys(UploadService.uploadSubdirs).forEach((key) => {
+      const type = key as UploadFileType;
+      const dir = UploadService.getUploadPath(type);
+      UploadService.ensureDirectory(dir);
+    });
+  }
+
   getMulterOptions(fileType: 'image' | 'video' | 'document'): MulterOptions {
-    const uploadPath = `./uploads/${fileType}s`;
+    const uploadPath = UploadService.getUploadPath(fileType);
     const allowedExtensions = this.getAllowedExtensions(fileType);
     const maxSize = this.getMaxFileSize(fileType);
 
@@ -84,13 +107,12 @@ export class UploadService {
 
   generateFileUrl(
     filename: string,
-    fileType: 'image' | 'video' | 'document' | 'avatar',
+    fileType: UploadFileType,
   ): string {
-    const baseUrl = process.env.BASE_URL || 'http://localhost:5001';
-    if (fileType === 'avatar') {
-      return `${baseUrl}/uploads/avatars/${filename}`;
-    }
-    return `${baseUrl}/uploads/${fileType}s/${filename}`;
+    const baseUrl =
+      process.env.APP_HOST || process.env.BASE_URL || 'http://localhost:5001';
+    const subdir = UploadService.uploadSubdirs[fileType];
+    return `${baseUrl}/uploads/${subdir}/${filename}`;
   }
 
   validateFile(
@@ -115,6 +137,19 @@ export class UploadService {
       throw new BadRequestException(
         `Kích thước tập tin quá lớn. Tối đa: ${maxSize / (1024 * 1024)}MB`,
       );
+    }
+  }
+
+  static getUploadPath(fileType: UploadFileType): string {
+    const subdir = UploadService.uploadSubdirs[fileType];
+    const fullPath = join(UploadService.uploadRoot, subdir);
+    UploadService.ensureDirectory(fullPath);
+    return fullPath;
+  }
+
+  static ensureDirectory(path: string) {
+    if (!existsSync(path)) {
+      mkdirSync(path, { recursive: true });
     }
   }
 }
