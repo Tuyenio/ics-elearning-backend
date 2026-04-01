@@ -5,9 +5,11 @@ import { Repository, Between, MoreThan } from 'typeorm';
 import { User, UserRole } from '../users/entities/user.entity';
 import { Course, CourseStatus } from '../courses/entities/course.entity';
 import { Payment, PaymentStatus } from '../payments/entities/payment.entity';
-import { Enrollment } from '../enrollments/entities/enrollment.entity';
+import { Enrollment, EnrollmentStatus } from '../enrollments/entities/enrollment.entity';
 import { Category } from '../categories/entities/category.entity';
 import { Review } from '../reviews/entities/review.entity';
+import { InstructorSubscription, InstructorSubscriptionStatus } from '../instructor-subscriptions/entities/instructor-subscription.entity';
+import { Certificate } from '../certificates/entities/certificate.entity';
 import {
   DashboardStats,
   GrowthStats,
@@ -44,6 +46,10 @@ export class AdminService {
     private readonly categoryRepo: Repository<Category>,
     @InjectRepository(Review)
     private readonly reviewRepo: Repository<Review>,
+    @InjectRepository(InstructorSubscription)
+    private readonly instructorSubscriptionRepo: Repository<InstructorSubscription>,
+    @InjectRepository(Certificate)
+    private readonly certificateRepo: Repository<Certificate>,
   ) {}
 
   async getDashboardStats(): Promise<DashboardStats> {
@@ -116,14 +122,34 @@ export class AdminService {
     const courseGrowth =
       oldCourses > 0 ? ((recentCourses - oldCourses) / oldCourses) * 100 : 0;
 
-    // Execute secondary dashboard queries sequentially to avoid pool spikes on
-    // managed Postgres session poolers (e.g. Supabase session mode).
-    const revenueChart = await this.getRevenueChart(12);
-    const weeklyStats = await this.getWeeklyStats();
-    const growthChart = await this.buildGrowthChart();
-    const categoryDistribution = await this.getCategoryDistribution();
-    const topCourses = await this.getTopCourses();
-    const recentTransactions = await this.getRecentTransactions();
+    // Execute secondary dashboard queries in parallel for faster response.
+    const [
+      revenueChart,
+      weeklyStats,
+      growthChart,
+      categoryDistribution,
+      topCourses,
+      recentTransactions,
+      teacherPlanSummary,
+      certificateSummary,
+      topTeachersByCourses,
+      topStudentsByCompletion,
+      topStudentsByCertificates,
+      coursePerformanceTop,
+    ] = await Promise.all([
+      this.getRevenueChart(12),
+      this.getWeeklyStats(),
+      this.buildGrowthChart(),
+      this.getCategoryDistribution(),
+      this.getTopCourses(),
+      this.getRecentTransactions(),
+      this.getTeacherPlanSummary(totalTeachers),
+      this.getCertificateSummary(totalStudents),
+      this.getTopTeachersByCourses(),
+      this.getTopStudentsByCompletion(),
+      this.getTopStudentsByCertificates(),
+      this.getCoursePerformance('DESC', 5),
+    ]);
 
     return {
       totalRevenue,
@@ -140,6 +166,12 @@ export class AdminService {
       weeklyStats,
       growthChart,
       categoryDistribution,
+      teacherPlanSummary,
+      certificateSummary,
+      topTeachersByCourses,
+      topStudentsByCompletion,
+      topStudentsByCertificates,
+      coursePerformanceTop,
     };
   }
 
@@ -359,6 +391,149 @@ export class AdminService {
         total > 0
           ? Math.round((parseInt(d.courseCount) / total) * 100 * 10) / 10
           : 0,
+    }));
+  }
+
+  private async getTeacherPlanSummary(totalTeachers?: number) {
+    const total =
+      typeof totalTeachers === 'number'
+        ? totalTeachers
+        : await this.userRepo.count({ where: { role: UserRole.TEACHER } });
+
+    const [paid, free] = await Promise.all([
+      this.instructorSubscriptionRepo
+        .createQueryBuilder('sub')
+        .leftJoin('sub.plan', 'plan')
+        .where('sub.status = :status', {
+          status: InstructorSubscriptionStatus.ACTIVE,
+        })
+        .andWhere('plan.price > 0')
+        .getCount(),
+      this.instructorSubscriptionRepo
+        .createQueryBuilder('sub')
+        .leftJoin('sub.plan', 'plan')
+        .where('sub.status = :status', {
+          status: InstructorSubscriptionStatus.ACTIVE,
+        })
+        .andWhere('plan.price = 0')
+        .getCount(),
+    ]);
+
+    const unsubscribed = Math.max(total - paid - free, 0);
+    const payingRate = total > 0 ? Math.round((paid / total) * 1000) / 10 : 0;
+
+    return {
+      paid,
+      free,
+      unsubscribed,
+      total,
+      payingRate,
+    };
+  }
+
+  private async getCertificateSummary(totalStudents?: number) {
+    const total =
+      typeof totalStudents === 'number'
+        ? totalStudents
+        : await this.userRepo.count({ where: { role: UserRole.STUDENT } });
+
+    const [{ withCertificate = 0 } = { withCertificate: 0 }, totalCertificates] =
+      await Promise.all([
+        this.certificateRepo
+          .createQueryBuilder('cert')
+          .select('COUNT(DISTINCT cert."studentId")', 'withCertificate')
+          .getRawOne(),
+        this.certificateRepo.count(),
+      ]);
+
+    const withoutCertificate = Math.max(total - Number(withCertificate || 0), 0);
+
+    return {
+      withCertificate: Number(withCertificate || 0),
+      withoutCertificate,
+      totalCertificates,
+    };
+  }
+
+  private async getTopTeachersByCourses(limit: number = 5) {
+    const rows = await this.courseRepo
+      .createQueryBuilder('course')
+      .leftJoin('course.teacher', 'teacher')
+      .leftJoin('course.enrollments', 'enrollment')
+      .select('teacher.id', 'teacherId')
+      .addSelect('teacher.name', 'teacherName')
+      .addSelect('COUNT(course.id)', 'courseCount')
+      .addSelect('COUNT(DISTINCT enrollment.id)', 'studentCount')
+      .where('teacher.id IS NOT NULL')
+      .groupBy('teacher.id')
+      .addGroupBy('teacher.name')
+      .orderBy('COUNT(course.id)', 'DESC')
+      .limit(limit)
+      .getRawMany();
+
+    return rows.map((row) => ({
+      teacherId: row.teacherId,
+      teacherName: row.teacherName,
+      courseCount: parseInt(row.courseCount) || 0,
+      studentCount: parseInt(row.studentCount) || 0,
+    }));
+  }
+
+  private async getTopStudentsByCompletion(limit: number = 5) {
+    const rows = await this.enrollmentRepo
+      .createQueryBuilder('enrollment')
+      .leftJoin('enrollment.student', 'student')
+      .leftJoin('enrollment.certificate', 'certificate')
+      .select('student.id', 'studentId')
+      .addSelect('student.name', 'studentName')
+      .addSelect(
+        "SUM(CASE WHEN enrollment.status = :completed THEN 1 ELSE 0 END)",
+        'completedCourses',
+      )
+      .addSelect('COUNT(certificate.id)', 'certificates')
+      .where('student.id IS NOT NULL')
+      .setParameter('completed', EnrollmentStatus.COMPLETED)
+      .groupBy('student.id')
+      .addGroupBy('student.name')
+      .orderBy('completedCourses', 'DESC')
+      .addOrderBy('certificates', 'DESC')
+      .limit(limit)
+      .getRawMany();
+
+    return rows.map((row) => ({
+      studentId: row.studentId,
+      studentName: row.studentName,
+      completedCourses: parseInt(row.completedCourses) || 0,
+      certificates: parseInt(row.certificates) || 0,
+    }));
+  }
+
+  private async getTopStudentsByCertificates(limit: number = 5) {
+    const rows = await this.certificateRepo
+      .createQueryBuilder('cert')
+      .leftJoin('cert.student', 'student')
+      .leftJoin('cert.enrollment', 'enrollment')
+      .select('student.id', 'studentId')
+      .addSelect('student.name', 'studentName')
+      .addSelect('COUNT(cert.id)', 'certificateCount')
+      .addSelect(
+        "COUNT(DISTINCT CASE WHEN enrollment.status = :completed THEN enrollment.id END)",
+        'completedCourses',
+      )
+      .where('student.id IS NOT NULL')
+      .setParameter('completed', EnrollmentStatus.COMPLETED)
+      .groupBy('student.id')
+      .addGroupBy('student.name')
+      .orderBy('certificateCount', 'DESC')
+      .addOrderBy('student.name', 'ASC')
+      .limit(limit)
+      .getRawMany();
+
+    return rows.map((row) => ({
+      studentId: row.studentId,
+      studentName: row.studentName,
+      certificateCount: parseInt(row.certificateCount) || 0,
+      completedCourses: parseInt(row.completedCourses) || 0,
     }));
   }
 

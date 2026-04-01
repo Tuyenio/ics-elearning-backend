@@ -8,6 +8,9 @@ import { Payment } from '../payments/entities/payment.entity';
 import { Enrollment } from '../enrollments/entities/enrollment.entity';
 import { Category } from '../categories/entities/category.entity';
 import { Review } from '../reviews/entities/review.entity';
+import { InstructorSubscription } from '../instructor-subscriptions/entities/instructor-subscription.entity';
+import { InstructorPlan } from '../instructor-subscriptions/entities/instructor-plan.entity';
+import { Certificate } from '../certificates/entities/certificate.entity';
 import { CertificatesModule } from '../certificates/certificates.module';
 import { ExamsModule } from '../exams/exams.module';
 
@@ -20,6 +23,9 @@ import { ExamsModule } from '../exams/exams.module';
       Enrollment,
       Category,
       Review,
+      InstructorSubscription,
+      InstructorPlan,
+      Certificate,
     ]),
     CertificatesModule,
     ExamsModule,
