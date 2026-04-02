@@ -356,16 +356,18 @@ export class CoursesService {
     }
 
     if (updateCourseDto.slug && updateCourseDto.slug !== course.slug) {
-      const existingCourse = await this.courseRepository.findOne({
-        where: { slug: updateCourseDto.slug },
-      });
-
-      if (existingCourse && existingCourse.id !== id) {
-        throw new ConflictException('Khóa học với slug này đã tồn tại');
-      }
+      const uniqueSlug = await this.generateUniqueSlug(updateCourseDto.slug, id);
+      updateCourseDto.slug = uniqueSlug;
     }
 
     Object.assign(course, updateCourseDto);
+
+    // Nếu khóa học đã được duyệt, mọi chỉnh sửa sẽ trả về chờ duyệt lại.
+    if (course.status === CourseStatus.PUBLISHED) {
+      course.status = CourseStatus.PENDING;
+      course.rejectionReason = '';
+    }
+
     return this.courseRepository.save(course);
   }
 
@@ -424,6 +426,7 @@ export class CoursesService {
 
   async approveCourse(id: string): Promise<Course> {
     const course = await this.findOne(id);
+
     course.status = CourseStatus.PUBLISHED;
     course.rejectionReason = '';
     const savedCourse = await this.courseRepository.save(course);
@@ -468,6 +471,7 @@ export class CoursesService {
     }
 
     course.status = CourseStatus.PENDING;
+    course.rejectionReason = '';
     return this.courseRepository.save(course);
   }
 
@@ -602,7 +606,10 @@ export class CoursesService {
       .replace(/^-+|-+$/g, '');
   }
 
-  private async generateUniqueSlug(baseSlug: string): Promise<string> {
+  private async generateUniqueSlug(
+    baseSlug: string,
+    excludeCourseId?: string,
+  ): Promise<string> {
     const safeBase = (baseSlug || `khoa-hoc-${Date.now()}`)
       .trim()
       .toLowerCase();
@@ -613,7 +620,7 @@ export class CoursesService {
       const existing = await this.courseRepository.findOne({
         where: { slug: candidate },
       });
-      if (!existing) {
+      if (!existing || existing.id === excludeCourseId) {
         return candidate;
       }
       index += 1;

@@ -81,6 +81,10 @@ export class Course {
   @Column({ type: 'text', nullable: true })
   rejectionReason: string;
 
+  @Column({ nullable: true })
+  @Index()
+  sourceCourseId: string;
+
   @Column({ type: 'int', default: 0 })
   duration: number; // in minutes
 

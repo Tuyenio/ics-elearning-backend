@@ -71,6 +71,10 @@ export class Lesson {
   @Column({ default: false })
   isPublished: boolean;
 
+  @Column({ nullable: true })
+  @Index()
+  sourceLessonId: string;
+
   @ManyToOne(() => Course, (course) => course.lessons, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'courseId' })
   course: Course;

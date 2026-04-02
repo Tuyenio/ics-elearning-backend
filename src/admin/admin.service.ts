@@ -381,7 +381,7 @@ export class AdminService {
       .select('category.name', 'categoryName')
       .addSelect('COUNT(course.id)', 'courseCount')
       .groupBy('category.name')
-      .orderBy('COUNT(course.id)', 'DESC')
+      .orderBy('"courseCount"', 'DESC')
       .getRawMany();
 
     return distribution.map((d) => ({
@@ -467,7 +467,7 @@ export class AdminService {
       .where('teacher.id IS NOT NULL')
       .groupBy('teacher.id')
       .addGroupBy('teacher.name')
-      .orderBy('COUNT(course.id)', 'DESC')
+      .orderBy('"courseCount"', 'DESC')
       .limit(limit)
       .getRawMany();
 
@@ -495,8 +495,8 @@ export class AdminService {
       .setParameter('completed', EnrollmentStatus.COMPLETED)
       .groupBy('student.id')
       .addGroupBy('student.name')
-      .orderBy('completedCourses', 'DESC')
-      .addOrderBy('certificates', 'DESC')
+      .orderBy('"completedCourses"', 'DESC')
+      .addOrderBy('"certificates"', 'DESC')
       .limit(limit)
       .getRawMany();
 
@@ -524,7 +524,7 @@ export class AdminService {
       .setParameter('completed', EnrollmentStatus.COMPLETED)
       .groupBy('student.id')
       .addGroupBy('student.name')
-      .orderBy('certificateCount', 'DESC')
+      .orderBy('"certificateCount"', 'DESC')
       .addOrderBy('student.name', 'ASC')
       .limit(limit)
       .getRawMany();

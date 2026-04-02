@@ -89,21 +89,49 @@ export class LessonsService {
     }));
   }
 
-  async create(createLessonDto: CreateLessonDto, user: User): Promise<Lesson> {
+  private async resolveEditableCourse(courseId: string, user: User): Promise<Course> {
     const course = await this.courseRepository.findOne({
-      where: { id: createLessonDto.courseId },
+      where: { id: courseId },
     });
 
     if (!course) {
       throw new NotFoundException('Khóa học không tìm thấy');
     }
 
-    // Check permissions
     if (user.role !== UserRole.ADMIN && course.teacherId !== user.id) {
       throw new ForbiddenException(
-        'Bạn chỉ có thể thêm bài học cho khóa học của bạn',
+        'Bạn chỉ có thể chỉnh sửa bài học trong khóa học của bạn',
       );
     }
+
+    return course;
+  }
+
+  private async resolveEditableLesson(id: string, user: User): Promise<Lesson> {
+    const lesson = await this.lessonRepository.findOne({
+      where: { id },
+      relations: ['course'],
+    });
+
+    if (!lesson) {
+      throw new NotFoundException('Bài học không tìm thấy');
+    }
+
+    if (user.role !== UserRole.ADMIN && lesson.course.teacherId !== user.id) {
+      throw new ForbiddenException(
+        'Bạn chỉ có thể cập nhật bài học trong khóa học của bạn',
+      );
+    }
+
+    return lesson;
+  }
+
+  async create(createLessonDto: CreateLessonDto, user: User): Promise<Lesson> {
+    const editableCourse = await this.resolveEditableCourse(
+      createLessonDto.courseId,
+      user,
+    );
+    createLessonDto.courseId = editableCourse.id;
 
     // Get the next order number
     if (createLessonDto.order === undefined) {
@@ -231,28 +259,14 @@ export class LessonsService {
     updateLessonDto: UpdateLessonDto,
     user: User,
   ): Promise<Lesson> {
-    const lesson = await this.lessonRepository.findOne({
-      where: { id },
-      relations: ['course'],
-    });
-
-    if (!lesson) {
-      throw new NotFoundException('Bài học không tìm thấy');
-    }
-
-    // Check permissions
-    if (user.role !== UserRole.ADMIN && lesson.course.teacherId !== user.id) {
-      throw new ForbiddenException(
-        'Bạn chỉ có thể cập nhật bài học trong khóa học của bạn',
-      );
-    }
+    const lesson = await this.resolveEditableLesson(id, user);
 
     const { resources, ...lessonUpdates } = updateLessonDto;
     Object.assign(lesson, lessonUpdates);
     const updated = await this.lessonRepository.save(lesson);
 
     if (Array.isArray(resources)) {
-      await this.resourceRepository.delete({ lessonId: id });
+      await this.resourceRepository.delete({ lessonId: lesson.id });
       const normalizedResources = this.normalizeResourceList(resources);
 
       if (normalizedResources.length) {
@@ -276,40 +290,13 @@ export class LessonsService {
   }
 
   async remove(id: string, user: User): Promise<void> {
-    const lesson = await this.lessonRepository.findOne({
-      where: { id },
-      relations: ['course'],
-    });
-
-    if (!lesson) {
-      throw new NotFoundException('Bài học không tìm thấy');
-    }
-
-    // Check permissions
-    if (user.role !== UserRole.ADMIN && lesson.course.teacherId !== user.id) {
-      throw new ForbiddenException(
-        'Bạn chỉ có thể xóa bài học khỏi khóa học của bạn',
-      );
-    }
+    const lesson = await this.resolveEditableLesson(id, user);
 
     await this.lessonRepository.remove(lesson);
   }
 
   async togglePublish(id: string, user: User): Promise<Lesson> {
-    const lesson = await this.lessonRepository.findOne({
-      where: { id },
-      relations: ['course'],
-    });
-
-    if (!lesson) {
-      throw new NotFoundException('Bài học không tìm thấy');
-    }
-
-    if (user.role !== UserRole.ADMIN && lesson.course.teacherId !== user.id) {
-      throw new ForbiddenException(
-        'Bạn chỉ có thể cập nhật bài học trong khóa học của bạn',
-      );
-    }
+    const lesson = await this.resolveEditableLesson(id, user);
 
     lesson.isPublished = !lesson.isPublished;
     const saved = await this.lessonRepository.save(lesson);
@@ -327,24 +314,11 @@ export class LessonsService {
     limit: number;
     totalPages: number;
   }> {
-    const course = await this.courseRepository.findOne({
-      where: { id: courseId },
-    });
-
-    if (!course) {
-      throw new NotFoundException('Khóa học không tìm thấy');
-    }
-
-    // Check permissions
-    if (user.role !== UserRole.ADMIN && course.teacherId !== user.id) {
-      throw new ForbiddenException(
-        'Bạn chỉ có thể sắp xếp lại bài học trong khóa học của bạn',
-      );
-    }
+    const editableCourse = await this.resolveEditableCourse(courseId, user);
 
     const lessons = await this.lessonRepository.findBy({
       id: In(lessonIds),
-      courseId,
+      courseId: editableCourse.id,
     });
 
     // Update order for each lesson
@@ -363,6 +337,6 @@ export class LessonsService {
       updates.filter((item): item is Promise<Lesson> => item !== null),
     );
 
-    return this.findByCourse(courseId);
+    return this.findByCourse(editableCourse.id);
   }
 }
