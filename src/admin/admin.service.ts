@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, MoreThan } from 'typeorm';
+import { Repository, Between } from 'typeorm';
 import { User, UserRole } from '../users/entities/user.entity';
 import { Course, CourseStatus } from '../courses/entities/course.entity';
 import { Payment, PaymentStatus } from '../payments/entities/payment.entity';
@@ -31,6 +31,15 @@ import {
   EngagementMetrics,
 } from './dto/admin-reports.dto';
 
+type AdminPeriod = 'day' | 'week' | 'month' | 'year';
+
+type PeriodRange = {
+  currentStart: Date;
+  currentEnd: Date;
+  previousStart: Date;
+  previousEnd: Date;
+};
+
 @Injectable()
 export class AdminService {
   constructor(
@@ -52,21 +61,116 @@ export class AdminService {
     private readonly certificateRepo: Repository<Certificate>,
   ) {}
 
-  async getDashboardStats(): Promise<DashboardStats> {
+  private normalizePeriod(period?: string): AdminPeriod {
+    if (period === 'day' || period === 'week' || period === 'month' || period === 'year') {
+      return period;
+    }
+    return 'month';
+  }
+
+  private getPeriodRange(period: AdminPeriod): PeriodRange {
     const now = new Date();
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+    const currentEnd = now;
+    const currentStart = new Date(now);
+
+    if (period === 'day') {
+      currentStart.setHours(0, 0, 0, 0);
+    } else if (period === 'week') {
+      const day = currentStart.getDay();
+      const diff = day === 0 ? 6 : day - 1;
+      currentStart.setDate(currentStart.getDate() - diff);
+      currentStart.setHours(0, 0, 0, 0);
+    } else if (period === 'month') {
+      // Rolling 30-day window keeps month aggregates consistent with week/day expectations.
+      currentStart.setDate(currentStart.getDate() - 29);
+      currentStart.setHours(0, 0, 0, 0);
+    } else {
+      currentStart.setMonth(0, 1);
+      currentStart.setHours(0, 0, 0, 0);
+    }
+
+    const durationMs = Math.max(currentEnd.getTime() - currentStart.getTime(), 60 * 60 * 1000);
+    const previousEnd = new Date(currentStart);
+    const previousStart = new Date(currentStart.getTime() - durationMs);
+
+    return {
+      currentStart,
+      currentEnd,
+      previousStart,
+      previousEnd,
+    };
+  }
+
+  private buildRevenueBuckets(period: AdminPeriod, range: PeriodRange) {
+    if (period === 'day') {
+      return Array.from({ length: 24 }, (_, hour) => {
+        const start = new Date(range.currentStart);
+        start.setHours(hour, 0, 0, 0);
+        const end = new Date(start);
+        end.setHours(start.getHours() + 1);
+        return { key: hour, label: `${String(hour).padStart(2, '0')}:00`, start, end };
+      });
+    }
+
+    if (period === 'week') {
+      const days = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+      return days.map((label, index) => {
+        const start = new Date(range.currentStart);
+        start.setDate(range.currentStart.getDate() + index);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(start);
+        end.setDate(start.getDate() + 1);
+        return { key: index, label, start, end };
+      });
+    }
+
+    if (period === 'month') {
+      return Array.from({ length: 30 }, (_, offset) => {
+        const start = new Date(range.currentStart);
+        start.setDate(range.currentStart.getDate() + offset);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(start);
+        end.setDate(start.getDate() + 1);
+        const label = `${String(start.getDate()).padStart(2, '0')}/${String(start.getMonth() + 1).padStart(2, '0')}`;
+        return { key: offset, label, start, end };
+      });
+    }
+
+    return Array.from({ length: 12 }, (_, monthIndex) => {
+      const start = new Date(range.currentStart.getFullYear(), monthIndex, 1);
+      const end = new Date(range.currentStart.getFullYear(), monthIndex + 1, 1);
+      return {
+        key: monthIndex,
+        label: start.toLocaleDateString('vi-VN', { month: 'short' }),
+        start,
+        end,
+      };
+    });
+  }
+
+  private buildGrowthBuckets(period: AdminPeriod, range: PeriodRange) {
+    const revenueBuckets = this.buildRevenueBuckets(period, range);
+    return revenueBuckets.map((bucket) => ({
+      label: bucket.label,
+      start: bucket.start,
+      end: bucket.end,
+    }));
+  }
+
+  async getDashboardStats(period?: string): Promise<DashboardStats> {
+    const normalizedPeriod = this.normalizePeriod(period);
+    const range = this.getPeriodRange(normalizedPeriod);
 
     // Total counts
     const [totalTeachers, totalStudents, totalCourses] = await Promise.all([
-      this.userRepo.count({ where: { role: UserRole.TEACHER } }),
-      this.userRepo.count({ where: { role: UserRole.STUDENT } }),
-      this.courseRepo.count(),
+      this.userRepo.count({ where: { role: UserRole.TEACHER, createdAt: Between(range.currentStart, range.currentEnd) } }),
+      this.userRepo.count({ where: { role: UserRole.STUDENT, createdAt: Between(range.currentStart, range.currentEnd) } }),
+      this.courseRepo.count({ where: { createdAt: Between(range.currentStart, range.currentEnd) } }),
     ]);
 
     // Revenue calculations
     const completedPayments = await this.paymentRepo.find({
-      where: { status: PaymentStatus.COMPLETED },
+      where: { status: PaymentStatus.COMPLETED, createdAt: Between(range.currentStart, range.currentEnd) },
     });
     const totalRevenue = completedPayments.reduce(
       (sum, p) => sum + Number(p.finalAmount || 0),
@@ -74,40 +178,42 @@ export class AdminService {
     );
 
     const recentRevenue = completedPayments
-      .filter((p) => p.createdAt >= thirtyDaysAgo)
+      .filter((p) => p.createdAt >= range.currentStart)
       .reduce((sum, p) => sum + Number(p.finalAmount || 0), 0);
-    const oldRevenue = completedPayments
-      .filter((p) => p.createdAt >= sixtyDaysAgo && p.createdAt < thirtyDaysAgo)
-      .reduce((sum, p) => sum + Number(p.finalAmount || 0), 0);
+
+    const previousPayments = await this.paymentRepo.find({
+      where: { status: PaymentStatus.COMPLETED, createdAt: Between(range.previousStart, range.previousEnd) },
+    });
+    const oldRevenue = previousPayments.reduce((sum, p) => sum + Number(p.finalAmount || 0), 0);
     const revenueGrowth =
       oldRevenue > 0 ? ((recentRevenue - oldRevenue) / oldRevenue) * 100 : 0;
 
     // Growth calculations
     const [recentTeachers, recentStudents, recentCourses] = await Promise.all([
       this.userRepo.count({
-        where: { role: UserRole.TEACHER, createdAt: MoreThan(thirtyDaysAgo) },
+        where: { role: UserRole.TEACHER, createdAt: Between(range.currentStart, range.currentEnd) },
       }),
       this.userRepo.count({
-        where: { role: UserRole.STUDENT, createdAt: MoreThan(thirtyDaysAgo) },
+        where: { role: UserRole.STUDENT, createdAt: Between(range.currentStart, range.currentEnd) },
       }),
-      this.courseRepo.count({ where: { createdAt: MoreThan(thirtyDaysAgo) } }),
+      this.courseRepo.count({ where: { createdAt: Between(range.currentStart, range.currentEnd) } }),
     ]);
 
     const [oldTeachers, oldStudents, oldCourses] = await Promise.all([
       this.userRepo.count({
         where: {
           role: UserRole.TEACHER,
-          createdAt: Between(sixtyDaysAgo, thirtyDaysAgo),
+          createdAt: Between(range.previousStart, range.previousEnd),
         },
       }),
       this.userRepo.count({
         where: {
           role: UserRole.STUDENT,
-          createdAt: Between(sixtyDaysAgo, thirtyDaysAgo),
+          createdAt: Between(range.previousStart, range.previousEnd),
         },
       }),
       this.courseRepo.count({
-        where: { createdAt: Between(sixtyDaysAgo, thirtyDaysAgo) },
+        where: { createdAt: Between(range.previousStart, range.previousEnd) },
       }),
     ]);
 
@@ -137,18 +243,18 @@ export class AdminService {
       topStudentsByCertificates,
       coursePerformanceTop,
     ] = await Promise.all([
-      this.getRevenueChart(12),
-      this.getWeeklyStats(),
-      this.buildGrowthChart(),
-      this.getCategoryDistribution(),
+      this.getRevenueChart(normalizedPeriod, range),
+      this.getWeeklyStats(normalizedPeriod, range),
+      this.buildGrowthChart(normalizedPeriod, range),
+      this.getCategoryDistribution(range),
       this.getTopCourses(),
-      this.getRecentTransactions(),
-      this.getTeacherPlanSummary(totalTeachers),
-      this.getCertificateSummary(totalStudents),
-      this.getTopTeachersByCourses(),
-      this.getTopStudentsByCompletion(),
-      this.getTopStudentsByCertificates(),
-      this.getCoursePerformance('DESC', 5),
+      this.getRecentTransactions(10, range),
+      this.getTeacherPlanSummary(totalTeachers, range),
+      this.getCertificateSummary(totalStudents, range),
+      this.getTopTeachersByCourses(5, range),
+      this.getTopStudentsByCompletion(5, range),
+      this.getTopStudentsByCertificates(5, range),
+      this.getCoursePerformance('DESC', 5, range),
     ]);
 
     return {
@@ -175,36 +281,25 @@ export class AdminService {
     };
   }
 
-  async getRevenueChart(days: number = 7) {
-    const labels: string[] = [];
-    const data: number[] = [];
-    const now = new Date();
+  async getRevenueChart(period: AdminPeriod = 'month', range?: PeriodRange) {
+    const effectiveRange = range ?? this.getPeriodRange(period);
+    const buckets = this.buildRevenueBuckets(period, effectiveRange);
 
-    // Query all payments once, then process in memory
     const allPayments = await this.paymentRepo
       .createQueryBuilder('payment')
       .where('payment.status = :status', { status: PaymentStatus.COMPLETED })
+      .andWhere('payment.createdAt >= :start AND payment.createdAt < :end', {
+        start: effectiveRange.currentStart,
+        end: effectiveRange.currentEnd,
+      })
       .getMany();
 
-    for (let i = days - 1; i >= 0; i--) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const nextDate = new Date(date.getFullYear(), date.getMonth() + 1, 1);
-
-      // Filter already-fetched data in memory instead of querying DB
-      const monthRevenue = allPayments.filter(
-        (p) => p.createdAt >= date && p.createdAt < nextDate
-      );
-
-      const total = monthRevenue.reduce(
-        (sum, p) => sum + Number(p.finalAmount || 0),
-        0,
-      );
-
-      labels.push(
-        date.toLocaleDateString('vi-VN', { month: 'short', year: 'numeric' }),
-      );
-      data.push(total);
-    }
+    const labels = buckets.map((bucket) => bucket.label);
+    const data = buckets.map((bucket) => {
+      return allPayments
+        .filter((payment) => payment.createdAt >= bucket.start && payment.createdAt < bucket.end)
+        .reduce((sum, payment) => sum + Number(payment.finalAmount || 0), 0);
+    });
 
     return { labels, data };
   }
@@ -237,8 +332,8 @@ export class AdminService {
     }));
   }
 
-  async getRecentTransactions(limit: number = 10) {
-    const transactions = await this.paymentRepo
+  async getRecentTransactions(limit: number = 10, range?: PeriodRange) {
+    const qb = this.paymentRepo
       .createQueryBuilder('payment')
       .leftJoinAndSelect('payment.student', 'student')
       .leftJoinAndSelect('payment.course', 'course')
@@ -254,8 +349,16 @@ export class AdminService {
       ])
       .orderBy('payment.paidAt', 'DESC', 'NULLS LAST')
       .addOrderBy('payment.createdAt', 'DESC')
-      .take(limit)
-      .getMany();
+      .take(limit);
+
+    if (range) {
+      qb.andWhere('payment.createdAt >= :start AND payment.createdAt < :end', {
+        start: range.currentStart,
+        end: range.currentEnd,
+      });
+    }
+
+    const transactions = await qb.getMany();
 
     return transactions.map((t) => {
       const resolvedDate = t.paidAt ?? t.createdAt ?? t.updatedAt ?? null;
@@ -279,43 +382,34 @@ export class AdminService {
     });
   }
 
-  private async getWeeklyStats() {
+  private async getWeeklyStats(period: AdminPeriod, range: PeriodRange) {
     const stats: { day: string; activeUsers: number; newSignups: number }[] =
       [];
-    const now = new Date();
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const buckets = this.buildGrowthBuckets(period, range);
 
-    // Fetch all enrollments and users from last 7 days in 2 queries
     const [enrollments, newUsers] = await Promise.all([
       this.enrollmentRepo.find({
-        where: { createdAt: Between(sevenDaysAgo, now) },
+        where: { createdAt: Between(range.currentStart, range.currentEnd) },
       }),
       this.userRepo.find({
-        where: { 
-          createdAt: Between(sevenDaysAgo, now),
-          role: UserRole.STUDENT 
+        where: {
+          createdAt: Between(range.currentStart, range.currentEnd),
+          role: UserRole.STUDENT,
         },
       }),
     ]);
 
-    // Process data in memory instead of querying DB for each day
-    for (let i = 6; i >= 0; i--) {
-      const start = new Date(now);
-      start.setHours(0, 0, 0, 0);
-      start.setDate(now.getDate() - i);
-      const end = new Date(start);
-      end.setDate(start.getDate() + 1);
-
+    for (const bucket of buckets) {
       const activeUsers = enrollments.filter(
-        (e) => e.createdAt >= start && e.createdAt < end
+        (e) => e.createdAt >= bucket.start && e.createdAt < bucket.end,
       ).length;
-      
+
       const newSignups = newUsers.filter(
-        (u) => u.createdAt >= start && u.createdAt < end
+        (u) => u.createdAt >= bucket.start && u.createdAt < bucket.end,
       ).length;
 
       stats.push({
-        day: start.toLocaleDateString('vi-VN', { weekday: 'short' }),
+        day: bucket.label,
         activeUsers,
         newSignups,
       });
@@ -324,19 +418,19 @@ export class AdminService {
     return stats;
   }
 
-  private async buildGrowthChart() {
-    const teachersByMonth = await this.getUserGrowthByMonth(UserRole.TEACHER);
-    const studentsByMonth = await this.getUserGrowthByMonth(UserRole.STUDENT);
+  private async buildGrowthChart(period: AdminPeriod, range: PeriodRange) {
+    const teachersByPeriod = await this.getUserGrowthByPeriod(UserRole.TEACHER, period, range);
+    const studentsByPeriod = await this.getUserGrowthByPeriod(UserRole.STUDENT, period, range);
 
-    const monthSet = new Set<string>();
-    teachersByMonth.forEach((item) => monthSet.add(item.month));
-    studentsByMonth.forEach((item) => monthSet.add(item.month));
+    const labelSet = new Set<string>();
+    teachersByPeriod.forEach((item) => labelSet.add(item.month));
+    studentsByPeriod.forEach((item) => labelSet.add(item.month));
 
-    const months = Array.from(monthSet).sort();
+    const labels = Array.from(labelSet);
 
-    return months.map((month) => {
-      const teacherItem = teachersByMonth.find((t) => t.month === month);
-      const studentItem = studentsByMonth.find((s) => s.month === month);
+    return labels.map((month) => {
+      const teacherItem = teachersByPeriod.find((t) => t.month === month);
+      const studentItem = studentsByPeriod.find((s) => s.month === month);
       return {
         month,
         teachers: teacherItem?.count || 0,
@@ -345,9 +439,11 @@ export class AdminService {
     });
   }
 
-  async getGrowthStats(): Promise<GrowthStats> {
-    const teachersByMonth = await this.getUserGrowthByMonth(UserRole.TEACHER);
-    const studentsByMonth = await this.getUserGrowthByMonth(UserRole.STUDENT);
+  async getGrowthStats(period?: string): Promise<GrowthStats> {
+    const normalizedPeriod = this.normalizePeriod(period);
+    const range = this.getPeriodRange(normalizedPeriod);
+    const teachersByMonth = await this.getUserGrowthByPeriod(UserRole.TEACHER, normalizedPeriod, range);
+    const studentsByMonth = await this.getUserGrowthByPeriod(UserRole.STUDENT, normalizedPeriod, range);
 
     return {
       teachersByMonth,
@@ -355,34 +451,56 @@ export class AdminService {
     };
   }
 
-  private async getUserGrowthByMonth(role: UserRole) {
-    const users = await this.userRepo
-      .createQueryBuilder('user')
-      .select("TO_CHAR(user.createdAt, 'YYYY-MM')", 'month')
-      .addSelect('COUNT(*)', 'count')
-      .where('user.role = :role', { role })
-      .groupBy('month')
-      .orderBy('month', 'ASC')
-      .limit(12)
-      .getRawMany();
+  private async getUserGrowthByPeriod(
+    role: UserRole,
+    period: AdminPeriod,
+    range: PeriodRange,
+  ) {
+    const users = await this.userRepo.find({
+      where: { role, createdAt: Between(range.currentStart, range.currentEnd) },
+      select: ['createdAt'],
+    });
 
-    return users.map((u) => ({
-      month: u.month,
-      count: parseInt(u.count),
+    const buckets = this.buildGrowthBuckets(period, range).map((bucket) => ({
+      month: bucket.label,
+      start: bucket.start,
+      end: bucket.end,
+      count: 0,
     }));
+
+    for (const user of users) {
+      const match = buckets.find(
+        (bucket) => user.createdAt >= bucket.start && user.createdAt < bucket.end,
+      );
+      if (match) {
+        match.count += 1;
+      }
+    }
+
+    return buckets.map((bucket) => ({ month: bucket.month, count: bucket.count }));
   }
 
-  async getCategoryDistribution(): Promise<CategoryDistribution[]> {
-    const total = await this.courseRepo.count();
+  async getCategoryDistribution(range?: PeriodRange): Promise<CategoryDistribution[]> {
+    const total = await this.courseRepo.count({
+      where: range ? { createdAt: Between(range.currentStart, range.currentEnd) } : {},
+    });
 
-    const distribution = await this.courseRepo
+    const qb = this.courseRepo
       .createQueryBuilder('course')
       .leftJoin('course.category', 'category')
       .select('category.name', 'categoryName')
       .addSelect('COUNT(course.id)', 'courseCount')
       .groupBy('category.name')
-      .orderBy('"courseCount"', 'DESC')
-      .getRawMany();
+      .orderBy('"courseCount"', 'DESC');
+
+    if (range) {
+      qb.where('course.createdAt >= :start AND course.createdAt < :end', {
+        start: range.currentStart,
+        end: range.currentEnd,
+      });
+    }
+
+    const distribution = await qb.getRawMany();
 
     return distribution.map((d) => ({
       categoryName: d.categoryName,
@@ -394,30 +512,35 @@ export class AdminService {
     }));
   }
 
-  private async getTeacherPlanSummary(totalTeachers?: number) {
+  private async getTeacherPlanSummary(totalTeachers?: number, range?: PeriodRange) {
     const total =
       typeof totalTeachers === 'number'
         ? totalTeachers
         : await this.userRepo.count({ where: { role: UserRole.TEACHER } });
 
-    const [paid, free] = await Promise.all([
-      this.instructorSubscriptionRepo
-        .createQueryBuilder('sub')
-        .leftJoin('sub.plan', 'plan')
-        .where('sub.status = :status', {
-          status: InstructorSubscriptionStatus.ACTIVE,
-        })
-        .andWhere('plan.price > 0')
-        .getCount(),
-      this.instructorSubscriptionRepo
-        .createQueryBuilder('sub')
-        .leftJoin('sub.plan', 'plan')
-        .where('sub.status = :status', {
-          status: InstructorSubscriptionStatus.ACTIVE,
-        })
-        .andWhere('plan.price = 0')
-        .getCount(),
-    ]);
+    const paidQb = this.instructorSubscriptionRepo
+      .createQueryBuilder('sub')
+      .leftJoin('sub.plan', 'plan')
+      .where('sub.status = :status', {
+        status: InstructorSubscriptionStatus.ACTIVE,
+      })
+      .andWhere('plan.price > 0');
+
+    const freeQb = this.instructorSubscriptionRepo
+      .createQueryBuilder('sub')
+      .leftJoin('sub.plan', 'plan')
+      .where('sub.status = :status', {
+        status: InstructorSubscriptionStatus.ACTIVE,
+      })
+      .andWhere('plan.price = 0');
+
+    if (range) {
+      const params = { start: range.currentStart, end: range.currentEnd };
+      paidQb.andWhere('sub.createdAt >= :start AND sub.createdAt < :end', params);
+      freeQb.andWhere('sub.createdAt >= :start AND sub.createdAt < :end', params);
+    }
+
+    const [paid, free] = await Promise.all([paidQb.getCount(), freeQb.getCount()]);
 
     const unsubscribed = Math.max(total - paid - free, 0);
     const payingRate = total > 0 ? Math.round((paid / total) * 1000) / 10 : 0;
@@ -431,20 +554,32 @@ export class AdminService {
     };
   }
 
-  private async getCertificateSummary(totalStudents?: number) {
+  private async getCertificateSummary(totalStudents?: number, range?: PeriodRange) {
     const total =
       typeof totalStudents === 'number'
         ? totalStudents
         : await this.userRepo.count({ where: { role: UserRole.STUDENT } });
 
-    const [{ withCertificate = 0 } = { withCertificate: 0 }, totalCertificates] =
-      await Promise.all([
-        this.certificateRepo
-          .createQueryBuilder('cert')
-          .select('COUNT(DISTINCT cert."studentId")', 'withCertificate')
-          .getRawOne(),
-        this.certificateRepo.count(),
-      ]);
+    const withCertQb = this.certificateRepo
+      .createQueryBuilder('cert')
+      .select('COUNT(DISTINCT cert."studentId")', 'withCertificate');
+
+    const totalCertQb = this.certificateRepo
+      .createQueryBuilder('cert')
+      .select('COUNT(*)', 'total');
+
+    if (range) {
+      const params = { start: range.currentStart, end: range.currentEnd };
+      withCertQb.where('cert.createdAt >= :start AND cert.createdAt < :end', params);
+      totalCertQb.where('cert.createdAt >= :start AND cert.createdAt < :end', params);
+    }
+
+    const [{ withCertificate = 0 } = { withCertificate: 0 }, totalCertRow] = await Promise.all([
+      withCertQb.getRawOne(),
+      totalCertQb.getRawOne(),
+    ]);
+
+    const totalCertificates = Number(totalCertRow?.total || 0);
 
     const withoutCertificate = Math.max(total - Number(withCertificate || 0), 0);
 
@@ -455,8 +590,8 @@ export class AdminService {
     };
   }
 
-  private async getTopTeachersByCourses(limit: number = 5) {
-    const rows = await this.courseRepo
+  private async getTopTeachersByCourses(limit: number = 5, range?: PeriodRange) {
+    const qb = this.courseRepo
       .createQueryBuilder('course')
       .leftJoin('course.teacher', 'teacher')
       .leftJoin('course.enrollments', 'enrollment')
@@ -468,8 +603,16 @@ export class AdminService {
       .groupBy('teacher.id')
       .addGroupBy('teacher.name')
       .orderBy('"courseCount"', 'DESC')
-      .limit(limit)
-      .getRawMany();
+      .limit(limit);
+
+    if (range) {
+      qb.andWhere('course.createdAt >= :start AND course.createdAt < :end', {
+        start: range.currentStart,
+        end: range.currentEnd,
+      });
+    }
+
+    const rows = await qb.getRawMany();
 
     return rows.map((row) => ({
       teacherId: row.teacherId,
@@ -479,8 +622,8 @@ export class AdminService {
     }));
   }
 
-  private async getTopStudentsByCompletion(limit: number = 5) {
-    const rows = await this.enrollmentRepo
+  private async getTopStudentsByCompletion(limit: number = 5, range?: PeriodRange) {
+    const qb = this.enrollmentRepo
       .createQueryBuilder('enrollment')
       .leftJoin('enrollment.student', 'student')
       .leftJoin('enrollment.certificate', 'certificate')
@@ -497,8 +640,16 @@ export class AdminService {
       .addGroupBy('student.name')
       .orderBy('"completedCourses"', 'DESC')
       .addOrderBy('"certificates"', 'DESC')
-      .limit(limit)
-      .getRawMany();
+      .limit(limit);
+
+    if (range) {
+      qb.andWhere('enrollment.createdAt >= :start AND enrollment.createdAt < :end', {
+        start: range.currentStart,
+        end: range.currentEnd,
+      });
+    }
+
+    const rows = await qb.getRawMany();
 
     return rows.map((row) => ({
       studentId: row.studentId,
@@ -508,8 +659,8 @@ export class AdminService {
     }));
   }
 
-  private async getTopStudentsByCertificates(limit: number = 5) {
-    const rows = await this.certificateRepo
+  private async getTopStudentsByCertificates(limit: number = 5, range?: PeriodRange) {
+    const qb = this.certificateRepo
       .createQueryBuilder('cert')
       .leftJoin('cert.student', 'student')
       .leftJoin('cert.enrollment', 'enrollment')
@@ -526,8 +677,16 @@ export class AdminService {
       .addGroupBy('student.name')
       .orderBy('"certificateCount"', 'DESC')
       .addOrderBy('student.name', 'ASC')
-      .limit(limit)
-      .getRawMany();
+      .limit(limit);
+
+    if (range) {
+      qb.andWhere('cert.createdAt >= :start AND cert.createdAt < :end', {
+        start: range.currentStart,
+        end: range.currentEnd,
+      });
+    }
+
+    const rows = await qb.getRawMany();
 
     return rows.map((row) => ({
       studentId: row.studentId,
@@ -538,9 +697,11 @@ export class AdminService {
   }
 
   // ===== Revenue Reports =====
-  async getRevenueReport(): Promise<RevenueReport> {
+  async getRevenueReport(period?: string): Promise<RevenueReport> {
+    const normalizedPeriod = this.normalizePeriod(period);
+    const range = this.getPeriodRange(normalizedPeriod);
     const completedPayments = await this.paymentRepo.find({
-      where: { status: PaymentStatus.COMPLETED },
+      where: { status: PaymentStatus.COMPLETED, createdAt: Between(range.currentStart, range.currentEnd) },
       relations: ['course', 'course.teacher', 'course.category'],
     });
 
@@ -551,13 +712,13 @@ export class AdminService {
     const teacherRevenue = Math.round(totalRevenue * 0.7);
 
     // Revenue by month
-    const revenueByMonth = await this.getRevenueByMonth();
+    const revenueByMonth = await this.getRevenueByMonth(normalizedPeriod, range);
 
     // Revenue by teacher
-    const revenueByTeacher = await this.getRevenueByTeacher();
+    const revenueByTeacher = await this.getRevenueByTeacher(range);
 
     // Revenue by category
-    const revenueByCategory = await this.getRevenueByCategory();
+    const revenueByCategory = await this.getRevenueByCategory(range);
 
     // Average order value
     const averageOrderValue =
@@ -587,41 +748,46 @@ export class AdminService {
     };
   }
 
-  private async getRevenueByMonth(): Promise<MonthlyRevenue[]> {
-    const result = await this.paymentRepo
+  private async getRevenueByMonth(period: AdminPeriod, range: PeriodRange): Promise<MonthlyRevenue[]> {
+    const buckets = this.buildRevenueBuckets(period, range);
+    const rows = await this.paymentRepo
       .createQueryBuilder('payment')
-      .select("TO_CHAR(payment.createdAt, 'YYYY-MM')", 'month')
-      .addSelect('SUM(payment.finalAmount)', 'revenue')
-      .addSelect('COUNT(*)', 'orders')
+      .select(['payment.createdAt', 'payment.finalAmount'])
       .where('payment.status = :status', { status: PaymentStatus.COMPLETED })
-      .groupBy('month')
-      .orderBy('month', 'DESC')
-      .limit(12)
-      .getRawMany();
+      .andWhere('payment.createdAt >= :start AND payment.createdAt < :end', {
+        start: range.currentStart,
+        end: range.currentEnd,
+      })
+      .getMany();
 
-    const monthlyData = result.map((r, index) => {
-      const nextMonth = result[index + 1];
-      const currentRevenue = Math.round(parseFloat(r.revenue) || 0);
-      const prevRevenue = nextMonth
-        ? Math.round(parseFloat(nextMonth.revenue) || 0)
-        : currentRevenue;
-      const growth =
-        prevRevenue > 0
-          ? ((currentRevenue - prevRevenue) / prevRevenue) * 100
-          : 0;
-
+    const result = buckets.map((bucket, index) => {
+      const bucketRows = rows.filter(
+        (payment) => payment.createdAt >= bucket.start && payment.createdAt < bucket.end,
+      );
+      const revenue = Math.round(bucketRows.reduce((sum, payment) => sum + Number(payment.finalAmount || 0), 0));
+      const orders = bucketRows.length;
       return {
-        month: r.month,
-        revenue: currentRevenue,
-        orders: parseInt(r.orders),
-        growth: Math.round(growth * 10) / 10,
+        month: bucket.label,
+        revenue,
+        orders,
+        growth: 0,
+        __index: index,
       };
     });
 
-    return monthlyData.reverse();
+    return result.map((item, index, arr) => {
+      const prev = arr[index - 1]?.revenue ?? item.revenue;
+      const growth = prev > 0 ? ((item.revenue - prev) / prev) * 100 : 0;
+      return {
+        month: item.month,
+        revenue: item.revenue,
+        orders: item.orders,
+        growth: Math.round(growth * 10) / 10,
+      };
+    });
   }
 
-  private async getRevenueByTeacher(): Promise<TeacherRevenue[]> {
+  private async getRevenueByTeacher(range: PeriodRange): Promise<TeacherRevenue[]> {
     let result = await this.paymentRepo
       .createQueryBuilder('payment')
       .leftJoin('payment.course', 'course')
@@ -633,6 +799,10 @@ export class AdminService {
       .addSelect('COUNT(DISTINCT course.id)', 'courseCount')
       .addSelect('COUNT(DISTINCT payment.studentId)', 'studentCount')
       .where('payment.status = :status', { status: PaymentStatus.COMPLETED })
+      .andWhere('payment.createdAt >= :start AND payment.createdAt < :end', {
+        start: range.currentStart,
+        end: range.currentEnd,
+      })
       .groupBy('teacher.id')
       .addGroupBy('teacher.name')
       .addGroupBy('teacher.email')
@@ -653,11 +823,15 @@ export class AdminService {
     }));
   }
 
-  private async getRevenueByCategory(): Promise<CategoryRevenue[]> {
+  private async getRevenueByCategory(range: PeriodRange): Promise<CategoryRevenue[]> {
     const totalRevenue = await this.paymentRepo
       .createQueryBuilder('payment')
       .select('SUM(payment.finalAmount)', 'total')
       .where('payment.status = :status', { status: PaymentStatus.COMPLETED })
+      .andWhere('payment.createdAt >= :start AND payment.createdAt < :end', {
+        start: range.currentStart,
+        end: range.currentEnd,
+      })
       .getRawOne();
 
     const total = Math.round(parseFloat(totalRevenue?.total || '0'));
@@ -670,6 +844,10 @@ export class AdminService {
       .addSelect('SUM(payment.finalAmount)', 'revenue')
       .addSelect('COUNT(*)', 'orderCount')
       .where('payment.status = :status', { status: PaymentStatus.COMPLETED })
+      .andWhere('payment.createdAt >= :start AND payment.createdAt < :end', {
+        start: range.currentStart,
+        end: range.currentEnd,
+      })
       .groupBy('category.name')
       .getRawMany();
 
@@ -690,24 +868,24 @@ export class AdminService {
   }
 
   // ===== User Reports =====
-  async getUserReport(): Promise<UserReport> {
-    const now = new Date();
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  async getUserReport(period?: string): Promise<UserReport> {
+    const normalizedPeriod = this.normalizePeriod(period);
+    const range = this.getPeriodRange(normalizedPeriod);
 
-    const totalUsers = await this.userRepo.count();
-    // For activeUsers, we count users who created accounts or enrolled in courses recently
-    // In a real app, you'd track lastLoginAt field
+    const totalUsers = await this.userRepo.count({
+      where: { createdAt: Between(range.currentStart, range.currentEnd) },
+    });
     const activeUsers = await this.userRepo.count({
-      where: { createdAt: MoreThan(thirtyDaysAgo) },
+      where: { createdAt: Between(range.currentStart, range.currentEnd) },
     });
     const newUsers = await this.userRepo.count({
-      where: { createdAt: MoreThan(thirtyDaysAgo) },
+      where: { createdAt: Between(range.currentStart, range.currentEnd) },
     });
 
-    const usersByRole = await this.getUsersByRole();
-    const userGrowth = await this.getUserGrowthReport();
-    const topStudents = await this.getTopStudents();
-    const topTeachers = await this.getTopTeachers();
+    const usersByRole = await this.getUsersByRole(range);
+    const userGrowth = await this.getUserGrowthReport(normalizedPeriod, range);
+    const topStudents = await this.getTopStudents(range);
+    const topTeachers = await this.getTopTeachers(range);
 
     return {
       totalUsers,
@@ -720,15 +898,25 @@ export class AdminService {
     };
   }
 
-  private async getUsersByRole(): Promise<RoleDistribution[]> {
-    const total = await this.userRepo.count();
+  private async getUsersByRole(range?: PeriodRange): Promise<RoleDistribution[]> {
+    const total = await this.userRepo.count({
+      where: range ? { createdAt: Between(range.currentStart, range.currentEnd) } : {},
+    });
 
-    const result = await this.userRepo
+    const qb = this.userRepo
       .createQueryBuilder('user')
       .select('user.role', 'role')
       .addSelect('COUNT(*)', 'count')
-      .groupBy('user.role')
-      .getRawMany();
+      .groupBy('user.role');
+
+    if (range) {
+      qb.where('user.createdAt >= :start AND user.createdAt < :end', {
+        start: range.currentStart,
+        end: range.currentEnd,
+      });
+    }
+
+    const result = await qb.getRawMany();
 
     return result.map((r) => ({
       role: r.role,
@@ -738,26 +926,29 @@ export class AdminService {
     }));
   }
 
-  private async getUserGrowthReport(): Promise<UserGrowth[]> {
-    const result = await this.userRepo
-      .createQueryBuilder('user')
-      .select("TO_CHAR(user.createdAt, 'YYYY-MM')", 'period')
-      .addSelect('COUNT(*)', 'newUsers')
-      .groupBy('period')
-      .orderBy('period', 'DESC')
-      .limit(12)
-      .getRawMany();
+  private async getUserGrowthReport(
+    period: AdminPeriod,
+    range: PeriodRange,
+  ): Promise<UserGrowth[]> {
+    const buckets = this.buildGrowthBuckets(period, range);
+    const users = await this.userRepo.find({
+      where: { createdAt: Between(range.currentStart, range.currentEnd) },
+      select: ['createdAt'],
+    });
 
-    // For activeUsers, we would need a lastLoginAt field tracked properly
-    // For now, returning newUsers data
-    return result.reverse().map((r) => ({
-      period: r.period,
-      newUsers: parseInt(r.newUsers),
-      activeUsers: parseInt(r.newUsers), // Placeholder
-    }));
+    return buckets.map((bucket) => {
+      const newUsers = users.filter(
+        (user) => user.createdAt >= bucket.start && user.createdAt < bucket.end,
+      ).length;
+      return {
+        period: bucket.label,
+        newUsers,
+        activeUsers: newUsers,
+      };
+    });
   }
 
-  private async getTopStudents(): Promise<TopStudent[]> {
+  private async getTopStudents(range?: PeriodRange): Promise<TopStudent[]> {
     // Use payments (completed only) as the source of spending, with enrollments joined for completion stats
     let result = await this.paymentRepo
       .createQueryBuilder('payment')
@@ -774,6 +965,10 @@ export class AdminService {
         'completionRate',
       )
       .where('payment.status = :status', { status: PaymentStatus.COMPLETED })
+      .andWhere(
+        range ? 'payment.createdAt >= :start AND payment.createdAt < :end' : '1=1',
+        range ? { start: range.currentStart, end: range.currentEnd } : {},
+      )
       .groupBy('student.id')
       .addGroupBy('student.name')
       .addGroupBy('student.email')
@@ -794,7 +989,7 @@ export class AdminService {
     }));
   }
 
-  private async getTopTeachers(): Promise<TopTeacher[]> {
+  private async getTopTeachers(range?: PeriodRange): Promise<TopTeacher[]> {
     let result = await this.courseRepo
       .createQueryBuilder('course')
       .leftJoin('course.teacher', 'teacher')
@@ -809,6 +1004,10 @@ export class AdminService {
       .addSelect('COALESCE(SUM(payment.finalAmount), 0) * 0.7', 'totalRevenue')
       .addSelect('COALESCE(AVG(review.rating), 0)', 'averageRating')
       .where('payment.status = :status', { status: PaymentStatus.COMPLETED })
+      .andWhere(
+        range ? 'payment.createdAt >= :start AND payment.createdAt < :end' : '1=1',
+        range ? { start: range.currentStart, end: range.currentEnd } : {},
+      )
       .groupBy('teacher.id')
       .addGroupBy('teacher.name')
       .addGroupBy('teacher.email')
@@ -832,10 +1031,13 @@ export class AdminService {
   }
 
   // ===== Performance Reports =====
-  async getPerformanceReport(): Promise<PerformanceReport> {
-    const topPerformingCourses = await this.getCoursePerformance('DESC', 10);
-    const lowPerformingCourses = await this.getCoursePerformance('ASC', 10);
-    const completionRates = await this.getCompletionRates();
+  async getPerformanceReport(period?: string): Promise<PerformanceReport> {
+    const normalizedPeriod = this.normalizePeriod(period);
+    const range = this.getPeriodRange(normalizedPeriod);
+
+    const topPerformingCourses = await this.getCoursePerformance('DESC', 10, range);
+    const lowPerformingCourses = await this.getCoursePerformance('ASC', 10, range);
+    const completionRates = await this.getCompletionRates(range);
     const engagementMetrics = await this.getEngagementMetrics();
 
     return {
@@ -849,8 +1051,9 @@ export class AdminService {
   private async getCoursePerformance(
     order: 'ASC' | 'DESC',
     limit: number,
+    range?: PeriodRange,
   ): Promise<CoursePerformance[]> {
-    const result = await this.courseRepo
+    const qb = this.courseRepo
       .createQueryBuilder('course')
       .leftJoin('course.teacher', 'teacher')
       .leftJoin('course.enrollments', 'enrollment')
@@ -871,8 +1074,16 @@ export class AdminService {
       .addGroupBy('course.title')
       .addGroupBy('teacher.name')
       .orderBy('revenue', order)
-      .limit(limit)
-      .getRawMany();
+      .limit(limit);
+
+    if (range) {
+      qb.andWhere('payment.createdAt >= :start AND payment.createdAt < :end', {
+        start: range.currentStart,
+        end: range.currentEnd,
+      });
+    }
+
+    const result = await qb.getRawMany();
 
     return result.map((r) => ({
       courseId: r.courseId,
@@ -885,8 +1096,8 @@ export class AdminService {
     }));
   }
 
-  private async getCompletionRates(): Promise<CompletionRate[]> {
-    const result = await this.enrollmentRepo
+  private async getCompletionRates(range?: PeriodRange): Promise<CompletionRate[]> {
+    const qb = this.enrollmentRepo
       .createQueryBuilder('enrollment')
       .leftJoin('enrollment.course', 'course')
       .leftJoin('course.category', 'category')
@@ -896,8 +1107,16 @@ export class AdminService {
         'COUNT(CASE WHEN enrollment.completedAt IS NOT NULL THEN 1 END)',
         'completedEnrollments',
       )
-      .groupBy('category.name')
-      .getRawMany();
+      .groupBy('category.name');
+
+    if (range) {
+      qb.where('enrollment.createdAt >= :start AND enrollment.createdAt < :end', {
+        start: range.currentStart,
+        end: range.currentEnd,
+      });
+    }
+
+    const result = await qb.getRawMany();
 
     return result.map((r) => {
       const total = parseInt(r.totalEnrollments);

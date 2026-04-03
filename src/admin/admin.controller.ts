@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards, Patch, Param, Body } from '@nestjs/common';
+import { Controller, Get, UseGuards, Patch, Param, Body, Query } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -18,13 +18,13 @@ export class AdminController {
   ) {}
 
   @Get('dashboard/stats')
-  getDashboardStats() {
-    return this.adminService.getDashboardStats();
+  getDashboardStats(@Query('period') period?: string) {
+    return this.adminService.getDashboardStats(period);
   }
 
   @Get('dashboard/growth')
-  getGrowthStats() {
-    return this.adminService.getGrowthStats();
+  getGrowthStats(@Query('period') period?: string) {
+    return this.adminService.getGrowthStats(period);
   }
 
   @Get('dashboard/categories/distribution')
@@ -33,18 +33,18 @@ export class AdminController {
   }
 
   @Get('reports/revenue')
-  getRevenueReport() {
-    return this.adminService.getRevenueReport();
+  getRevenueReport(@Query('period') period?: string) {
+    return this.adminService.getRevenueReport(period);
   }
 
   @Get('reports/users')
-  getUserReport() {
-    return this.adminService.getUserReport();
+  getUserReport(@Query('period') period?: string) {
+    return this.adminService.getUserReport(period);
   }
 
   @Get('reports/performance')
-  getPerformanceReport() {
-    return this.adminService.getPerformanceReport();
+  getPerformanceReport(@Query('period') period?: string) {
+    return this.adminService.getPerformanceReport(period);
   }
 
   @Get('courses')
