@@ -692,6 +692,8 @@ export class TeacherService {
       comment: r.comment,
       createdAt: r.createdAt,
       helpful: r.helpfulCount,
+      teacherReply: r.teacherReply || '',
+      repliedAt: r.repliedAt || undefined,
       response: r.teacherReply || '',
       responseDate: r.repliedAt || undefined,
     }));
@@ -731,6 +733,8 @@ export class TeacherService {
 
     return {
       id: review.id,
+      teacherReply: review.teacherReply,
+      repliedAt: review.repliedAt,
       response: review.teacherReply,
       responseDate: review.repliedAt,
     };
