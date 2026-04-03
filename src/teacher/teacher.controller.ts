@@ -7,6 +7,7 @@ import {
   Post,
   Body,
   Param,
+  Query,
 } from '@nestjs/common';
 import { TeacherService } from './teacher.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -22,8 +23,11 @@ export class TeacherController {
   constructor(private readonly teacherService: TeacherService) {}
 
   @Get('dashboard/stats')
-  getDashboardStats(@Req() req: any) {
-    return this.teacherService.getDashboardStats(req.user.id);
+  getDashboardStats(
+    @Req() req: any,
+    @Query('period') period?: 'day' | 'week' | 'month' | 'year',
+  ) {
+    return this.teacherService.getDashboardStats(req.user.id, period);
   }
 
   @Get('dashboard/enrollments/recent')

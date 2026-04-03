@@ -12,6 +12,38 @@ import { EnrollmentStatus } from '../enrollments/entities/enrollment.entity';
 
 @Injectable()
 export class TeacherService {
+    private resolvePeriodWindow(period?: 'day' | 'week' | 'month' | 'year') {
+      const now = new Date();
+
+      if (!period) {
+        return {
+          periodStart: null as Date | null,
+          previousStart: new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000),
+          previousEnd: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
+          currentStartForGrowth: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
+        };
+      }
+
+      const unitDays = {
+        day: 1,
+        week: 7,
+        month: 30,
+        year: 365,
+      } as const;
+
+      const days = unitDays[period] ?? 30;
+      const periodStart = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+      const previousStart = new Date(now.getTime() - days * 2 * 24 * 60 * 60 * 1000);
+      const previousEnd = periodStart;
+
+      return {
+        periodStart,
+        previousStart,
+        previousEnd,
+        currentStartForGrowth: periodStart,
+      };
+    }
+
   constructor(
     @InjectRepository(Course)
     private readonly courseRepo: Repository<Course>,
@@ -163,10 +195,13 @@ export class TeacherService {
     };
   }
 
-  async getDashboardStats(teacherId: string): Promise<TeacherDashboardStats> {
+  async getDashboardStats(
+    teacherId: string,
+    period?: 'day' | 'week' | 'month' | 'year',
+  ): Promise<TeacherDashboardStats> {
     const now = new Date();
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+    const { periodStart, previousStart, previousEnd, currentStartForGrowth } =
+      this.resolvePeriodWindow(period);
 
     // Get teacher courses
     const courses = await this.courseRepo.find({
@@ -202,37 +237,57 @@ export class TeacherService {
         status: PaymentStatus.COMPLETED,
       },
     });
-    const totalRevenue = payments.reduce(
+    const filteredPayments = periodStart
+      ? payments.filter((p) => p.createdAt >= periodStart)
+      : payments;
+
+    const totalRevenue = filteredPayments.reduce(
       (sum, p) => sum + Number(p.finalAmount || 0),
       0,
     );
 
     // Recent revenue for growth
     const recentRevenue = payments
-      .filter((p) => p.createdAt >= thirtyDaysAgo)
+      .filter((p) => p.createdAt >= currentStartForGrowth)
       .reduce((sum, p) => sum + Number(p.finalAmount || 0), 0);
     const oldRevenue = payments
-      .filter((p) => p.createdAt >= sixtyDaysAgo && p.createdAt < thirtyDaysAgo)
+      .filter((p) => p.createdAt >= previousStart && p.createdAt < previousEnd)
       .reduce((sum, p) => sum + Number(p.finalAmount || 0), 0);
     const revenueGrowth =
       oldRevenue > 0 ? ((recentRevenue - oldRevenue) / oldRevenue) * 100 : 0;
 
     // Total students (unique enrollments)
-    const totalStudents = await this.enrollmentRepo
+    const totalStudentsQuery = this.enrollmentRepo
       .createQueryBuilder('enrollment')
       .select('COUNT(DISTINCT enrollment.studentId)', 'count')
-      .where('enrollment.courseId IN (:...courseIds)', { courseIds })
-      .getRawOne();
+      .where('enrollment.courseId IN (:...courseIds)', { courseIds });
+    if (periodStart) {
+      totalStudentsQuery.andWhere('enrollment.createdAt >= :periodStart', {
+        periodStart,
+      });
+    }
+    const totalStudents = await totalStudentsQuery.getRawOne();
 
-    const totalEnrollments = await this.enrollmentRepo.count({
-      where: { courseId: In(courseIds) },
-    });
+    const totalEnrollmentsQuery = this.enrollmentRepo
+      .createQueryBuilder('enrollment')
+      .where('enrollment.courseId IN (:...courseIds)', { courseIds });
+    if (periodStart) {
+      totalEnrollmentsQuery.andWhere('enrollment.createdAt >= :periodStart', {
+        periodStart,
+      });
+    }
+    const totalEnrollments = await totalEnrollmentsQuery.getCount();
 
-    const completionAgg = await this.enrollmentRepo
+    const completionAggQuery = this.enrollmentRepo
       .createQueryBuilder('enrollment')
       .select('AVG(enrollment.progress)', 'avg')
-      .where('enrollment.courseId IN (:...courseIds)', { courseIds })
-      .getRawOne();
+      .where('enrollment.courseId IN (:...courseIds)', { courseIds });
+    if (periodStart) {
+      completionAggQuery.andWhere('enrollment.createdAt >= :periodStart', {
+        periodStart,
+      });
+    }
+    const completionAgg = await completionAggQuery.getRawOne();
 
     // Recent students for growth
     const [recentStudents, oldStudents] = await Promise.all([
@@ -240,14 +295,16 @@ export class TeacherService {
         .createQueryBuilder('enrollment')
         .select('COUNT(DISTINCT enrollment.studentId)', 'count')
         .where('enrollment.courseId IN (:...courseIds)', { courseIds })
-        .andWhere('enrollment.createdAt >= :date', { date: thirtyDaysAgo })
+        .andWhere('enrollment.createdAt >= :date', {
+          date: currentStartForGrowth,
+        })
         .getRawOne(),
       this.enrollmentRepo
         .createQueryBuilder('enrollment')
         .select('COUNT(DISTINCT enrollment.studentId)', 'count')
         .where('enrollment.courseId IN (:...courseIds)', { courseIds })
-        .andWhere('enrollment.createdAt >= :start', { start: sixtyDaysAgo })
-        .andWhere('enrollment.createdAt < :end', { end: thirtyDaysAgo })
+        .andWhere('enrollment.createdAt >= :start', { start: previousStart })
+        .andWhere('enrollment.createdAt < :end', { end: previousEnd })
         .getRawOne(),
     ]);
 
@@ -262,9 +319,13 @@ export class TeacherService {
     const reviews = await this.reviewRepo.find({
       where: { courseId: In(courseIds) },
     });
+    const filteredReviews = periodStart
+      ? reviews.filter((review) => review.createdAt >= periodStart)
+      : reviews;
     const averageRating =
-      reviews.length > 0
-        ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+      filteredReviews.length > 0
+        ? filteredReviews.reduce((sum, r) => sum + r.rating, 0) /
+          filteredReviews.length
         : 0;
 
     const revenueChart = await this.getRevenueChart(teacherId, 12);
@@ -278,13 +339,18 @@ export class TeacherService {
     const enrollments = await this.enrollmentRepo.find({
       where: { courseId: In(courseIds) },
     });
+    const filteredEnrollments = periodStart
+      ? enrollments.filter((enrollment) => enrollment.createdAt >= periodStart)
+      : enrollments;
 
     const coursePerformance = courses.map((course) => {
-      const courseEnrollments = enrollments.filter(
+      const courseEnrollments = filteredEnrollments.filter(
         (e) => e.courseId === course.id,
       );
-      const coursePayments = payments.filter((p) => p.courseId === course.id);
-      const courseReviews = reviews.filter((r) => r.courseId === course.id);
+      const coursePayments = filteredPayments.filter(
+        (p) => p.courseId === course.id,
+      );
+      const courseReviews = filteredReviews.filter((r) => r.courseId === course.id);
 
       const revenue = coursePayments.reduce(
         (sum, p) => sum + Number(p.finalAmount || 0),

@@ -43,6 +43,16 @@ export class CertificatesController {
     return this.certificatesService.findByStudent(user.id);
   }
 
+  @Get('teacher/my-issued')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.TEACHER, UserRole.ADMIN)
+  findIssuedForTeacher(@GetUser() user: User) {
+    if (user.role === UserRole.ADMIN) {
+      return this.certificatesService.findAllForAdmin();
+    }
+    return this.certificatesService.findByTeacher(user.id);
+  }
+
   @Get('admin/all')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)

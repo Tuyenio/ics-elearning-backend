@@ -68,6 +68,12 @@ export class CertificatesService {
         studentName: enrollment.student.name,
         courseName: enrollment.course.title,
         completionDate: enrollment.completedAt,
+        snapshot: {
+          studentName: enrollment.student.name,
+          courseName: enrollment.course.title,
+          issuedAt: new Date().toISOString(),
+          source: 'course_completion',
+        },
       },
     });
 
@@ -112,6 +118,10 @@ export class CertificatesService {
       `[CertificateService] Creating new certificate for enrollment ${enrollmentId}`,
     );
 
+    const templateSnapshot = await this.getTemplateSnapshotByExamId(
+      examInfo?.examId,
+    );
+
     const certificate = this.certificateRepository.create({
       certificateNumber: this.generateCertificateNumber(),
       studentId: enrollment.studentId,
@@ -123,6 +133,16 @@ export class CertificatesService {
         courseName: enrollment.course.title,
         source: 'official_exam',
         ...examInfo,
+        snapshot: {
+          studentName: enrollment.student.name,
+          courseName: enrollment.course.title,
+          issuedAt: new Date().toISOString(),
+          certificateId: undefined,
+          examId: examInfo?.examId,
+          attemptId: examInfo?.attemptId,
+          score: examInfo?.score,
+          template: templateSnapshot,
+        },
       },
     });
 
@@ -254,6 +274,40 @@ export class CertificatesService {
       Math.random().toString(36).substring(2, 15) +
       Math.random().toString(36).substring(2, 15)
     );
+  }
+
+  private async getTemplateSnapshotByExamId(examId?: string) {
+    if (!examId) return null;
+
+    const exam = await this.examRepository.findOne({
+      where: { id: examId },
+    });
+
+    if (!exam?.certificateTemplateId) return null;
+
+    const template = await this.templateRepository.findOne({
+      where: { id: exam.certificateTemplateId },
+    });
+
+    if (!template) return null;
+
+    return {
+      id: template.id,
+      title: template.title,
+      description: template.description,
+      templateStyle: template.templateStyle,
+      badgeStyle: template.badgeStyle,
+      backgroundColor: template.backgroundColor,
+      borderColor: template.borderColor,
+      borderStyle: template.borderStyle,
+      textColor: template.textColor,
+      templateImageUrl: template.templateImageUrl,
+      logoUrl: template.logoUrl,
+      signatureUrl: template.signatureUrl,
+      validityPeriod: template.validityPeriod,
+      status: template.status,
+      capturedAt: new Date().toISOString(),
+    };
   }
 
   private generateCertificateNumber(): string {
