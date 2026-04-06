@@ -312,14 +312,14 @@ export class InstructorSubscriptionsService implements OnModuleInit {
   }
 
   private getSepayBankName(): string {
-    return process.env.SEPAY_BANK_NAME || process.env.BANK_NAME || 'TPBank';
+    return process.env.SEPAY_BANK_NAME || process.env.BANK_NAME || 'BIDV';
   }
 
   private getSepayAccountNumber(): string {
     return (
       process.env.SEPAY_BANK_ACCOUNT_NUMBER ||
       process.env.BANK_ACCOUNT_NUMBER ||
-      '66010901964'
+      '8820162447'
     );
   }
 
