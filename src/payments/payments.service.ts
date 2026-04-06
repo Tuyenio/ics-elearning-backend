@@ -163,9 +163,12 @@ export class PaymentsService {
     finalAmount: number;
     couponCode: string | null;
   }> {
-    const expectedAmount = this.normalizeAmount(
-      Number(course.discountPrice || course.price || 0),
-    );
+    const basePrice = this.normalizeAmount(Number(course.price ?? 0));
+    const discountPrice = this.normalizeAmount(Number(course.discountPrice ?? 0));
+    // Use discount price only when it is a real reduced price, not default 0.00.
+    const effectiveCoursePrice =
+      discountPrice > 0 && discountPrice < basePrice ? discountPrice : basePrice;
+    const expectedAmount = this.normalizeAmount(Math.max(0, effectiveCoursePrice));
 
     let discountAmount = 0;
     let normalizedCouponCode: string | null = null;

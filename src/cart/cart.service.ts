@@ -44,10 +44,17 @@ export class CartService {
     }
 
     // Add to cart
+    const basePrice = Number(course.price || 0);
+    const discountPrice = Number(course.discountPrice || 0);
+    const effectivePrice =
+      discountPrice > 0 && discountPrice < basePrice
+        ? discountPrice
+        : basePrice;
+
     const cartItem = this.cartRepository.create({
       userId: user.id,
       courseId,
-      price: course.discountPrice || course.price,
+      price: effectivePrice,
     });
 
     return this.cartRepository.save(cartItem);
@@ -90,7 +97,12 @@ export class CartService {
     });
 
     return cartItems.reduce((total, item) => {
-      const price = item.course.discountPrice || item.course.price || 0;
+      const basePrice = Number(item.course.price || 0);
+      const discountPrice = Number(item.course.discountPrice || 0);
+      const price =
+        discountPrice > 0 && discountPrice < basePrice
+          ? discountPrice
+          : basePrice;
       return total + Number(price);
     }, 0);
   }

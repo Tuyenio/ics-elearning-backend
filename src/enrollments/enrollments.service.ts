@@ -50,7 +50,12 @@ export class EnrollmentsService {
     }
 
     // ✅ Check if paid course
-    const finalPrice = course.discountPrice || course.price || 0;
+    const basePrice = Number(course.price || 0);
+    const discountPrice = Number(course.discountPrice || 0);
+    const finalPrice =
+      discountPrice > 0 && discountPrice < basePrice
+        ? discountPrice
+        : basePrice;
     if (finalPrice > 0) {
       throw new BadRequestException(
         'Khóa học có phí, vui lòng thanh toán trước khi đăng ký',

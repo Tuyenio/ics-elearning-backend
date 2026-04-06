@@ -181,7 +181,12 @@ export class CouponsService {
       return { valid: false, message: 'Khóa học không tìm thấy' };
     }
 
-    const coursePrice = course.discountPrice || course.price || 0;
+    const basePrice = Number(course.price || 0);
+    const discountPrice = Number(course.discountPrice || 0);
+    const coursePrice =
+      discountPrice > 0 && discountPrice < basePrice
+        ? discountPrice
+        : basePrice;
 
     // Check minimum purchase
     if (coupon.minPurchase && coursePrice < coupon.minPurchase) {
