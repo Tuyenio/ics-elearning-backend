@@ -13,6 +13,7 @@ import { MomoService } from './momo.service';
 import { CouponsModule } from '../coupons/coupons.module';
 import { WalletModule } from '../wallet/wallet.module';
 import { InstructorSubscriptionsModule } from '../instructor-subscriptions/instructor-subscriptions.module';
+import { SepayController } from './sepay.controller';
 
 @Module({
   imports: [
@@ -28,7 +29,7 @@ import { InstructorSubscriptionsModule } from '../instructor-subscriptions/instr
     WalletModule,
     InstructorSubscriptionsModule,
   ],
-  controllers: [PaymentsController],
+  controllers: [PaymentsController, SepayController],
   providers: [PaymentsService, VNPayService, MomoService],
   exports: [PaymentsService, VNPayService, MomoService],
 })
