@@ -12,6 +12,7 @@ import {
   Payment,
   PaymentStatus,
   PaymentMethod,
+  PaymentType,
 } from './entities/payment.entity';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { User } from '../users/entities/user.entity';
@@ -20,6 +21,10 @@ import { Enrollment } from '../enrollments/entities/enrollment.entity';
 import { Lesson } from '../lessons/entities/lesson.entity';
 import { LessonProgress } from '../lesson-progress/entities/lesson-progress.entity';
 import { CouponsService } from '../coupons/coupons.service';
+import { WalletService } from '../wallet/wallet.service';
+import { CreateSepayCoursePaymentDto } from './dto/create-sepay-course-payment.dto';
+import { CreateWalletTopupDto } from './dto/create-wallet-topup.dto';
+import { SepayWebhookDto } from './dto/sepay-webhook.dto';
 import PDFDocument from 'pdfkit';
 
 type PaymentFilters = {
@@ -62,6 +67,7 @@ type RevenueRow = { total: string | null };
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
+  private static readonly PAYMENT_EXPIRE_MS = 15 * 60 * 1000;
 
   constructor(
     @InjectRepository(Payment)
@@ -75,6 +81,7 @@ export class PaymentsService {
     @InjectRepository(LessonProgress)
     private readonly lessonProgressRepository: Repository<LessonProgress>,
     private readonly couponsService: CouponsService,
+    private readonly walletService: WalletService,
   ) {}
 
   private sanitizeMetadata(metadata: unknown): Record<string, unknown> {
@@ -82,6 +89,118 @@ export class PaymentsService {
       return {};
     }
     return { ...(metadata as Record<string, unknown>) };
+  }
+
+  private normalizeAmount(value: number): number {
+    const normalized = Number(value);
+    if (!Number.isFinite(normalized)) {
+      throw new BadRequestException('So tien khong hop le');
+    }
+    return Number(normalized.toFixed(2));
+  }
+
+  private isPendingPaymentExpired(payment: Pick<Payment, 'expiresAt'>): boolean {
+    if (!payment.expiresAt) {
+      return false;
+    }
+
+    return payment.expiresAt.getTime() <= Date.now();
+  }
+
+  private generateTransactionCode(prefix: string): string {
+    const timestamp = Date.now().toString();
+    const random = Math.random().toString(36).slice(2, 8).toUpperCase();
+    return `${prefix}${timestamp}${random}`;
+  }
+
+  private getSepayBankName(): string {
+    return process.env.SEPAY_BANK_NAME || process.env.BANK_NAME || 'TPBank';
+  }
+
+  private getSepayAccountNumber(): string {
+    return (
+      process.env.SEPAY_BANK_ACCOUNT_NUMBER ||
+      process.env.BANK_ACCOUNT_NUMBER ||
+      '66010901964'
+    );
+  }
+
+  private buildSepayQrUrl(amount: number, transactionCode: string): string {
+    const params = new URLSearchParams({
+      acc: this.getSepayAccountNumber(),
+      bank: this.getSepayBankName(),
+      amount: Math.round(amount).toString(),
+      des: transactionCode,
+    });
+
+    return `https://qr.sepay.vn/img?${params.toString()}`;
+  }
+
+  private resolveTransferCode(content?: string): string | null {
+    if (!content) {
+      return null;
+    }
+
+    const normalized = content.toUpperCase();
+    const patterns = [/NAP\d+[A-Z0-9]+/, /CRS\d+[A-Z0-9]+/, /SUB-[A-Z0-9-]+/];
+
+    for (const pattern of patterns) {
+      const match = normalized.match(pattern);
+      if (match?.[0]) {
+        return match[0];
+      }
+    }
+
+    return null;
+  }
+
+  private async resolveCoursePrice(
+    course: Course,
+    couponCode?: string,
+  ): Promise<{
+    amount: number;
+    discountAmount: number;
+    finalAmount: number;
+    couponCode: string | null;
+  }> {
+    const expectedAmount = this.normalizeAmount(
+      Number(course.discountPrice || course.price || 0),
+    );
+
+    let discountAmount = 0;
+    let normalizedCouponCode: string | null = null;
+
+    if (couponCode?.trim()) {
+      normalizedCouponCode = couponCode.trim().toUpperCase();
+      const couponResult = await this.couponsService.validateCoupon(
+        normalizedCouponCode,
+        course.id,
+      );
+
+      if (!couponResult.valid) {
+        throw new BadRequestException(
+          couponResult.message || 'Ma thanh toan khong hop le',
+        );
+      }
+
+      discountAmount = this.normalizeAmount(Number(couponResult.discount || 0));
+      await this.couponsService.applyCoupon(normalizedCouponCode);
+    }
+
+    if (discountAmount < 0) {
+      throw new BadRequestException('Giam gia khong hop le');
+    }
+
+    const finalAmount = this.normalizeAmount(
+      Math.max(0, expectedAmount - discountAmount),
+    );
+
+    return {
+      amount: expectedAmount,
+      discountAmount,
+      finalAmount,
+      couponCode: normalizedCouponCode,
+    };
   }
 
   async create(
@@ -113,34 +232,8 @@ export class PaymentsService {
       throw new ConflictException('Đã đăng ký khóa học này rồi');
     }
 
-    const expectedAmount = Number(course.discountPrice || course.price || 0);
-
-    let discountAmount = Number(createPaymentDto.discountAmount || 0);
-    let couponCode: string | null = null;
-
-    if (createPaymentDto.couponCode?.trim()) {
-      const normalizedCode = createPaymentDto.couponCode.trim().toUpperCase();
-      const couponResult = await this.couponsService.validateCoupon(
-        normalizedCode,
-        course.id,
-      );
-
-      if (!couponResult.valid) {
-        throw new BadRequestException(
-          couponResult.message || 'Mã thanh toán không hợp lệ',
-        );
-      }
-
-      discountAmount = Number(couponResult.discount || 0);
-      couponCode = normalizedCode;
-      await this.couponsService.applyCoupon(normalizedCode);
-    }
-
-    if (discountAmount < 0) {
-      throw new BadRequestException('Giảm giá không hợp lệ');
-    }
-
-    const finalAmount = Math.max(0, expectedAmount - discountAmount);
+    const { amount, discountAmount, finalAmount, couponCode } =
+      await this.resolveCoursePrice(course, createPaymentDto.couponCode);
 
     const transactionId =
       createPaymentDto.transactionId || this.generateTransactionId();
@@ -149,7 +242,7 @@ export class PaymentsService {
       transactionId,
       studentId: student.id,
       courseId: createPaymentDto.courseId,
-      amount: expectedAmount,
+      amount,
       discountAmount,
       finalAmount,
       currency: createPaymentDto.currency || 'VND',
@@ -176,6 +269,344 @@ export class PaymentsService {
     }
 
     return savedPayment;
+  }
+
+  async createSepayCoursePayment(
+    dto: CreateSepayCoursePaymentDto,
+    student: User,
+  ) {
+    const course = await this.courseRepository.findOne({
+      where: { id: dto.courseId },
+    });
+
+    if (!course) {
+      throw new NotFoundException('Khoa hoc khong tim thay');
+    }
+
+    if (course.status !== CourseStatus.PUBLISHED) {
+      throw new BadRequestException('Khoa hoc khong kha dung');
+    }
+
+    const existingEnrollment = await this.enrollmentRepository.findOne({
+      where: {
+        studentId: student.id,
+        courseId: dto.courseId,
+      },
+    });
+
+    if (existingEnrollment) {
+      throw new ConflictException('Da dang ky khoa hoc nay roi');
+    }
+
+    const { amount, discountAmount, finalAmount, couponCode } =
+      await this.resolveCoursePrice(course, dto.couponCode);
+
+    const transactionCode = this.generateTransactionCode('CRS');
+    const expiresAt = new Date(Date.now() + PaymentsService.PAYMENT_EXPIRE_MS);
+
+    const payment = this.paymentRepository.create({
+      transactionId: this.generateTransactionId(),
+      transactionCode,
+      studentId: student.id,
+      courseId: dto.courseId,
+      paymentType: PaymentType.COURSE_ENROLLMENT,
+      amount,
+      discountAmount,
+      finalAmount,
+      currency: 'VND',
+      paymentMethod: PaymentMethod.SEPAY_QR,
+      status:
+        finalAmount === 0 ? PaymentStatus.COMPLETED : PaymentStatus.PENDING,
+      ...(finalAmount === 0 ? { paidAt: new Date() } : { expiresAt }),
+      metadata: {
+        couponCode,
+        source: 'course_checkout',
+      },
+    });
+
+    const savedPayment = await this.paymentRepository.save(payment);
+
+    if (savedPayment.status === PaymentStatus.COMPLETED) {
+      await this.createEnrollmentForPayment(savedPayment);
+      return {
+        payment: savedPayment,
+        checkout: null,
+      };
+    }
+
+    return {
+      payment: savedPayment,
+      checkout: {
+        transactionCode,
+        expiresAt,
+        bankName: this.getSepayBankName(),
+        accountNumber: this.getSepayAccountNumber(),
+        qrImageUrl: this.buildSepayQrUrl(finalAmount, transactionCode),
+      },
+    };
+  }
+
+  async createWalletTopupSepay(dto: CreateWalletTopupDto, user: User) {
+    const amount = this.normalizeAmount(dto.amount);
+    const transactionCode = this.generateTransactionCode('NAP');
+    const expiresAt = new Date(Date.now() + PaymentsService.PAYMENT_EXPIRE_MS);
+
+    const payment = this.paymentRepository.create({
+      transactionId: this.generateTransactionId(),
+      transactionCode,
+      studentId: user.id,
+      paymentType: PaymentType.WALLET_TOPUP,
+      amount,
+      discountAmount: 0,
+      finalAmount: amount,
+      currency: 'VND',
+      paymentMethod: PaymentMethod.SEPAY_QR,
+      status: PaymentStatus.PENDING,
+      expiresAt,
+      metadata: {
+        source: 'wallet_topup',
+      },
+    });
+
+    const savedPayment = await this.paymentRepository.save(payment);
+
+    return {
+      payment: savedPayment,
+      checkout: {
+        transactionCode,
+        expiresAt,
+        bankName: this.getSepayBankName(),
+        accountNumber: this.getSepayAccountNumber(),
+        qrImageUrl: this.buildSepayQrUrl(amount, transactionCode),
+      },
+    };
+  }
+
+  async payCourseByWallet(dto: CreateSepayCoursePaymentDto, student: User) {
+    const course = await this.courseRepository.findOne({
+      where: { id: dto.courseId },
+    });
+
+    if (!course) {
+      throw new NotFoundException('Khoa hoc khong tim thay');
+    }
+
+    if (course.status !== CourseStatus.PUBLISHED) {
+      throw new BadRequestException('Khoa hoc khong kha dung');
+    }
+
+    const existingEnrollment = await this.enrollmentRepository.findOne({
+      where: {
+        studentId: student.id,
+        courseId: dto.courseId,
+      },
+    });
+
+    if (existingEnrollment) {
+      throw new ConflictException('Da dang ky khoa hoc nay roi');
+    }
+
+    const { amount, discountAmount, finalAmount, couponCode } =
+      await this.resolveCoursePrice(course, dto.couponCode);
+
+    const payment = this.paymentRepository.create({
+      transactionId: this.generateTransactionId(),
+      studentId: student.id,
+      courseId: dto.courseId,
+      paymentType: PaymentType.COURSE_ENROLLMENT,
+      amount,
+      discountAmount,
+      finalAmount,
+      currency: 'VND',
+      paymentMethod: PaymentMethod.WALLET,
+      status: PaymentStatus.PENDING,
+      metadata: {
+        couponCode,
+        source: 'wallet_course_payment',
+      },
+    });
+
+    const savedPayment = await this.paymentRepository.save(payment);
+
+    try {
+      if (finalAmount > 0) {
+        await this.walletService.debitBalance(student.id, finalAmount, 'course_payment', {
+          paymentId: savedPayment.id,
+          description: `Thanh toan khoa hoc ${course.title}`,
+          metadata: {
+            courseId: course.id,
+          },
+        });
+      }
+
+      savedPayment.status = PaymentStatus.COMPLETED;
+      savedPayment.paidAt = new Date();
+      const completedPayment = await this.paymentRepository.save(savedPayment);
+      await this.createEnrollmentForPayment(completedPayment);
+      return completedPayment;
+    } catch (error) {
+      savedPayment.status = PaymentStatus.FAILED;
+      savedPayment.failureReason =
+        error instanceof Error ? error.message : 'Wallet payment failed';
+      await this.paymentRepository.save(savedPayment);
+      throw error;
+    }
+  }
+
+  async getSepayPaymentStatus(transactionCode: string, userId: string) {
+    const payment = await this.paymentRepository.findOne({
+      where: { transactionCode, studentId: userId },
+      relations: ['course'],
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Khong tim thay giao dich');
+    }
+
+    if (
+      payment.status === PaymentStatus.PENDING &&
+      this.isPendingPaymentExpired(payment)
+    ) {
+      payment.status = PaymentStatus.EXPIRED;
+      await this.paymentRepository.save(payment);
+    }
+
+    return {
+      payment,
+      checkout:
+        payment.status === PaymentStatus.PENDING &&
+        payment.paymentMethod === PaymentMethod.SEPAY_QR
+          ? {
+              transactionCode: payment.transactionCode,
+              expiresAt: payment.expiresAt,
+              bankName: this.getSepayBankName(),
+              accountNumber: this.getSepayAccountNumber(),
+              qrImageUrl: this.buildSepayQrUrl(
+                Number(payment.finalAmount || payment.amount || 0),
+                payment.transactionCode || '',
+              ),
+            }
+          : null,
+    };
+  }
+
+  async handleSepayWebhook(webhookData: SepayWebhookDto): Promise<{
+    success: boolean;
+    message: string;
+    paymentId?: string;
+  }> {
+    if (webhookData.transferType !== 'in' || webhookData.transferAmount <= 0) {
+      return {
+        success: false,
+        message: 'Ignoring non-incoming transfer',
+      };
+    }
+
+    const normalizedAmount = this.normalizeAmount(webhookData.transferAmount);
+    const transferCode = this.resolveTransferCode(webhookData.content);
+
+    let payment: Payment | null = null;
+
+    if (transferCode) {
+      payment = await this.paymentRepository.findOne({
+        where: {
+          transactionCode: transferCode,
+          status: PaymentStatus.PENDING,
+          paymentMethod: PaymentMethod.SEPAY_QR,
+        },
+      });
+    }
+
+    if (!payment) {
+      const validFrom = new Date(Date.now() - PaymentsService.PAYMENT_EXPIRE_MS);
+
+      payment = await this.paymentRepository
+        .createQueryBuilder('payment')
+        .where('payment.status = :status', { status: PaymentStatus.PENDING })
+        .andWhere('payment.paymentMethod = :method', {
+          method: PaymentMethod.SEPAY_QR,
+        })
+        .andWhere('(payment.finalAmount = :amount OR payment.amount = :amount)', {
+          amount: normalizedAmount,
+        })
+        .andWhere('payment.createdAt >= :validFrom', { validFrom })
+        .orderBy('payment.createdAt', 'DESC')
+        .getOne();
+    }
+
+    if (!payment) {
+      return {
+        success: false,
+        message: 'No matching pending payment',
+      };
+    }
+
+    if (this.isPendingPaymentExpired(payment)) {
+      payment.status = PaymentStatus.EXPIRED;
+      await this.paymentRepository.save(payment);
+      return {
+        success: false,
+        message: 'Payment expired',
+        paymentId: payment.id,
+      };
+    }
+
+    const expectedAmount = this.normalizeAmount(
+      Number(payment.finalAmount || payment.amount || 0),
+    );
+    if (Math.abs(expectedAmount - normalizedAmount) > 0.01) {
+      this.logger.warn(
+        `SePay amount mismatch for payment ${payment.id}: expected=${expectedAmount}, actual=${normalizedAmount}`,
+      );
+      return {
+        success: false,
+        message: 'Amount mismatch',
+        paymentId: payment.id,
+      };
+    }
+
+    payment.status = PaymentStatus.COMPLETED;
+    payment.paidAt = new Date();
+    payment.webhookProcessedAt = new Date();
+    payment.sepayTransactionId = webhookData.id || null;
+    payment.gatewayTransactionId = webhookData.id || null;
+    payment.metadata = {
+      ...this.sanitizeMetadata(payment.metadata),
+      sepayWebhook: {
+        id: webhookData.id || null,
+        content: webhookData.content || null,
+        transactionDate: webhookData.transactionDate || null,
+        accountNumber: webhookData.accountNumber || null,
+      },
+    };
+
+    const savedPayment = await this.paymentRepository.save(payment);
+
+    if (savedPayment.paymentType === PaymentType.WALLET_TOPUP) {
+      if (!savedPayment.studentId) {
+        throw new BadRequestException('Wallet topup payment missing user');
+      }
+
+      await this.walletService.creditBalance(
+        savedPayment.studentId,
+        expectedAmount,
+        'wallet_topup',
+        {
+          paymentId: savedPayment.id,
+          description: 'Nap tien vao vi qua SePay',
+        },
+      );
+    }
+
+    if (savedPayment.paymentType === PaymentType.COURSE_ENROLLMENT) {
+      await this.createEnrollmentForPayment(savedPayment);
+    }
+
+    return {
+      success: true,
+      message: 'Payment processed',
+      paymentId: savedPayment.id,
+    };
   }
 
   async processPayment(

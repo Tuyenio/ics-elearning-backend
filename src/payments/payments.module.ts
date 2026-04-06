@@ -11,6 +11,8 @@ import { LessonProgress } from '../lesson-progress/entities/lesson-progress.enti
 import { VNPayService } from './vnpay.service';
 import { MomoService } from './momo.service';
 import { CouponsModule } from '../coupons/coupons.module';
+import { WalletModule } from '../wallet/wallet.module';
+import { InstructorSubscriptionsModule } from '../instructor-subscriptions/instructor-subscriptions.module';
 
 @Module({
   imports: [
@@ -23,6 +25,8 @@ import { CouponsModule } from '../coupons/coupons.module';
     ]),
     ConfigModule,
     CouponsModule,
+    WalletModule,
+    InstructorSubscriptionsModule,
   ],
   controllers: [PaymentsController],
   providers: [PaymentsService, VNPayService, MomoService],

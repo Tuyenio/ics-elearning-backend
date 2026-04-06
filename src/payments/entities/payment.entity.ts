@@ -17,6 +17,7 @@ export enum PaymentStatus {
   FAILED = 'failed',
   REFUNDED = 'refunded',
   CANCELLED = 'cancelled',
+  EXPIRED = 'expired',
 }
 
 export enum PaymentMethod {
@@ -26,8 +27,14 @@ export enum PaymentMethod {
   BANK_TRANSFER = 'bank_transfer',
   WALLET = 'wallet',
   QR_CODE = 'qr_code',
+  SEPAY_QR = 'sepay_qr',
   VNPAY = 'vnpay',
   MOMO = 'momo',
+}
+
+export enum PaymentType {
+  COURSE_ENROLLMENT = 'course_enrollment',
+  WALLET_TOPUP = 'wallet_topup',
 }
 
 @Entity('payments', { schema: 'learning' })
@@ -63,6 +70,14 @@ export class Payment {
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   finalAmount: number;
 
+  @Column({
+    type: 'enum',
+    enum: PaymentType,
+    default: PaymentType.COURSE_ENROLLMENT,
+  })
+  @Index()
+  paymentType: PaymentType;
+
   @Column({ default: 'VND' })
   currency: string;
 
@@ -81,20 +96,34 @@ export class Payment {
   })
   paymentMethod: PaymentMethod;
 
-  @Column({ nullable: true })
-  paymentGatewayId: string; // ID from payment gateway (VNPay, Momo, etc.)
+  @Column({ type: 'varchar', nullable: true })
+  paymentGatewayId: string | null; // ID from payment gateway (VNPay, Momo, etc.)
 
-  @Column({ nullable: true })
-  gatewayTransactionId: string; // Transaction ID returned by payment gateway
+  @Column({ type: 'varchar', nullable: true })
+  gatewayTransactionId: string | null; // Transaction ID returned by payment gateway
 
-  @Column({ type: 'simple-json', nullable: true })
-  metadata: any; // Additional payment data
+  @Column({ type: 'varchar', nullable: true, unique: true })
+  @Index()
+  transactionCode: string | null;
 
   @Column({ type: 'timestamp', nullable: true })
-  paidAt: Date;
+  @Index()
+  expiresAt: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  webhookProcessedAt: Date | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  sepayTransactionId: string | null;
+
+  @Column({ type: 'simple-json', nullable: true })
+  metadata: any | null; // Additional payment data
+
+  @Column({ type: 'timestamp', nullable: true })
+  paidAt: Date | null;
 
   @Column({ type: 'text', nullable: true })
-  failureReason: string;
+  failureReason: string | null;
 
   @CreateDateColumn()
   createdAt: Date;

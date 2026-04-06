@@ -16,6 +16,7 @@ export enum InstructorSubscriptionPaymentStatus {
   PENDING = 'pending',
   REFUNDED = 'refunded',
   FAILED = 'failed',
+  EXPIRED = 'expired',
 }
 
 @Entity('instructor_subscription_payments', { schema: 'learning' })
@@ -66,6 +67,15 @@ export class InstructorSubscriptionPayment {
 
   @Column({ type: 'varchar', nullable: true })
   paymentMethod: string | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  expiresAt: Date | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  webhookProcessedAt: Date | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  sepayTransactionId: string | null;
 
   @Column({ type: 'timestamp', nullable: true })
   paidAt: Date | null;

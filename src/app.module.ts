@@ -41,6 +41,7 @@ import { MaintenanceGuard } from './common/guards/maintenance.guard';
 import { JwtModule } from '@nestjs/jwt';
 import { ScheduleModule } from './schedule/schedule.module';
 import { InstructorSubscriptionsModule } from './instructor-subscriptions/instructor-subscriptions.module';
+import { WalletModule } from './wallet/wallet.module';
 
 @Module({
   imports: [
@@ -184,6 +185,7 @@ import { InstructorSubscriptionsModule } from './instructor-subscriptions/instru
     UploadModule,
     ScheduleModule,
     InstructorSubscriptionsModule,
+    WalletModule,
   ],
   controllers: [AppController],
   providers: [

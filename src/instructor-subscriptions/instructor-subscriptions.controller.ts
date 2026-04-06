@@ -84,6 +84,16 @@ export class InstructorSubscriptionsController {
     return this.service.confirmCheckout(user.id, transactionId);
   }
 
+  @Get('teacher/checkout/:transactionId/status')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.TEACHER)
+  getCheckoutStatus(
+    @GetUser() user: User,
+    @Param('transactionId') transactionId: string,
+  ) {
+    return this.service.getCheckoutStatus(user.id, transactionId);
+  }
+
   @Post('teacher/cancel')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.TEACHER)

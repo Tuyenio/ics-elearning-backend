@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
   OnModuleInit,
 } from '@nestjs/common';
@@ -24,9 +25,14 @@ import {
   InstructorSubscriptionPayment,
   InstructorSubscriptionPaymentStatus,
 } from './entities/instructor-subscription-payment.entity';
+import { WalletService } from '../wallet/wallet.service';
+import { SepayWebhookDto } from '../payments/dto/sepay-webhook.dto';
 
 @Injectable()
 export class InstructorSubscriptionsService implements OnModuleInit {
+  private readonly logger = new Logger(InstructorSubscriptionsService.name);
+  private static readonly PAYMENT_EXPIRE_MS = 15 * 60 * 1000;
+
   constructor(
     @InjectRepository(InstructorPlan)
     private readonly planRepo: Repository<InstructorPlan>,
@@ -40,6 +46,7 @@ export class InstructorSubscriptionsService implements OnModuleInit {
     private readonly courseRepo: Repository<Course>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    private readonly walletService: WalletService,
   ) {}
 
   private toText(value: unknown): string {
@@ -267,6 +274,66 @@ export class InstructorSubscriptionsService implements OnModuleInit {
     return `SUB-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
   }
 
+  private normalizeAmount(value: number): number {
+    const normalized = Number(value);
+    if (!Number.isFinite(normalized)) {
+      throw new BadRequestException('So tien khong hop le');
+    }
+    return Number(normalized.toFixed(2));
+  }
+
+  private normalizePaymentChannel(channel?: string | null): 'wallet' | 'sepay_qr' {
+    const normalized = String(channel || '').toLowerCase().trim();
+    if (normalized === 'wallet') {
+      return 'wallet';
+    }
+
+    return 'sepay_qr';
+  }
+
+  private isPendingPaymentExpired(
+    payment: Pick<InstructorSubscriptionPayment, 'expiresAt'>,
+  ): boolean {
+    if (!payment.expiresAt) {
+      return false;
+    }
+
+    return payment.expiresAt.getTime() <= Date.now();
+  }
+
+  private resolveTransferCode(content?: string): string | null {
+    if (!content) {
+      return null;
+    }
+
+    const normalized = content.toUpperCase();
+    const match = normalized.match(/SUB-[A-Z0-9-]+/);
+    return match?.[0] || null;
+  }
+
+  private getSepayBankName(): string {
+    return process.env.SEPAY_BANK_NAME || process.env.BANK_NAME || 'TPBank';
+  }
+
+  private getSepayAccountNumber(): string {
+    return (
+      process.env.SEPAY_BANK_ACCOUNT_NUMBER ||
+      process.env.BANK_ACCOUNT_NUMBER ||
+      '66010901964'
+    );
+  }
+
+  private buildSepayQrUrl(amount: number, transactionCode: string): string {
+    const params = new URLSearchParams({
+      acc: this.getSepayAccountNumber(),
+      bank: this.getSepayBankName(),
+      amount: Math.round(amount).toString(),
+      des: transactionCode,
+    });
+
+    return `https://qr.sepay.vn/img?${params.toString()}`;
+  }
+
   private toPlanCode(plan: InstructorPlan) {
     const normalized = String(plan.name || 'PLAN')
       .toUpperCase()
@@ -451,10 +518,10 @@ export class InstructorSubscriptionsService implements OnModuleInit {
       }
     }
 
-    const paymentChannel = dto.paymentChannel || paymentMethod?.type || 'qr';
+    const paymentChannel = this.normalizePaymentChannel(dto.paymentChannel);
     const tx = this.generateTx();
     const planCode = this.toPlanCode(plan);
-    const qrPayload = `ICS|PLAN:${planCode}|PLAN_ID:${plan.id}|TX:${tx}|AMOUNT:${Number(plan.price || 0)}`;
+    const amount = this.normalizeAmount(Number(plan.price || 0));
 
     const payment = await this.paymentRepo.save(
       this.paymentRepo.create({
@@ -462,21 +529,69 @@ export class InstructorSubscriptionsService implements OnModuleInit {
         teacherId,
         planId: plan.id,
         subscriptionId: null,
-        amount: Number(plan.price || 0),
-        currency: 'USD',
+        amount,
+        currency: 'VND',
         paymentMethod: paymentChannel,
         status: InstructorSubscriptionPaymentStatus.PENDING,
         paidAt: null,
+        expiresAt:
+          paymentChannel === 'sepay_qr'
+            ? new Date(Date.now() + InstructorSubscriptionsService.PAYMENT_EXPIRE_MS)
+            : null,
         metadata: {
           ...(dto.metadata || {}),
           paymentChannel,
           planCode,
           paymentMethodId: paymentMethod?.id || null,
           provider: paymentMethod?.provider || null,
-          qrPayload,
         },
       }),
     );
+
+    if (paymentChannel === 'wallet') {
+      try {
+        if (amount > 0) {
+          await this.walletService.debitBalance(
+            teacherId,
+            amount,
+            'teacher_subscription_payment',
+            {
+              instructorSubscriptionPaymentId: payment.id,
+              description: `Thanh toan goi giang vien ${plan.name}`,
+              metadata: {
+                planId: plan.id,
+              },
+            },
+          );
+        }
+
+        const subscription = await this.applyPlanToTeacher(
+          teacherId,
+          plan,
+          paymentChannel,
+        );
+
+        payment.status = InstructorSubscriptionPaymentStatus.PAID;
+        payment.paidAt = new Date();
+        payment.subscriptionId = subscription.id;
+        const savedPayment = await this.paymentRepo.save(payment);
+
+        return {
+          transactionId: savedPayment.transactionId,
+          status: savedPayment.status,
+          amount: savedPayment.amount,
+          currency: savedPayment.currency,
+          plan,
+          paymentChannel,
+          subscription,
+          message: 'Thanh toan bang vi thanh cong',
+        };
+      } catch (error) {
+        payment.status = InstructorSubscriptionPaymentStatus.FAILED;
+        await this.paymentRepo.save(payment);
+        throw error;
+      }
+    }
 
     return {
       transactionId: payment.transactionId,
@@ -485,12 +600,11 @@ export class InstructorSubscriptionsService implements OnModuleInit {
       currency: payment.currency,
       plan,
       paymentChannel,
-      qrPayload,
-      qrImageUrl: `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(qrPayload)}`,
-      message:
-        paymentChannel === 'qr'
-          ? 'Vui long quet ma QR va xac nhan sau khi thanh toan thanh cong'
-          : 'Giao dich dang cho xac nhan',
+      expiresAt: payment.expiresAt,
+      bankName: this.getSepayBankName(),
+      accountNumber: this.getSepayAccountNumber(),
+      qrImageUrl: this.buildSepayQrUrl(amount, payment.transactionId),
+      message: 'Vui long quet ma QR SePay va doi webhook xac nhan',
     };
   }
 
@@ -516,6 +630,12 @@ export class InstructorSubscriptionsService implements OnModuleInit {
       );
     }
 
+    if (this.isPendingPaymentExpired(payment)) {
+      payment.status = InstructorSubscriptionPaymentStatus.EXPIRED;
+      await this.paymentRepo.save(payment);
+      throw new BadRequestException('Giao dich da het han');
+    }
+
     const subscription = await this.applyPlanToTeacher(
       teacherId,
       payment.plan,
@@ -531,6 +651,166 @@ export class InstructorSubscriptionsService implements OnModuleInit {
       payment: savedPayment,
       subscription,
       message: 'Thanh toan thanh cong, da kich hoat goi',
+    };
+  }
+
+  async getCheckoutStatus(teacherId: string, transactionId: string) {
+    const payment = await this.paymentRepo.findOne({
+      where: { teacherId, transactionId },
+      relations: ['plan', 'subscription'],
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Khong tim thay giao dich');
+    }
+
+    if (
+      payment.status === InstructorSubscriptionPaymentStatus.PENDING &&
+      this.isPendingPaymentExpired(payment)
+    ) {
+      payment.status = InstructorSubscriptionPaymentStatus.EXPIRED;
+      await this.paymentRepo.save(payment);
+    }
+
+    return {
+      payment,
+      checkout:
+        payment.status === InstructorSubscriptionPaymentStatus.PENDING &&
+        payment.paymentMethod === 'sepay_qr'
+          ? {
+              transactionId: payment.transactionId,
+              expiresAt: payment.expiresAt,
+              bankName: this.getSepayBankName(),
+              accountNumber: this.getSepayAccountNumber(),
+              qrImageUrl: this.buildSepayQrUrl(
+                Number(payment.amount || 0),
+                payment.transactionId,
+              ),
+            }
+          : null,
+    };
+  }
+
+  async handleSepayWebhook(webhookData: SepayWebhookDto): Promise<{
+    success: boolean;
+    message: string;
+    paymentId?: string;
+  }> {
+    if (webhookData.transferType !== 'in' || webhookData.transferAmount <= 0) {
+      return {
+        success: false,
+        message: 'Ignoring non-incoming transfer',
+      };
+    }
+
+    const normalizedAmount = this.normalizeAmount(webhookData.transferAmount);
+    const transferCode = this.resolveTransferCode(webhookData.content);
+
+    let payment: InstructorSubscriptionPayment | null = null;
+
+    if (transferCode) {
+      const matchedByCode = await this.paymentRepo.findOne({
+        where: { transactionId: transferCode },
+        relations: ['plan'],
+      });
+
+      if (matchedByCode) {
+        if (matchedByCode.status === InstructorSubscriptionPaymentStatus.PAID) {
+          return {
+            success: true,
+            message: 'Payment already processed',
+            paymentId: matchedByCode.id,
+          };
+        }
+
+        if (matchedByCode.status !== InstructorSubscriptionPaymentStatus.PENDING) {
+          return {
+            success: false,
+            message: `Payment is ${matchedByCode.status}`,
+            paymentId: matchedByCode.id,
+          };
+        }
+
+        payment = matchedByCode;
+      }
+    }
+
+    if (!payment) {
+      const validFrom = new Date(
+        Date.now() - InstructorSubscriptionsService.PAYMENT_EXPIRE_MS,
+      );
+
+      payment = await this.paymentRepo
+        .createQueryBuilder('payment')
+        .leftJoinAndSelect('payment.plan', 'plan')
+        .where('payment.status = :status', {
+          status: InstructorSubscriptionPaymentStatus.PENDING,
+        })
+        .andWhere('payment.paymentMethod = :paymentMethod', {
+          paymentMethod: 'sepay_qr',
+        })
+        .andWhere('payment.amount = :amount', { amount: normalizedAmount })
+        .andWhere('payment.createdAt >= :validFrom', { validFrom })
+        .orderBy('payment.createdAt', 'DESC')
+        .getOne();
+    }
+
+    if (!payment) {
+      return {
+        success: false,
+        message: 'No matching instructor payment',
+      };
+    }
+
+    if (this.isPendingPaymentExpired(payment)) {
+      payment.status = InstructorSubscriptionPaymentStatus.EXPIRED;
+      await this.paymentRepo.save(payment);
+
+      return {
+        success: false,
+        message: 'Instructor payment expired',
+        paymentId: payment.id,
+      };
+    }
+
+    const expectedAmount = this.normalizeAmount(Number(payment.amount || 0));
+    if (Math.abs(expectedAmount - normalizedAmount) > 0.01) {
+      this.logger.warn(
+        `Instructor SePay amount mismatch for payment ${payment.id}: expected=${expectedAmount}, actual=${normalizedAmount}`,
+      );
+      return {
+        success: false,
+        message: 'Amount mismatch',
+        paymentId: payment.id,
+      };
+    }
+
+    const subscription = await this.applyPlanToTeacher(
+      payment.teacherId,
+      payment.plan,
+      payment.paymentMethod,
+    );
+
+    payment.status = InstructorSubscriptionPaymentStatus.PAID;
+    payment.paidAt = new Date();
+    payment.subscriptionId = subscription.id;
+    payment.webhookProcessedAt = new Date();
+    payment.sepayTransactionId = webhookData.id || null;
+    payment.metadata = {
+      ...(payment.metadata || {}),
+      sepayWebhook: {
+        id: webhookData.id || null,
+        content: webhookData.content || null,
+        transactionDate: webhookData.transactionDate || null,
+      },
+    };
+
+    await this.paymentRepo.save(payment);
+
+    return {
+      success: true,
+      message: 'Instructor payment processed',
+      paymentId: payment.id,
     };
   }
 

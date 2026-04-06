@@ -16,6 +16,9 @@ import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { PaymentsService } from './payments.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
+import { CreateSepayCoursePaymentDto } from './dto/create-sepay-course-payment.dto';
+import { CreateWalletTopupDto } from './dto/create-wallet-topup.dto';
+import { SepayWebhookDto } from './dto/sepay-webhook.dto';
 import { PaymentMethod } from './entities/payment.entity';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -27,6 +30,7 @@ import type { VNPayReturnData } from './vnpay.service';
 import { MomoService } from './momo.service';
 import type { MomoCallbackData } from './momo.service';
 import type { AuthenticatedRequestUser } from '../common/types/authenticated-request';
+import { InstructorSubscriptionsService } from '../instructor-subscriptions/instructor-subscriptions.service';
 
 // DTOs for payment requests
 class CreateVNPayPaymentDto {
@@ -67,6 +71,7 @@ export class PaymentsController {
     private readonly paymentsService: PaymentsService,
     private readonly vnpayService: VNPayService,
     private readonly momoService: MomoService,
+    private readonly instructorSubscriptionsService: InstructorSubscriptionsService,
   ) {}
 
   @Post()
@@ -75,6 +80,71 @@ export class PaymentsController {
   @Throttle({ short: { limit: 10, ttl: 300000 } }) // 10 payments per 5 minutes
   create(@Body() createPaymentDto: CreatePaymentDto, @GetUser() user: User) {
     return this.paymentsService.create(createPaymentDto, user);
+  }
+
+  @Post('sepay/course')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.STUDENT)
+  @Throttle({ short: { limit: 10, ttl: 300000 } })
+  createSepayCoursePayment(
+    @Body() body: CreateSepayCoursePaymentDto,
+    @GetUser() user: User,
+  ) {
+    return this.paymentsService.createSepayCoursePayment(body, user);
+  }
+
+  @Post('course/wallet')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.STUDENT)
+  @Throttle({ short: { limit: 20, ttl: 300000 } })
+  payCourseByWallet(
+    @Body() body: CreateSepayCoursePaymentDto,
+    @GetUser() user: User,
+  ) {
+    return this.paymentsService.payCourseByWallet(body, user);
+  }
+
+  @Post('wallet-topups/sepay')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.STUDENT, UserRole.TEACHER)
+  @Throttle({ short: { limit: 10, ttl: 300000 } })
+  createWalletTopup(
+    @Body() body: CreateWalletTopupDto,
+    @GetUser() user: User,
+  ) {
+    return this.paymentsService.createWalletTopupSepay(body, user);
+  }
+
+  @Get('sepay/status/:transactionCode')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.STUDENT, UserRole.TEACHER)
+  getSepayStatus(
+    @Param('transactionCode') transactionCode: string,
+    @GetUser() user: User,
+  ) {
+    return this.paymentsService.getSepayPaymentStatus(transactionCode, user.id);
+  }
+
+  @Post('sepay/webhook')
+  @HttpCode(HttpStatus.OK)
+  async handleSepayWebhook(@Body() body: SepayWebhookDto) {
+    const studentResult = await this.paymentsService.handleSepayWebhook(body);
+    const instructorResult =
+      await this.instructorSubscriptionsService.handleSepayWebhook(body);
+
+    if (studentResult.success || instructorResult.success) {
+      return {
+        success: true,
+        studentResult,
+        instructorResult,
+      };
+    }
+
+    return {
+      success: false,
+      studentResult,
+      instructorResult,
+    };
   }
 
   @Patch(':id/process')
