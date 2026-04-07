@@ -78,8 +78,24 @@ export class PaymentsController {
     private readonly instructorSubscriptionsService: InstructorSubscriptionsService,
   ) {}
 
+  private asText(value: unknown): string | undefined {
+    if (typeof value === 'string') {
+      return value;
+    }
+
+    if (
+      typeof value === 'number' ||
+      typeof value === 'boolean' ||
+      typeof value === 'bigint'
+    ) {
+      return String(value);
+    }
+
+    return undefined;
+  }
+
   private parseTransferType(value: unknown): 'in' | 'out' | null {
-    const raw = String(value || '')
+    const raw = (this.asText(value) || '')
       .trim()
       .toLowerCase();
 
@@ -133,7 +149,41 @@ export class PaymentsController {
     return Number.isFinite(parsed) ? parsed : null;
   }
 
+  private parseBoolean(value: unknown, defaultValue = false): boolean {
+    if (value === undefined || value === null) {
+      return defaultValue;
+    }
+
+    if (typeof value === 'boolean') {
+      return value;
+    }
+
+    if (typeof value === 'number') {
+      return value !== 0;
+    }
+
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+
+      if (['true', '1', 'yes', 'y', 'on'].includes(normalized)) {
+        return true;
+      }
+
+      if (['false', '0', 'no', 'n', 'off'].includes(normalized)) {
+        return false;
+      }
+    }
+
+    return defaultValue;
+  }
+
   private normalizeWebhookPayload(payload: Record<string, unknown>): SepayWebhookDto {
+    const rawContent =
+      payload.content ?? payload.description ?? payload.transfer_content;
+    const rawTransactionDate =
+      payload.transactionDate ?? payload.transaction_date;
+    const rawAccountNumber = payload.accountNumber ?? payload.account_number;
+
     const transferType = this.parseTransferType(
       payload.transferType ??
         payload.transfer_type ??
@@ -156,25 +206,12 @@ export class PaymentsController {
     }
 
     return {
-      id: payload.id ? String(payload.id) : undefined,
+      id: this.asText(payload.id),
       transferType,
       transferAmount,
-      content:
-        payload.content || payload.description || payload.transfer_content
-          ? String(
-              payload.content ||
-                payload.description ||
-                payload.transfer_content,
-            )
-          : undefined,
-      transactionDate:
-        payload.transactionDate || payload.transaction_date
-          ? String(payload.transactionDate || payload.transaction_date)
-          : undefined,
-      accountNumber:
-        payload.accountNumber || payload.account_number
-          ? String(payload.accountNumber || payload.account_number)
-          : undefined,
+      content: this.asText(rawContent),
+      transactionDate: this.asText(rawTransactionDate),
+      accountNumber: this.asText(rawAccountNumber),
     };
   }
 
@@ -255,6 +292,66 @@ export class PaymentsController {
       studentResult,
       instructorResult,
     };
+  }
+
+  @Post('sepay/debug/test-webhook')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  async testSepayWebhook(@Body() body: Record<string, unknown>) {
+    const paymentId = this.asText(body.paymentId);
+    const transactionCode = this.asText(body.transactionCode)?.toUpperCase();
+
+    if (!paymentId && !transactionCode) {
+      throw new BadRequestException(
+        'Can cung cap paymentId hoac transactionCode',
+      );
+    }
+
+    const rawTransferType =
+      body.transferType ?? body.transfer_type ?? body.type ?? 'in';
+    const transferType = this.parseTransferType(rawTransferType);
+
+    if (!transferType) {
+      throw new BadRequestException('transferType khong hop le');
+    }
+
+    const transferAmount =
+      body.transferAmount !== undefined ||
+      body.transfer_amount !== undefined ||
+      body.amount !== undefined
+        ? this.parseTransferAmount(
+            body.transferAmount ?? body.transfer_amount ?? body.amount,
+          )
+        : undefined;
+
+    if (
+      (body.transferAmount !== undefined ||
+        body.transfer_amount !== undefined ||
+        body.amount !== undefined) &&
+      transferAmount === null
+    ) {
+      throw new BadRequestException('transferAmount khong hop le');
+    }
+
+    return this.paymentsService.debugSepayWebhookForOrder({
+      paymentId,
+      transactionCode,
+      forcePending: this.parseBoolean(body.forcePending, false),
+      resetExpiry: this.parseBoolean(body.resetExpiry, true),
+      processWebhook: this.parseBoolean(body.processWebhook, true),
+      webhookOverrides: {
+        id: this.asText(body.id),
+        transferType,
+        transferAmount: transferAmount ?? undefined,
+        content: this.asText(body.content)
+          ? this.asText(body.content)
+          : transactionCode
+            ? `Thanh toan ${transactionCode}`
+            : undefined,
+        transactionDate: this.asText(body.transactionDate),
+        accountNumber: this.asText(body.accountNumber),
+      },
+    });
   }
 
   @Patch(':id/process')

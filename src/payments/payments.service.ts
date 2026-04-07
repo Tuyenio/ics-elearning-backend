@@ -64,6 +64,22 @@ type PdfDocumentLike = {
 
 type RevenueRow = { total: string | null };
 
+type SepayWebhookDebugOptions = {
+  paymentId?: string;
+  transactionCode?: string;
+  forcePending?: boolean;
+  resetExpiry?: boolean;
+  processWebhook?: boolean;
+  webhookOverrides?: {
+    id?: string;
+    transferType?: 'in' | 'out';
+    transferAmount?: number;
+    content?: string;
+    transactionDate?: string;
+    accountNumber?: string;
+  };
+};
+
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
@@ -687,6 +703,180 @@ export class PaymentsService {
       success: true,
       message: 'Payment processed',
       paymentId: savedPayment.id,
+    };
+  }
+
+  async debugSepayWebhookForOrder(options: SepayWebhookDebugOptions): Promise<{
+    success: boolean;
+    target: Record<string, unknown>;
+    webhook: SepayWebhookDto;
+    diagnosis: Record<string, unknown>;
+    webhookResult: {
+      success: boolean;
+      message: string;
+      paymentId?: string;
+    } | null;
+    before: Record<string, unknown>;
+    after: Record<string, unknown> | null;
+  }> {
+    if (!options.paymentId && !options.transactionCode) {
+      throw new BadRequestException('Can cung cap paymentId hoac transactionCode');
+    }
+
+    const targetPayment = await this.paymentRepository.findOne({
+      where: options.paymentId
+        ? { id: options.paymentId }
+        : { transactionCode: options.transactionCode || '' },
+    });
+
+    if (!targetPayment) {
+      throw new NotFoundException('Khong tim thay giao dich SePay can debug');
+    }
+
+    if (targetPayment.paymentMethod !== PaymentMethod.SEPAY_QR) {
+      throw new BadRequestException('Giao dich nay khong phai SePay QR');
+    }
+
+    if (options.forcePending) {
+      targetPayment.status = PaymentStatus.PENDING;
+      targetPayment.paidAt = null;
+      targetPayment.webhookProcessedAt = null;
+      targetPayment.failureReason = null;
+
+      if (options.resetExpiry !== false) {
+        targetPayment.expiresAt = new Date(
+          Date.now() + PaymentsService.PAYMENT_EXPIRE_MS,
+        );
+      }
+
+      await this.paymentRepository.save(targetPayment);
+    }
+
+    const before = await this.paymentRepository.findOne({
+      where: { id: targetPayment.id },
+    });
+
+    if (!before) {
+      throw new NotFoundException('Khong tim thay giao dich truoc khi debug');
+    }
+
+    const expectedAmount = this.normalizeAmount(
+      Number(before.finalAmount || before.amount || 0),
+    );
+
+    const webhookData: SepayWebhookDto = {
+      id: options.webhookOverrides?.id || `TEST-${Date.now()}`,
+      transferType: options.webhookOverrides?.transferType || 'in',
+      transferAmount:
+        options.webhookOverrides?.transferAmount ?? expectedAmount,
+      content:
+        options.webhookOverrides?.content || before.transactionCode || undefined,
+      transactionDate:
+        options.webhookOverrides?.transactionDate || new Date().toISOString(),
+      accountNumber:
+        options.webhookOverrides?.accountNumber || this.getSepayAccountNumber(),
+    };
+
+    const normalizedAmount = this.normalizeAmount(webhookData.transferAmount);
+    const extractedTransferCode = this.resolveTransferCode(webhookData.content);
+
+    const matchedByCode = extractedTransferCode
+      ? await this.paymentRepository.findOne({
+          where: {
+            transactionCode: extractedTransferCode,
+            paymentMethod: PaymentMethod.SEPAY_QR,
+          },
+        })
+      : null;
+
+    const validFrom = new Date(Date.now() - PaymentsService.PAYMENT_EXPIRE_MS);
+    const fallbackMatchedByAmount = await this.paymentRepository
+      .createQueryBuilder('payment')
+      .where('payment.status = :status', { status: PaymentStatus.PENDING })
+      .andWhere('payment.paymentMethod = :method', {
+        method: PaymentMethod.SEPAY_QR,
+      })
+      .andWhere('(payment.finalAmount = :amount OR payment.amount = :amount)', {
+        amount: normalizedAmount,
+      })
+      .andWhere('payment.createdAt >= :validFrom', { validFrom })
+      .orderBy('payment.createdAt', 'DESC')
+      .getOne();
+
+    const diagnosis = {
+      extractedTransferCode,
+      normalizedAmount,
+      targetPaymentId: before.id,
+      targetTransactionCode: before.transactionCode,
+      targetStatus: before.status,
+      targetExpectedAmount: expectedAmount,
+      targetAmountMatch: Math.abs(expectedAmount - normalizedAmount) <= 0.01,
+      targetTransferCodeMatch:
+        !!extractedTransferCode && extractedTransferCode === before.transactionCode,
+      targetExpiredByTime: this.isPendingPaymentExpired(before),
+      matchedByCodePaymentId: matchedByCode?.id || null,
+      matchedByCodeStatus: matchedByCode?.status || null,
+      matchedByAmountPaymentId: fallbackMatchedByAmount?.id || null,
+      matchedByAmountStatus: fallbackMatchedByAmount?.status || null,
+      matchedByAmountTransactionCode:
+        fallbackMatchedByAmount?.transactionCode || null,
+      canBeProcessedNow:
+        webhookData.transferType === 'in' &&
+        normalizedAmount > 0 &&
+        before.status === PaymentStatus.PENDING &&
+        !this.isPendingPaymentExpired(before) &&
+        Math.abs(expectedAmount - normalizedAmount) <= 0.01,
+    };
+
+    let webhookResult: {
+      success: boolean;
+      message: string;
+      paymentId?: string;
+    } | null = null;
+
+    if (options.processWebhook !== false) {
+      webhookResult = await this.handleSepayWebhook(webhookData);
+    }
+
+    const after = webhookResult
+      ? await this.paymentRepository.findOne({ where: { id: before.id } })
+      : null;
+
+    return {
+      success: webhookResult?.success ?? true,
+      target: {
+        paymentId: before.id,
+        transactionCode: before.transactionCode,
+      },
+      webhook: webhookData,
+      diagnosis,
+      webhookResult,
+      before: {
+        status: before.status,
+        paymentType: before.paymentType,
+        paymentMethod: before.paymentMethod,
+        amount: before.amount,
+        finalAmount: before.finalAmount,
+        createdAt: before.createdAt,
+        expiresAt: before.expiresAt,
+        paidAt: before.paidAt,
+        webhookProcessedAt: before.webhookProcessedAt,
+      },
+      after: after
+        ? {
+            status: after.status,
+            paymentType: after.paymentType,
+            paymentMethod: after.paymentMethod,
+            amount: after.amount,
+            finalAmount: after.finalAmount,
+            createdAt: after.createdAt,
+            expiresAt: after.expiresAt,
+            paidAt: after.paidAt,
+            webhookProcessedAt: after.webhookProcessedAt,
+            sepayTransactionId: after.sepayTransactionId,
+            gatewayTransactionId: after.gatewayTransactionId,
+          }
+        : null,
     };
   }
 
