@@ -18,6 +18,7 @@ import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { PaymentsService } from './payments.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
+import { CreateSepayCartPaymentDto } from './dto/create-sepay-cart-payment.dto';
 import { CreateSepayCoursePaymentDto } from './dto/create-sepay-course-payment.dto';
 import { CreateWalletTopupDto } from './dto/create-wallet-topup.dto';
 import { SepayWebhookDto } from './dto/sepay-webhook.dto';
@@ -232,6 +233,17 @@ export class PaymentsController {
     @GetUser() user: User,
   ) {
     return this.paymentsService.createSepayCoursePayment(body, user);
+  }
+
+  @Post('sepay/cart')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.STUDENT)
+  @Throttle({ short: { limit: 10, ttl: 300000 } })
+  createSepayCartPayment(
+    @Body() body: CreateSepayCartPaymentDto,
+    @GetUser() user: User,
+  ) {
+    return this.paymentsService.createSepayCartPayment(body, user);
   }
 
   @Post('course/wallet')

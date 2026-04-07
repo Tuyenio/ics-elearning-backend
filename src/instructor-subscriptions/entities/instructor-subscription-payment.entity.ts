@@ -54,7 +54,7 @@ export class InstructorSubscriptionPayment {
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   amount: number;
 
-  @Column({ default: 'USD' })
+  @Column({ default: 'VND' })
   currency: string;
 
   @Column({

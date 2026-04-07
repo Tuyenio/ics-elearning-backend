@@ -71,9 +71,6 @@ export class InstructorSubscriptionsService implements OnModuleInit {
   }
 
   private async ensureDefaultPlans() {
-    const count = await this.planRepo.count();
-    if (count > 0) return;
-
     const defaults: Array<Partial<InstructorPlan>> = [
       {
         name: 'Free',
@@ -86,8 +83,8 @@ export class InstructorSubscriptionsService implements OnModuleInit {
         isActive: true,
       },
       {
-        name: 'Basic',
-        price: 9,
+        name: 'Pro',
+        price: 9000,
         durationMonths: 1,
         courseLimit: 20,
         storageLimitGb: 10,
@@ -96,8 +93,8 @@ export class InstructorSubscriptionsService implements OnModuleInit {
         isActive: true,
       },
       {
-        name: 'Pro',
-        price: 19,
+        name: 'Pro Plus',
+        price: 19000,
         durationMonths: 1,
         courseLimit: 50,
         storageLimitGb: 50,
@@ -107,7 +104,7 @@ export class InstructorSubscriptionsService implements OnModuleInit {
       },
       {
         name: 'Enterprise',
-        price: 49,
+        price: 49000,
         durationMonths: 1,
         courseLimit: 500,
         storageLimitGb: 500,
@@ -115,11 +112,43 @@ export class InstructorSubscriptionsService implements OnModuleInit {
         features: ['Quy mo lon', 'Ho tro uu tien'],
         isActive: true,
       },
+      {
+        name: 'Pro premium',
+        price: 99000,
+        durationMonths: 1,
+        courseLimit: 20,
+        storageLimitGb: 10,
+        studentsLimit: 120,
+        features: ['20 khoa hoc', '10GB storage', 'Uu tien ho tro'],
+        isActive: true,
+      },
     ];
 
-    await this.planRepo.save(
-      defaults.map((item) => this.planRepo.create(item)),
-    );
+    for (const defaultPlan of defaults) {
+      const existing = await this.planRepo
+        .createQueryBuilder('plan')
+        .where('LOWER(plan.name) = LOWER(:name)', { name: defaultPlan.name })
+        .getOne();
+
+      if (existing) {
+        await this.planRepo.save(
+          this.planRepo.create({
+            ...existing,
+            ...defaultPlan,
+          }),
+        );
+        continue;
+      }
+
+      await this.planRepo.save(this.planRepo.create(defaultPlan));
+    }
+
+    await this.planRepo
+      .createQueryBuilder()
+      .update(InstructorPlan)
+      .set({ isActive: false })
+      .where('LOWER(name) IN (:...legacyNames)', { legacyNames: ['basic'] })
+      .execute();
   }
 
   async getPublicPlans() {
@@ -319,7 +348,7 @@ export class InstructorSubscriptionsService implements OnModuleInit {
     return (
       process.env.SEPAY_BANK_ACCOUNT_NUMBER ||
       process.env.BANK_ACCOUNT_NUMBER ||
-      '9624723T11'
+      '8820162447'
     );
   }
 
@@ -833,7 +862,7 @@ export class InstructorSubscriptionsService implements OnModuleInit {
         planId: plan.id,
         subscriptionId: subscription.id,
         amount: Number(plan.price || 0),
-        currency: 'USD',
+        currency: 'VND',
         paymentMethod: dto.paymentMethod || 'manual',
         status: InstructorSubscriptionPaymentStatus.PAID,
         paidAt: new Date(),

@@ -7,7 +7,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import {
   Payment,
   PaymentStatus,
@@ -22,6 +22,7 @@ import { Lesson } from '../lessons/entities/lesson.entity';
 import { LessonProgress } from '../lesson-progress/entities/lesson-progress.entity';
 import { CouponsService } from '../coupons/coupons.service';
 import { WalletService } from '../wallet/wallet.service';
+import { CreateSepayCartPaymentDto } from './dto/create-sepay-cart-payment.dto';
 import { CreateSepayCoursePaymentDto } from './dto/create-sepay-course-payment.dto';
 import { CreateWalletTopupDto } from './dto/create-wallet-topup.dto';
 import { SepayWebhookDto } from './dto/sepay-webhook.dto';
@@ -340,7 +341,7 @@ export class PaymentsService {
     const savedPayment = await this.paymentRepository.save(payment);
 
     if (savedPayment.status === PaymentStatus.COMPLETED) {
-      await this.createEnrollmentForPayment(savedPayment);
+      await this.createEnrollmentsForPayment(savedPayment);
     }
 
     return savedPayment;
@@ -402,7 +403,142 @@ export class PaymentsService {
     const savedPayment = await this.paymentRepository.save(payment);
 
     if (savedPayment.status === PaymentStatus.COMPLETED) {
-      await this.createEnrollmentForPayment(savedPayment);
+      await this.createEnrollmentsForPayment(savedPayment);
+      return {
+        payment: savedPayment,
+        checkout: null,
+      };
+    }
+
+    return {
+      payment: savedPayment,
+      checkout: {
+        transactionCode,
+        expiresAt,
+        bankName: this.getSepayBankName(),
+        accountNumber: this.getSepayAccountNumber(),
+        qrImageUrl: this.buildSepayQrUrl(finalAmount, transactionCode),
+      },
+    };
+  }
+
+  async createSepayCartPayment(dto: CreateSepayCartPaymentDto, student: User) {
+    const uniqueCourseIds = Array.from(
+      new Set((dto.courseIds || []).map((id) => String(id || '').trim())),
+    ).filter(Boolean);
+
+    if (uniqueCourseIds.length === 0) {
+      throw new BadRequestException('Danh sach khoa hoc khong hop le');
+    }
+
+    if (uniqueCourseIds.length === 1) {
+      return this.createSepayCoursePayment(
+        {
+          courseId: uniqueCourseIds[0],
+          couponCode: dto.couponCode,
+        },
+        student,
+      );
+    }
+
+    if (dto.couponCode?.trim()) {
+      throw new BadRequestException(
+        'Thanh toan nhieu khoa hoc hien chua ho tro ma giam gia',
+      );
+    }
+
+    const courses = await this.courseRepository.find({
+      where: { id: In(uniqueCourseIds) },
+    });
+
+    if (courses.length !== uniqueCourseIds.length) {
+      throw new NotFoundException('Co khoa hoc khong ton tai trong gio hang');
+    }
+
+    const courseMap = new Map(courses.map((course) => [course.id, course]));
+    const orderedCourses = uniqueCourseIds.map((courseId) =>
+      courseMap.get(courseId),
+    );
+
+    if (orderedCourses.some((course) => !course)) {
+      throw new NotFoundException('Co khoa hoc khong ton tai trong gio hang');
+    }
+
+    for (const course of orderedCourses as Course[]) {
+      if (course.status !== CourseStatus.PUBLISHED) {
+        throw new BadRequestException(
+          `Khoa hoc ${course.title || course.id} khong kha dung`,
+        );
+      }
+    }
+
+    const enrolled = await this.enrollmentRepository.find({
+      where: {
+        studentId: student.id,
+        courseId: In(uniqueCourseIds),
+      },
+      select: ['courseId'],
+    });
+
+    if (enrolled.length > 0) {
+      throw new ConflictException('Đã đăng ký một số khóa học trong danh sách');
+    }
+
+    const resolvedPrices = await Promise.all(
+      (orderedCourses as Course[]).map((course) =>
+        this.resolveCoursePrice(course),
+      ),
+    );
+
+    const amount = this.normalizeAmount(
+      resolvedPrices.reduce((sum, item) => sum + Number(item.amount || 0), 0),
+    );
+    const discountAmount = this.normalizeAmount(
+      resolvedPrices.reduce(
+        (sum, item) => sum + Number(item.discountAmount || 0),
+        0,
+      ),
+    );
+    const finalAmount = this.normalizeAmount(
+      resolvedPrices.reduce(
+        (sum, item) => sum + Number(item.finalAmount || 0),
+        0,
+      ),
+    );
+
+    const transactionCode = this.generateTransactionCode('CRS');
+    const expiresAt = new Date(Date.now() + PaymentsService.PAYMENT_EXPIRE_MS);
+
+    const payment = this.paymentRepository.create({
+      transactionId: this.generateTransactionId(),
+      transactionCode,
+      studentId: student.id,
+      courseId: uniqueCourseIds[0],
+      paymentType: PaymentType.COURSE_ENROLLMENT,
+      amount,
+      discountAmount,
+      finalAmount,
+      currency: 'VND',
+      paymentMethod: PaymentMethod.SEPAY_QR,
+      status:
+        finalAmount === 0 ? PaymentStatus.COMPLETED : PaymentStatus.PENDING,
+      ...(finalAmount === 0 ? { paidAt: new Date() } : { expiresAt }),
+      metadata: {
+        source: 'multi_course_checkout',
+        courseIds: uniqueCourseIds,
+        lineItems: resolvedPrices.map((item, index) => ({
+          courseId: uniqueCourseIds[index],
+          amount: item.amount,
+          discountAmount: item.discountAmount,
+          finalAmount: item.finalAmount,
+        })),
+      },
+    });
+
+    const savedPayment = await this.paymentRepository.save(payment);
+
+    if (savedPayment.status === PaymentStatus.COMPLETED) {
+      await this.createEnrollmentsForPayment(savedPayment);
       return {
         payment: savedPayment,
         checkout: null,
@@ -517,7 +653,7 @@ export class PaymentsService {
       savedPayment.status = PaymentStatus.COMPLETED;
       savedPayment.paidAt = new Date();
       const completedPayment = await this.paymentRepository.save(savedPayment);
-      await this.createEnrollmentForPayment(completedPayment);
+      await this.createEnrollmentsForPayment(completedPayment);
       return completedPayment;
     } catch (error) {
       savedPayment.status = PaymentStatus.FAILED;
@@ -695,9 +831,7 @@ export class PaymentsService {
     payment.status = PaymentStatus.COMPLETED;
     const savedPayment = await this.paymentRepository.save(payment);
 
-    if (savedPayment.paymentType === PaymentType.COURSE_ENROLLMENT) {
-      await this.createEnrollmentForPayment(savedPayment);
-    }
+    await this.createEnrollmentsForPayment(savedPayment);
 
     return {
       success: true,
@@ -903,7 +1037,7 @@ export class PaymentsService {
 
       if (payment.paymentType === PaymentType.COURSE_ENROLLMENT) {
         // Create enrollment after successful course payment
-        await this.createEnrollmentForPayment(payment);
+        await this.createEnrollmentsForPayment(payment);
       } else if (payment.paymentType === PaymentType.WALLET_TOPUP) {
         if (!payment.studentId) {
           throw new BadRequestException('Wallet topup payment missing user');
@@ -969,7 +1103,7 @@ export class PaymentsService {
       }
 
       // Create enrollment after successful payment
-      await this.createEnrollmentForPayment(payment);
+      await this.createEnrollmentsForPayment(payment);
     } else {
       payment.status = PaymentStatus.FAILED;
     }
@@ -981,7 +1115,47 @@ export class PaymentsService {
     return this.paymentRepository.save(payment);
   }
 
-  private async createEnrollmentForPayment(payment: Payment): Promise<void> {
+  private getCourseIdsFromMetadata(metadata: unknown): string[] {
+    const sanitized = this.sanitizeMetadata(metadata);
+    const value = sanitized.courseIds;
+
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    return value
+      .map((item) => (typeof item === 'string' ? item.trim() : ''))
+      .filter(Boolean);
+  }
+
+  private async createEnrollmentsForPayment(payment: Payment): Promise<void> {
+    if (payment.paymentType !== PaymentType.COURSE_ENROLLMENT) {
+      return;
+    }
+
+    const courseIds = this.getCourseIdsFromMetadata(payment.metadata);
+    if (courseIds.length > 0) {
+      for (const courseId of courseIds) {
+        await this.createEnrollmentForPayment({
+          studentId: payment.studentId,
+          courseId,
+        });
+      }
+      return;
+    }
+
+    if (payment.courseId) {
+      await this.createEnrollmentForPayment(payment);
+    }
+  }
+
+  private async createEnrollmentForPayment(
+    payment: Pick<Payment, 'studentId' | 'courseId'>,
+  ): Promise<void> {
+    if (!payment.studentId || !payment.courseId) {
+      return;
+    }
+
     // ✅ Sử dụng transaction với pessimistic lock để tránh race condition
     try {
       await this.enrollmentRepository.manager.transaction(async (manager) => {
