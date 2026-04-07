@@ -69,6 +69,7 @@ export class ExtractedExamsController {
     body: {
       variantCode: number | undefined;
       answers: Array<{ questionId: string; answer: string | string[] }>;
+      timeSpent?: number;
     },
     @GetUser() user: AuthenticatedRequestUser,
   ) {
@@ -77,6 +78,7 @@ export class ExtractedExamsController {
       user.id,
       body?.answers || [],
       body?.variantCode,
+      body?.timeSpent,
     );
   }
 

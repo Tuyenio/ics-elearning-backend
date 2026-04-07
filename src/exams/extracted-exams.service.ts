@@ -415,6 +415,7 @@ export class ExtractedExamsService {
     studentId: string,
     answers: StudentAnswerPayload[],
     variantCode?: number,
+    timeSpentSeconds?: number,
   ) {
     const exam = await this.findOneForStudent(id, studentId);
 
@@ -473,6 +474,15 @@ export class ExtractedExamsService {
 
     const score = totalPoints > 0 ? (earnedPoints / totalPoints) * 100 : 0;
     const passed = score >= Number(exam.passingScore || 0);
+    const maxDurationSeconds = Math.max(0, Number(exam.timeLimit || 0) * 60);
+    const normalizedTimeSpent = Math.max(
+      0,
+      Math.floor(Number.isFinite(Number(timeSpentSeconds)) ? Number(timeSpentSeconds) : 0),
+    );
+    const persistedTimeSpent =
+      maxDurationSeconds > 0
+        ? Math.min(normalizedTimeSpent, maxDurationSeconds)
+        : normalizedTimeSpent;
 
     let issuedCertificateId: string | null = null;
 
@@ -503,7 +513,7 @@ export class ExtractedExamsService {
         earnedPoints,
         totalPoints,
         submittedAt,
-        timeSpent: 0,
+        timeSpent: persistedTimeSpent,
         variantCode: resolvedVariantCode,
       }),
     );
