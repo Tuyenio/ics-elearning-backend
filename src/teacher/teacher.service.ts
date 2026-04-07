@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository, In, Between } from 'typeorm';
 import { Course, CourseStatus } from '../courses/entities/course.entity';
 import { Enrollment } from '../enrollments/entities/enrollment.entity';
 import { Payment, PaymentStatus } from '../payments/entities/payment.entity';
@@ -12,37 +12,154 @@ import { EnrollmentStatus } from '../enrollments/entities/enrollment.entity';
 
 @Injectable()
 export class TeacherService {
-    private resolvePeriodWindow(period?: 'day' | 'week' | 'month' | 'year') {
-      const now = new Date();
+  private startOfDay(date: Date) {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  }
 
-      if (!period) {
-        return {
-          periodStart: null as Date | null,
-          previousStart: new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000),
-          previousEnd: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
-          currentStartForGrowth: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
-        };
-      }
+  private startOfWeek(date: Date) {
+    const day = date.getDay();
+    const diff = (day + 6) % 7; // Monday as start of week
+    const start = this.startOfDay(date);
+    start.setDate(start.getDate() - diff);
+    return start;
+  }
 
-      const unitDays = {
-        day: 1,
-        week: 7,
-        month: 30,
-        year: 365,
-      } as const;
+  private resolvePeriodWindow(period?: 'day' | 'week' | 'month' | 'year') {
+    const now = new Date();
 
-      const days = unitDays[period] ?? 30;
-      const periodStart = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-      const previousStart = new Date(now.getTime() - days * 2 * 24 * 60 * 60 * 1000);
-      const previousEnd = periodStart;
+    if (!period) {
+      return {
+        periodStart: null as Date | null,
+        previousStart: new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000),
+        previousEnd: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
+        currentStartForGrowth: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
+      };
+    }
 
+    if (period === 'day') {
+      const periodStart = this.startOfDay(now);
+      const previousStart = new Date(periodStart);
+      previousStart.setDate(previousStart.getDate() - 1);
       return {
         periodStart,
         previousStart,
-        previousEnd,
+        previousEnd: periodStart,
         currentStartForGrowth: periodStart,
       };
     }
+
+    if (period === 'week') {
+      const periodStart = this.startOfWeek(now);
+      const previousStart = new Date(periodStart);
+      previousStart.setDate(previousStart.getDate() - 7);
+      return {
+        periodStart,
+        previousStart,
+        previousEnd: periodStart,
+        currentStartForGrowth: periodStart,
+      };
+    }
+
+    if (period === 'month') {
+      const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const previousStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      return {
+        periodStart,
+        previousStart,
+        previousEnd: periodStart,
+        currentStartForGrowth: periodStart,
+      };
+    }
+
+    const periodStart = new Date(now.getFullYear(), 0, 1);
+    const previousStart = new Date(now.getFullYear() - 1, 0, 1);
+    return {
+      periodStart,
+      previousStart,
+      previousEnd: periodStart,
+      currentStartForGrowth: periodStart,
+    };
+  }
+
+  private buildPeriodBuckets(
+    period: 'day' | 'week' | 'month' | 'year',
+    locale: string = 'vi-VN',
+  ) {
+    const now = new Date();
+    const today = this.startOfDay(now);
+
+    if (period === 'day') {
+      const start = today;
+      const end = new Date(start);
+      end.setDate(end.getDate() + 1);
+      return [
+        {
+          start,
+          end,
+          label: start.toLocaleDateString(locale, {
+            day: '2-digit',
+            month: '2-digit',
+          }),
+        },
+      ];
+    }
+
+    if (period === 'week') {
+      const buckets = [] as Array<{ start: Date; end: Date; label: string }>;
+      const weekStart = this.startOfWeek(today);
+      for (let i = 0; i < 7; i += 1) {
+        const start = new Date(weekStart);
+        start.setDate(weekStart.getDate() + i);
+        if (start > today) break;
+        const end = new Date(start);
+        end.setDate(start.getDate() + 1);
+        buckets.push({
+          start,
+          end,
+          label: start.toLocaleDateString(locale, { weekday: 'short' }),
+        });
+      }
+      return buckets;
+    }
+
+    if (period === 'month') {
+      const buckets = [] as Array<{ start: Date; end: Date; label: string }>;
+      const year = now.getFullYear();
+      const month = now.getMonth();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+      for (let day = 1; day <= daysInMonth; day += 1) {
+        const start = new Date(year, month, day);
+        if (start > today) break;
+        const end = new Date(year, month, day + 1);
+        buckets.push({
+          start,
+          end,
+          label: start.toLocaleDateString(locale, {
+            day: '2-digit',
+            month: '2-digit',
+          }),
+        });
+      }
+
+      return buckets;
+    }
+
+    const buckets = [] as Array<{ start: Date; end: Date; label: string }>;
+    const year = now.getFullYear();
+    for (let month = 0; month < 12; month += 1) {
+      const start = new Date(year, month, 1);
+      if (start > today) break;
+      const end = new Date(year, month + 1, 1);
+      buckets.push({
+        start,
+        end,
+        label: start.toLocaleDateString(locale, { month: 'short' }),
+      });
+    }
+
+    return buckets;
+  }
 
   constructor(
     @InjectRepository(Course)
@@ -328,11 +445,11 @@ export class TeacherService {
           filteredReviews.length
         : 0;
 
-    const revenueChart = await this.getRevenueChart(teacherId, 12);
+    const revenueChart = await this.getRevenueChart(teacherId, 12, period);
 
-    const studentChart = await this.getEnrollmentChart(teacherId, 12);
+    const studentChart = await this.getEnrollmentChart(teacherId, 12, period);
 
-    const weeklyPerformance = await this.getWeeklyPerformance(teacherId);
+    const weeklyPerformance = await this.getWeeklyPerformance(teacherId, period);
 
     const courseDistribution = this.buildCourseDistribution(courses);
 
@@ -404,13 +521,49 @@ export class TeacherService {
     };
   }
 
-  async getRevenueChart(teacherId: string, months: number = 12) {
+  async getRevenueChart(
+    teacherId: string,
+    months: number = 12,
+    period?: 'day' | 'week' | 'month' | 'year',
+  ) {
     const labels: string[] = [];
     const data: number[] = [];
     const now = new Date();
 
     const courses = await this.courseRepo.find({ where: { teacherId } });
     const courseIds = courses.map((c) => c.id);
+
+    if (courseIds.length === 0) {
+      return { labels, data };
+    }
+
+    if (period) {
+      const buckets = this.buildPeriodBuckets(period);
+      if (!buckets.length) return { labels, data };
+
+      const rangeStart = buckets[0].start;
+      const rangeEnd = buckets[buckets.length - 1].end;
+
+      const payments = await this.paymentRepo.find({
+        where: {
+          status: PaymentStatus.COMPLETED,
+          courseId: In(courseIds),
+          createdAt: Between(rangeStart, rangeEnd),
+        },
+      });
+
+      for (const bucket of buckets) {
+        const total = payments
+          .filter(
+            (p) => p.createdAt >= bucket.start && p.createdAt < bucket.end,
+          )
+          .reduce((sum, p) => sum + Number(p.finalAmount || 0), 0);
+        labels.push(bucket.label);
+        data.push(total);
+      }
+
+      return { labels, data };
+    }
 
     for (let i = months - 1; i >= 0; i--) {
       const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -438,13 +591,46 @@ export class TeacherService {
     return { labels, data };
   }
 
-  async getEnrollmentChart(teacherId: string, months: number = 12) {
+  async getEnrollmentChart(
+    teacherId: string,
+    months: number = 12,
+    period?: 'day' | 'week' | 'month' | 'year',
+  ) {
     const labels: string[] = [];
     const data: number[] = [];
     const now = new Date();
 
     const courses = await this.courseRepo.find({ where: { teacherId } });
     const courseIds = courses.map((c) => c.id);
+
+    if (courseIds.length === 0) {
+      return { labels, data };
+    }
+
+    if (period) {
+      const buckets = this.buildPeriodBuckets(period);
+      if (!buckets.length) return { labels, data };
+
+      const rangeStart = buckets[0].start;
+      const rangeEnd = buckets[buckets.length - 1].end;
+
+      const enrollments = await this.enrollmentRepo.find({
+        where: {
+          courseId: In(courseIds),
+          createdAt: Between(rangeStart, rangeEnd),
+        },
+      });
+
+      for (const bucket of buckets) {
+        const count = enrollments.filter(
+          (e) => e.createdAt >= bucket.start && e.createdAt < bucket.end,
+        ).length;
+        labels.push(bucket.label);
+        data.push(count);
+      }
+
+      return { labels, data };
+    }
 
     for (let i = months - 1; i >= 0; i--) {
       const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -466,42 +652,74 @@ export class TeacherService {
     return { labels, data };
   }
 
-  async getWeeklyPerformance(teacherId: string) {
+  async getWeeklyPerformance(
+    teacherId: string,
+    period?: 'day' | 'week' | 'month' | 'year',
+  ) {
     const now = new Date();
     const courses = await this.courseRepo.find({ where: { teacherId } });
     const courseIds = courses.map((c) => c.id);
 
+    if (courseIds.length === 0) {
+      return [];
+    }
+
+    const buckets = period ? this.buildPeriodBuckets(period) : null;
+
     const results: { day: string; revenue: number }[] = [];
-    for (let i = 6; i >= 0; i--) {
-      const start = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate() - i,
-      );
-      const end = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate() - i + 1,
-      );
 
-      const payments = await this.paymentRepo
-        .createQueryBuilder('payment')
-        .where('payment.status = :status', { status: PaymentStatus.COMPLETED })
-        .andWhere('payment.courseId IN (:...courseIds)', {
-          courseIds: courseIds.length > 0 ? courseIds : [''],
-        })
-        .andWhere('payment.createdAt >= :start', { start })
-        .andWhere('payment.createdAt < :end', { end })
-        .getMany();
+    if (buckets && buckets.length > 0) {
+      const rangeStart = buckets[0].start;
+      const rangeEnd = buckets[buckets.length - 1].end;
 
-      const revenue = payments.reduce(
-        (sum, p) => sum + Number(p.finalAmount || 0),
-        0,
-      );
-      results.push({
-        day: start.toLocaleDateString('vi-VN', { weekday: 'short' }),
-        revenue,
+      const payments = await this.paymentRepo.find({
+        where: {
+          status: PaymentStatus.COMPLETED,
+          courseId: In(courseIds),
+          createdAt: Between(rangeStart, rangeEnd),
+        },
       });
+
+      for (const bucket of buckets) {
+        const revenue = payments
+          .filter(
+            (p) => p.createdAt >= bucket.start && p.createdAt < bucket.end,
+          )
+          .reduce((sum, p) => sum + Number(p.finalAmount || 0), 0);
+        results.push({ day: bucket.label, revenue });
+      }
+    } else {
+      for (let i = 6; i >= 0; i--) {
+        const start = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate() - i,
+        );
+        const end = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate() - i + 1,
+        );
+
+        const payments = await this.paymentRepo
+          .createQueryBuilder('payment')
+          .where('payment.status = :status', { status: PaymentStatus.COMPLETED })
+          .andWhere('payment.courseId IN (:...courseIds)', {
+            courseIds: courseIds.length > 0 ? courseIds : [''],
+          })
+          .andWhere('payment.createdAt >= :start', { start })
+          .andWhere('payment.createdAt < :end', { end })
+          .getMany();
+
+        const revenue = payments.reduce(
+          (sum, p) => sum + Number(p.finalAmount || 0),
+          0,
+        );
+        results.push({
+          day: start.toLocaleDateString('vi-VN', { weekday: 'short' }),
+          revenue,
+        });
+      }
     }
 
     const avgRevenue =
