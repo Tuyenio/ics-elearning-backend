@@ -299,16 +299,81 @@ export class ExamsService {
 
     if (rawQuestions !== undefined) {
       const normalizedQuestions = this.normalizeQuestionsPayload(rawQuestions);
-      const finalQuestions =
-        normalizedQuestions.length > 0
-          ? normalizedQuestions
-          : this.buildQuestionsFallback(rawQuestions);
+      const fallbackQuestions = this.buildQuestionsFallback(rawQuestions);
+      const hasRawQuestionContent = this.hasAnyQuestionContent(rawQuestions);
+      const rawArray = this.coerceQuestionsArray(rawQuestions);
+      const existingQuestions = this.coerceQuestionsArray(exam.questions);
+      const targetStatus =
+        (metaFields.status as ExamStatus | undefined) || exam.status;
+      let rawPreserved: any = rawQuestions;
+      while (typeof rawPreserved === 'string') {
+        try {
+          rawPreserved = JSON.parse(rawPreserved);
+        } catch {
+          break;
+        }
+      }
+      let finalQuestions =
+        rawArray.length > 0
+          ? rawArray
+          : normalizedQuestions.length > 0
+            ? normalizedQuestions
+            : fallbackQuestions.length > 0
+              ? fallbackQuestions
+              : hasRawQuestionContent
+                ? rawPreserved && typeof rawPreserved === 'object'
+                  ? rawPreserved
+                  : []
+                : [];
+
+      // Draft saves should preserve in-progress question editing data.
+      if (targetStatus === ExamStatus.DRAFT) {
+        const draftPayload =
+          rawArray.length > 0
+            ? rawArray
+            : rawPreserved && typeof rawPreserved === 'object'
+              ? rawPreserved
+              : finalQuestions;
+        finalQuestions = draftPayload;
+      } else if (targetStatus === ExamStatus.PENDING) {
+        const prepared = this.prepareValidQuestionsForReview(finalQuestions);
+        if (prepared.validQuestions.length === 0) {
+          throw new BadRequestException(
+            'Không có câu hỏi hợp lệ để gửi duyệt. Vui lòng kiểm tra nội dung, đáp án và tùy chọn.',
+          );
+        }
+      }
+
+      // Guardrail: never wipe question bank on teacher edit when prior data exists.
+      if (
+        Array.isArray(finalQuestions) &&
+        finalQuestions.length === 0 &&
+        existingQuestions.length > 0
+      ) {
+        this.debugLog(
+          '[update] Prevented empty overwrite, preserving existing questions for exam',
+          id,
+          'existing=',
+          existingQuestions.length,
+        );
+        finalQuestions = existingQuestions;
+      }
       this.debugLog(
         '[update] Saving',
         normalizedQuestions.length,
-        'questions for exam',
+        'normalized /',
+        fallbackQuestions.length,
+        'fallback /',
+        finalQuestions.length,
+        'final questions for exam',
         id,
       );
+      if (hasRawQuestionContent && finalQuestions.length === 0) {
+        this.debugLog(
+          '[update] WARNING: raw questions has content but finalQuestions is empty for exam',
+          id,
+        );
+      }
       await this.dataSource.query(
         `UPDATE learning.exams SET questions = $1::json WHERE id = $2`,
         [JSON.stringify(finalQuestions), id],
@@ -384,18 +449,58 @@ export class ExamsService {
 
     if (rawQuestions !== undefined) {
       const normalizedQuestions = this.normalizeQuestionsPayload(rawQuestions);
-      const finalQuestions =
-        normalizedQuestions.length > 0
-          ? normalizedQuestions
-          : this.buildQuestionsFallback(rawQuestions);
+      const fallbackQuestions = this.buildQuestionsFallback(rawQuestions);
+      const hasRawQuestionContent = this.hasAnyQuestionContent(rawQuestions);
+      const rawArray = this.coerceQuestionsArray(rawQuestions);
+      const targetStatus =
+        (metaFields.status as ExamStatus | undefined) || exam.status;
+      let rawPreserved: any = rawQuestions;
+      while (typeof rawPreserved === 'string') {
+        try {
+          rawPreserved = JSON.parse(rawPreserved);
+        } catch {
+          break;
+        }
+      }
+      let finalQuestions =
+        rawArray.length > 0
+          ? rawArray
+          : normalizedQuestions.length > 0
+            ? normalizedQuestions
+            : fallbackQuestions.length > 0
+              ? fallbackQuestions
+              : hasRawQuestionContent
+                ? rawPreserved && typeof rawPreserved === 'object'
+                  ? rawPreserved
+                  : []
+                : [];
+
+      if (targetStatus === ExamStatus.DRAFT) {
+        const draftPayload =
+          rawArray.length > 0
+            ? rawArray
+            : rawPreserved && typeof rawPreserved === 'object'
+              ? rawPreserved
+              : finalQuestions;
+        finalQuestions = draftPayload;
+      } else if (targetStatus === ExamStatus.PENDING) {
+        const prepared = this.prepareValidQuestionsForReview(finalQuestions);
+        if (prepared.validQuestions.length === 0) {
+          throw new BadRequestException(
+            'Không có câu hỏi hợp lệ để gửi duyệt. Vui lòng kiểm tra nội dung, đáp án và tùy chọn.',
+          );
+        }
+      }
       this.debugLog(
         '[updateAny] raw type:',
         typeof rawQuestions,
         'normalized:',
         normalizedQuestions.length,
+        'fallback:',
+        fallbackQuestions.length,
         'final:',
         finalQuestions.length,
-        'exam:',
+        'questions for exam',
         id,
       );
       await this.dataSource.query(
@@ -449,30 +554,22 @@ export class ExamsService {
     );
     const questionsRaw = rawRows?.[0]?.questions ?? null;
     const questionsArray = this.coerceQuestionsArray(questionsRaw);
+    const prepared = this.prepareValidQuestionsForReview(questionsArray);
     this.debugLog(
       '[submitForApproval] exam:',
       id,
-      'questionsArray.length:',
+      'questionsArray.length/raw:',
       questionsArray.length,
+      'valid:',
+      prepared.validQuestions.length,
       'sample:',
       questionsArray.slice(0, 1),
     );
 
-    const hasQuestions =
-      questionsArray.length > 0 &&
-      questionsArray.some((q: any) => {
-        if (!q || typeof q !== 'object') return false;
-        const text = String(q.question || q.text || q.content || '').trim();
-        const hasOptions =
-          Array.isArray(q.options) &&
-          q.options.some((o: any) => String(o || '').trim().length > 0);
-        const hasAnswer =
-          String(q.correctAnswer || q.answer || '').trim().length > 0;
-        return text.length > 0 || hasOptions || hasAnswer;
-      });
-
-    if (!hasQuestions) {
-      throw new BadRequestException('Bài thi phải có ít nhất 1 câu hỏi');
+    if (prepared.validQuestions.length === 0) {
+      throw new BadRequestException(
+        'Bài thi chưa có câu hỏi hợp lệ để gửi duyệt',
+      );
     }
 
     exam.status = ExamStatus.PENDING;
@@ -990,7 +1087,7 @@ export class ExamsService {
       } catch (e) {
         this.debugLog(
           '[coerceQuestionsArray] Failed to parse string questions:',
-          e?.message || e,
+          e instanceof Error ? e.message : String(e),
         );
         return [];
       }
@@ -1027,6 +1124,14 @@ export class ExamsService {
 
     if (looksLikeQuestion) {
       return [data];
+    }
+
+    // Fallback for object maps like { q1: {...}, q2: {...} }
+    const objectValues = Object.values(data).filter(
+      (item) => item !== undefined && item !== null,
+    );
+    if (objectValues.length > 0) {
+      return objectValues;
     }
 
     return [];
@@ -1096,6 +1201,125 @@ export class ExamsService {
         };
       })
       .filter((item) => item !== null);
+  }
+
+  private prepareValidQuestionsForReview(
+    rawQuestions: any,
+  ): { validQuestions: any[]; invalidCount: number } {
+    const normalizedPrimary = this.normalizeQuestionsPayload(rawQuestions);
+    let normalized = normalizedPrimary;
+
+    // Fallback for edge shapes that primary normalization may over-filter.
+    if (normalized.length === 0) {
+      normalized = this.buildQuestionsFallback(rawQuestions);
+    }
+
+    const validQuestions = normalized.filter((q) =>
+      this.isQuestionValidForSubmission(q),
+    );
+
+    this.debugLog(
+      '[prepareValidQuestionsForReview] primary=',
+      normalizedPrimary.length,
+      'normalized=',
+      normalized.length,
+      'valid=',
+      validQuestions.length,
+    );
+
+    return {
+      validQuestions,
+      invalidCount: Math.max(0, normalized.length - validQuestions.length),
+    };
+  }
+
+  private isQuestionValidForSubmission(question: any): boolean {
+    if (!question || typeof question !== 'object') return false;
+
+    const text = String(
+      question.question ||
+        question.questionText ||
+        question.text ||
+        question.content ||
+        question.prompt ||
+        question.stem ||
+        '',
+    ).trim();
+    if (!text) return false;
+
+    const type = String(question.type || question.questionType || 'multiple_choice').toLowerCase();
+    const options = Array.isArray(question.options)
+      ? question.options
+          .map((item: any) => String(item || '').trim())
+          .filter(Boolean)
+      : Array.isArray(question.answers)
+        ? question.answers
+            .map((item: any) => String(item || '').trim())
+            .filter(Boolean)
+      : [];
+
+    const answer =
+      question.correctAnswer ??
+      question.correct_answer ??
+      question.answer ??
+      question.correct ??
+      question.correctAnswers;
+    const normalizeAnswerToken = (value: any): string =>
+      String(value || '')
+        .trim()
+        .toLowerCase();
+
+    const normalizedOptionTokens = (
+      options.length > 0 ? options : ['Đúng', 'Sai']
+    ).map((item) => normalizeAnswerToken(item));
+
+    const hasOptionMatch = (value: any): boolean => {
+      const token = normalizeAnswerToken(value);
+      if (!token) return false;
+
+      if (normalizedOptionTokens.includes(token)) return true;
+
+      // Support A/B/C... or numeric answer indices.
+      const letterMatch = token.match(/^[a-f]$/i);
+      if (letterMatch) {
+        const idx = letterMatch[0].toUpperCase().charCodeAt(0) - 65;
+        return idx >= 0 && idx < normalizedOptionTokens.length;
+      }
+
+      const numeric = /^\d+$/.test(token) ? Number.parseInt(token, 10) : NaN;
+      if (!Number.isNaN(numeric)) {
+        if (numeric >= 1 && numeric <= normalizedOptionTokens.length) return true;
+        if (numeric >= 0 && numeric < normalizedOptionTokens.length) return true;
+      }
+
+      return false;
+    };
+
+    if (type === 'fill_in') {
+      return String(answer || '').trim().length > 0;
+    }
+
+    if (type === 'true_false') {
+      const answerToken = normalizeAnswerToken(answer);
+      if (!answerToken) return false;
+      if (['đúng', 'sai', 'true', 'false'].includes(answerToken)) return true;
+      return hasOptionMatch(answer) || options.length >= 2;
+    }
+
+    // multiple_choice or fallback
+    if (options.length < 2) return false;
+    if (Array.isArray(answer)) {
+      const nonEmpty = answer
+        .map((item) => String(item || '').trim())
+        .filter(Boolean);
+      return nonEmpty.length > 0;
+    }
+
+    const answerText = String(answer || '').trim();
+    if (!answerText) return false;
+
+    // Keep permissive here to avoid false negatives from mixed answer formats.
+    return hasOptionMatch(answer) || answerText.length > 0;
   }
 
   private normalizeSingleQuestion(raw: any, index: number): any | null {

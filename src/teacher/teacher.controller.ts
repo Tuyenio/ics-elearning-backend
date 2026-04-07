@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Delete,
   UseGuards,
   Req,
   Res,
@@ -43,6 +44,14 @@ export class TeacherController {
   @Get('students')
   getStudents(@Req() req: any) {
     return this.teacherService.getStudentList(req.user.id);
+  }
+
+  @Delete('students/:enrollmentId')
+  removeStudent(
+    @Req() req: any,
+    @Param('enrollmentId') enrollmentId: string,
+  ) {
+    return this.teacherService.removeStudentEnrollment(req.user.id, enrollmentId);
   }
 
   @Get('courses/:courseId/students-progress')

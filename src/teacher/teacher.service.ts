@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { Course, CourseStatus } from '../courses/entities/course.entity';
@@ -668,6 +668,35 @@ export class TeacherService {
     return {
       data,
       total: data.length,
+    };
+  }
+
+  async removeStudentEnrollment(teacherId: string, enrollmentId: string) {
+    const enrollment = await this.enrollmentRepo.findOne({
+      where: { id: enrollmentId },
+      relations: ['course'],
+    });
+
+    if (!enrollment) {
+      throw new NotFoundException('Không tìm thấy ghi danh học viên');
+    }
+
+    if (!enrollment.course || enrollment.course.teacherId !== teacherId) {
+      throw new ForbiddenException('Bạn không có quyền xóa học viên của khóa học này');
+    }
+
+    await this.enrollmentRepo.remove(enrollment);
+
+    await this.courseRepo.query(
+      'UPDATE learning.courses SET "enrollmentCount" = GREATEST(COALESCE("enrollmentCount", 0) - 1, 0) WHERE id = $1',
+      [enrollment.courseId],
+    );
+
+    return {
+      success: true,
+      enrollmentId,
+      courseId: enrollment.courseId,
+      message: 'Đã xóa học viên khỏi khóa học',
     };
   }
 
