@@ -21,6 +21,7 @@ import {
   InstructorSubscription,
   InstructorSubscriptionStatus,
 } from './entities/instructor-subscription.entity';
+import { AdminAuditLog } from '../admin/entities/admin-audit-log.entity';
 import {
   InstructorSubscriptionPayment,
   InstructorSubscriptionPaymentStatus,
@@ -46,6 +47,8 @@ export class InstructorSubscriptionsService implements OnModuleInit {
     private readonly courseRepo: Repository<Course>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    @InjectRepository(AdminAuditLog)
+    private readonly auditLogRepo: Repository<AdminAuditLog>,
     private readonly walletService: WalletService,
   ) {}
 
@@ -191,9 +194,14 @@ export class InstructorSubscriptionsService implements OnModuleInit {
     return this.planRepo.save(plan);
   }
 
-  async removePlan(id: string) {
+  async removePlan(id: string, actor?: User) {
     const plan = await this.planRepo.findOne({ where: { id } });
     if (!plan) throw new NotFoundException('Khong tim thay goi');
+
+    const actorInfo = actor
+      ? `${actor.email} (${actor.id})`
+      : 'unknown-actor';
+    const nowIso = new Date().toISOString();
 
     const usedCount = await this.subscriptionRepo.count({
       where: { planId: id },
@@ -201,10 +209,45 @@ export class InstructorSubscriptionsService implements OnModuleInit {
     if (usedCount > 0) {
       plan.isActive = false;
       await this.planRepo.save(plan);
+      await this.auditLogRepo.save(
+        this.auditLogRepo.create({
+          action: 'instructor_plan.deactivate',
+          entityType: 'instructor_plan',
+          entityId: plan.id,
+          actorId: actor?.id ?? null,
+          actorEmail: actor?.email ?? null,
+          metadata: {
+            name: plan.name,
+            usedCount,
+            price: plan.price,
+            durationMonths: plan.durationMonths,
+          },
+        }),
+      );
+      this.logger.warn(
+        `[PLAN_DELETE] ${nowIso} admin=${actorInfo} action=deactivate plan=${plan.id} name=${plan.name} usedCount=${usedCount}`,
+      );
       return { message: 'Goi da duoc khoa vi dang co nguoi su dung' };
     }
 
     await this.planRepo.delete(id);
+    await this.auditLogRepo.save(
+      this.auditLogRepo.create({
+        action: 'instructor_plan.delete',
+        entityType: 'instructor_plan',
+        entityId: plan.id,
+        actorId: actor?.id ?? null,
+        actorEmail: actor?.email ?? null,
+        metadata: {
+          name: plan.name,
+          price: plan.price,
+          durationMonths: plan.durationMonths,
+        },
+      }),
+    );
+    this.logger.log(
+      `[PLAN_DELETE] ${nowIso} admin=${actorInfo} action=delete plan=${plan.id} name=${plan.name}`,
+    );
     return { message: 'Da xoa goi' };
   }
 

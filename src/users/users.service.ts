@@ -427,7 +427,15 @@ export class UsersService {
     await this.usersRepository.update({ id }, { avatar: avatarUrl });
   }
 
-  async updateLastLoginAt(id: string, at: Date = new Date()): Promise<void> {
-    await this.usersRepository.update({ id }, { lastLoginAt: at });
+  async updateLastLoginAt(
+    id: string,
+    at: Date = new Date(),
+    provider?: string,
+  ): Promise<void> {
+    const payload: Partial<User> = { lastLoginAt: at };
+    if (provider) {
+      payload.lastLoginProvider = provider;
+    }
+    await this.usersRepository.update({ id }, payload);
   }
 }
