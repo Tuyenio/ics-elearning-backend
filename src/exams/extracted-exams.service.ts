@@ -673,7 +673,6 @@ export class ExtractedExamsService {
       passed: false,
       earnedPoints: 0,
       totalPoints: 0,
-      submittedAt: null,
       timeSpent: 0,
       variantCode,
     });
