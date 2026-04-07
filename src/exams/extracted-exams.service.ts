@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull } from 'typeorm';
 import {
   ExtractedExam,
   ExtractedExamStatus,
@@ -419,6 +419,11 @@ export class ExtractedExamsService {
   ) {
     const exam = await this.findOneForStudent(id, studentId);
 
+    const pendingAttempt = await this.extractedExamAttemptRepo.findOne({
+      where: { extractedExamId: id, studentId, submittedAt: IsNull() },
+      order: { createdAt: 'DESC' },
+    });
+
     // Determine which questions to grade against
     let questions: NormalizedQuestion[];
     let resolvedVariantCode: number | null = null;
@@ -438,7 +443,7 @@ export class ExtractedExamsService {
       where: { extractedExamId: id, studentId },
     });
 
-    if (attemptCount >= Number(exam.maxAttempts || 0)) {
+    if (!pendingAttempt && attemptCount >= Number(exam.maxAttempts || 0)) {
       throw new BadRequestException(
         `Bạn đã sử dụng hết ${exam.maxAttempts} lần thi`,
       );
@@ -502,24 +507,37 @@ export class ExtractedExamsService {
       }
     }
 
-    const savedAttempt = await this.extractedExamAttemptRepo.save(
-      this.extractedExamAttemptRepo.create({
-        extractedExamId: id,
-        studentId,
-        answers,
-        questionResults,
-        score,
-        passed,
-        earnedPoints,
-        totalPoints,
-        submittedAt,
-        timeSpent: persistedTimeSpent,
-        variantCode: resolvedVariantCode,
-      }),
-    );
+    const attemptEntity = pendingAttempt
+      ? Object.assign(pendingAttempt, {
+          answers,
+          questionResults,
+          score,
+          passed,
+          earnedPoints,
+          totalPoints,
+          submittedAt,
+          timeSpent: persistedTimeSpent,
+          variantCode: pendingAttempt.variantCode ?? resolvedVariantCode,
+        })
+      : this.extractedExamAttemptRepo.create({
+          extractedExamId: id,
+          studentId,
+          answers,
+          questionResults,
+          score,
+          passed,
+          earnedPoints,
+          totalPoints,
+          submittedAt,
+          timeSpent: persistedTimeSpent,
+          variantCode: resolvedVariantCode,
+        });
+
+    const savedAttempt = await this.extractedExamAttemptRepo.save(attemptEntity);
 
     const totalAttempts = Number(exam.maxAttempts || 0);
-    const remainingAttempts = Math.max(0, totalAttempts - (attemptCount + 1));
+    const usedAttempts = pendingAttempt ? attemptCount : attemptCount + 1;
+    const remainingAttempts = Math.max(0, totalAttempts - usedAttempts);
 
     return {
       id: savedAttempt.id,
@@ -569,6 +587,11 @@ export class ExtractedExamsService {
       order: { submittedAt: 'DESC', createdAt: 'DESC' },
     });
 
+    const submittedAttempts = attempts.filter((attempt) => attempt.submittedAt);
+    const attemptCount = attempts.length;
+    const totalAttempts = Number(exam.maxAttempts || 0);
+    const remainingAttempts = Math.max(0, totalAttempts - attemptCount);
+
     if (exam.type === ExtractedExamType.OFFICIAL && attempts.some((a) => a.passed)) {
       try {
         await this.ensureCertificateForOfficialExtractedPass(exam, studentId);
@@ -588,9 +611,11 @@ export class ExtractedExamsService {
         passingScore: Number(exam.passingScore || 0),
         maxAttempts: Number(exam.maxAttempts || 0),
       },
-      attempts: attempts.map((attempt, index) => ({
+      attemptCount,
+      remainingAttempts,
+      attempts: submittedAttempts.map((attempt, index) => ({
         id: attempt.id,
-        attemptNumber: attempts.length - index,
+        attemptNumber: submittedAttempts.length - index,
         score: Number(attempt.score || 0),
         passed: Boolean(attempt.passed),
         timeSpent: Number(attempt.timeSpent || 0),
@@ -600,6 +625,60 @@ export class ExtractedExamsService {
         completedAt: attempt.submittedAt || attempt.createdAt,
       })),
     };
+  }
+
+  async startForStudent(id: string, studentId: string) {
+    const exam = await this.findOneForStudent(id, studentId);
+
+    const pendingAttempt = await this.extractedExamAttemptRepo.findOne({
+      where: { extractedExamId: id, studentId, submittedAt: IsNull() },
+      order: { createdAt: 'DESC' },
+    });
+
+    if (pendingAttempt) {
+      const completedAt = new Date();
+      const elapsedSeconds = Math.floor(
+        (completedAt.getTime() - pendingAttempt.createdAt.getTime()) / 1000,
+      );
+      const maxDurationSeconds = Math.max(0, Number(exam.timeLimit || 0) * 60);
+      const normalizedTimeSpent = Math.max(0, elapsedSeconds);
+      const persistedTimeSpent =
+        maxDurationSeconds > 0
+          ? Math.min(normalizedTimeSpent, maxDurationSeconds)
+          : normalizedTimeSpent;
+
+      pendingAttempt.submittedAt = completedAt;
+      pendingAttempt.timeSpent = persistedTimeSpent;
+      await this.extractedExamAttemptRepo.save(pendingAttempt);
+    }
+
+    const attemptCount = await this.extractedExamAttemptRepo.count({
+      where: { extractedExamId: id, studentId },
+    });
+
+    if (attemptCount >= Number(exam.maxAttempts || 0)) {
+      throw new BadRequestException(
+        `Bạn đã sử dụng hết ${exam.maxAttempts} lần thi`,
+      );
+    }
+
+    const variantCode = (exam as any)?.assignedVariantCode ?? null;
+
+    const attempt = this.extractedExamAttemptRepo.create({
+      extractedExamId: id,
+      studentId,
+      answers: [],
+      questionResults: [],
+      score: 0,
+      passed: false,
+      earnedPoints: 0,
+      totalPoints: 0,
+      timeSpent: 0,
+      variantCode,
+    });
+
+    const saved = await this.extractedExamAttemptRepo.save(attempt);
+    return { id: saved.id, startedAt: saved.createdAt };
   }
 
   async getAttemptDetailForStudent(

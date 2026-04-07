@@ -625,7 +625,7 @@ export class InstructorSubscriptionsService implements OnModuleInit {
             'teacher_subscription_payment',
             {
               instructorSubscriptionPaymentId: payment.id,
-              description: `Thanh toan goi giang vien ${plan.name}`,
+              description: `Thanh toán gói giảng viên ${plan.name}`,
               metadata: {
                 planId: plan.id,
               },

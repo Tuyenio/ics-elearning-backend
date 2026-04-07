@@ -172,7 +172,7 @@ export class PaymentsService {
       'wallet_topup',
       {
         paymentId: payment.id,
-        description: 'Nap tien vao vi qua SePay',
+        description: 'Nạp tiền vào ví qua SePay',
       },
     );
 
@@ -1053,7 +1053,7 @@ export class PaymentsService {
           'wallet_topup',
           {
             paymentId: payment.id,
-            description: 'Nap tien vao vi duoc admin xac nhan',
+            description: 'Nạp tiền vào ví được admin xác nhận',
           },
         );
       }

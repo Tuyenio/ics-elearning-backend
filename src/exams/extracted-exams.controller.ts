@@ -82,6 +82,16 @@ export class ExtractedExamsController {
     );
   }
 
+  @Post(':id/start')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.STUDENT)
+  startForStudent(
+    @Param('id') id: string,
+    @GetUser() user: AuthenticatedRequestUser,
+  ) {
+    return this.service.startForStudent(id, user.id);
+  }
+
   @Get('my')
   @UseGuards(RolesGuard)
   @Roles(UserRole.TEACHER, UserRole.ADMIN)
