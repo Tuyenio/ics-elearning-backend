@@ -131,12 +131,8 @@ export class InstructorSubscriptionsService implements OnModuleInit {
         .getOne();
 
       if (existing) {
-        await this.planRepo.save(
-          this.planRepo.create({
-            ...existing,
-            ...defaultPlan,
-          }),
-        );
+        const { name: _name, ...updateFields } = defaultPlan;
+        await this.planRepo.update(existing.id, updateFields);
         continue;
       }
 
