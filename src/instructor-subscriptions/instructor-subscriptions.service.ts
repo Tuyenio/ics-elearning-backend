@@ -319,7 +319,7 @@ export class InstructorSubscriptionsService implements OnModuleInit {
     return (
       process.env.SEPAY_BANK_ACCOUNT_NUMBER ||
       process.env.BANK_ACCOUNT_NUMBER ||
-      '8820162447'
+      '9624723T11'
     );
   }
 
