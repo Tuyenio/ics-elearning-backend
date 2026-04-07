@@ -206,7 +206,10 @@ export class InstructorSubscriptionsService implements OnModuleInit {
     const usedCount = await this.subscriptionRepo.count({
       where: { planId: id },
     });
-    if (usedCount > 0) {
+    const paymentCount = await this.paymentRepo.count({
+      where: { planId: id },
+    });
+    if (usedCount > 0 || paymentCount > 0) {
       plan.isActive = false;
       await this.planRepo.save(plan);
       await this.auditLogRepo.save(
@@ -219,15 +222,16 @@ export class InstructorSubscriptionsService implements OnModuleInit {
           metadata: {
             name: plan.name,
             usedCount,
+            paymentCount,
             price: plan.price,
             durationMonths: plan.durationMonths,
           },
         }),
       );
       this.logger.warn(
-        `[PLAN_DELETE] ${nowIso} admin=${actorInfo} action=deactivate plan=${plan.id} name=${plan.name} usedCount=${usedCount}`,
+        `[PLAN_DELETE] ${nowIso} admin=${actorInfo} action=deactivate plan=${plan.id} name=${plan.name} usedCount=${usedCount} paymentCount=${paymentCount}`,
       );
-      return { message: 'Goi da duoc khoa vi dang co nguoi su dung' };
+      return { message: 'Goi da duoc khoa vi con du lieu lien quan' };
     }
 
     await this.planRepo.delete(id);
