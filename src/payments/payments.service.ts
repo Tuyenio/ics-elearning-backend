@@ -370,7 +370,7 @@ export class PaymentsService {
     });
 
     if (existingEnrollment) {
-      throw new ConflictException('Da dang ky khoa hoc nay roi');
+      throw new ConflictException('Đã đăng ký khóa học này rồi');
     }
 
     const { amount, discountAmount, finalAmount, couponCode } =
@@ -478,7 +478,7 @@ export class PaymentsService {
     });
 
     if (existingEnrollment) {
-      throw new ConflictException('Da dang ky khoa hoc nay roi');
+      throw new ConflictException('Đã đăng ký khóa học này rồi');
     }
 
     const { amount, discountAmount, finalAmount, couponCode } =
