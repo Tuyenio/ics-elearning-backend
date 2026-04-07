@@ -107,6 +107,62 @@ export class PaymentsService {
     return payment.expiresAt.getTime() <= Date.now();
   }
 
+  private async getCreditedTopupPaymentIds(
+    userId: string,
+  ): Promise<Set<string>> {
+    const transactions = await this.walletService.getTransactions(userId, 500);
+    const creditedIds = new Set<string>();
+
+    for (const tx of transactions) {
+      if (!tx?.paymentId) {
+        continue;
+      }
+
+      const isTopupCredit =
+        tx.type === 'wallet_topup' && Number(tx.changeAmount || 0) > 0;
+
+      if (isTopupCredit) {
+        creditedIds.add(String(tx.paymentId));
+      }
+    }
+
+    return creditedIds;
+  }
+
+  private async ensureWalletTopupCredited(
+    payment: Pick<Payment, 'id' | 'studentId' | 'amount' | 'finalAmount'>,
+    creditedPaymentIds?: Set<string>,
+  ): Promise<boolean> {
+    if (!payment.studentId) {
+      throw new BadRequestException('Wallet topup payment missing user');
+    }
+
+    const creditedIds =
+      creditedPaymentIds ||
+      (await this.getCreditedTopupPaymentIds(payment.studentId));
+
+    if (creditedIds.has(payment.id)) {
+      return false;
+    }
+
+    const topupAmount = this.normalizeAmount(
+      Number(payment.finalAmount ?? payment.amount ?? 0),
+    );
+
+    await this.walletService.creditBalance(
+      payment.studentId,
+      topupAmount,
+      'wallet_topup',
+      {
+        paymentId: payment.id,
+        description: 'Nap tien vao vi qua SePay',
+      },
+    );
+
+    creditedIds.add(payment.id);
+    return true;
+  }
+
   private generateTransactionCode(prefix: string): string {
     const timestamp = Date.now().toString();
     const random = Math.random().toString(36).slice(2, 8).toUpperCase();
@@ -474,6 +530,21 @@ export class PaymentsService {
       await this.paymentRepository.save(payment);
     }
 
+    if (
+      payment.status === PaymentStatus.COMPLETED &&
+      payment.paymentType === PaymentType.WALLET_TOPUP
+    ) {
+      try {
+        await this.ensureWalletTopupCredited(payment);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Unknown wallet credit error';
+        this.logger.error(
+          `Failed to reconcile topup credit for payment ${payment.id}: ${message}`,
+        );
+      }
+    }
+
     return {
       payment,
       checkout:
@@ -514,10 +585,29 @@ export class PaymentsService {
       payment = await this.paymentRepository.findOne({
         where: {
           transactionCode: transferCode,
-          status: PaymentStatus.PENDING,
           paymentMethod: PaymentMethod.SEPAY_QR,
         },
       });
+
+      if (payment?.status === PaymentStatus.COMPLETED) {
+        if (payment.paymentType === PaymentType.WALLET_TOPUP) {
+          await this.ensureWalletTopupCredited(payment);
+        }
+
+        return {
+          success: true,
+          message: 'Payment already processed',
+          paymentId: payment.id,
+        };
+      }
+
+      if (payment && payment.status !== PaymentStatus.PENDING) {
+        return {
+          success: false,
+          message: `Payment is ${payment.status}`,
+          paymentId: payment.id,
+        };
+      }
     }
 
     if (!payment) {
@@ -568,7 +658,6 @@ export class PaymentsService {
       };
     }
 
-    payment.status = PaymentStatus.COMPLETED;
     payment.paidAt = new Date();
     payment.webhookProcessedAt = new Date();
     payment.sepayTransactionId = webhookData.id || null;
@@ -583,23 +672,12 @@ export class PaymentsService {
       },
     };
 
-    const savedPayment = await this.paymentRepository.save(payment);
-
-    if (savedPayment.paymentType === PaymentType.WALLET_TOPUP) {
-      if (!savedPayment.studentId) {
-        throw new BadRequestException('Wallet topup payment missing user');
-      }
-
-      await this.walletService.creditBalance(
-        savedPayment.studentId,
-        expectedAmount,
-        'wallet_topup',
-        {
-          paymentId: savedPayment.id,
-          description: 'Nap tien vao vi qua SePay',
-        },
-      );
+    if (payment.paymentType === PaymentType.WALLET_TOPUP) {
+      await this.ensureWalletTopupCredited(payment);
     }
+
+    payment.status = PaymentStatus.COMPLETED;
+    const savedPayment = await this.paymentRepository.save(payment);
 
     if (savedPayment.paymentType === PaymentType.COURSE_ENROLLMENT) {
       await this.createEnrollmentForPayment(savedPayment);
@@ -625,12 +703,36 @@ export class PaymentsService {
       throw new NotFoundException('Thanh toán không tìm thấy');
     }
 
+    if (payment.status !== PaymentStatus.PENDING) {
+      throw new ConflictException('Giao dịch đã được xử lý trước đó');
+    }
+
     if (success) {
       payment.status = PaymentStatus.COMPLETED;
       payment.paidAt = new Date();
 
-      // Create enrollment after successful payment
-      await this.createEnrollmentForPayment(payment);
+      if (payment.paymentType === PaymentType.COURSE_ENROLLMENT) {
+        // Create enrollment after successful course payment
+        await this.createEnrollmentForPayment(payment);
+      } else if (payment.paymentType === PaymentType.WALLET_TOPUP) {
+        if (!payment.studentId) {
+          throw new BadRequestException('Wallet topup payment missing user');
+        }
+
+        const topupAmount = this.normalizeAmount(
+          Number(payment.finalAmount ?? payment.amount ?? 0),
+        );
+
+        await this.walletService.creditBalance(
+          payment.studentId,
+          topupAmount,
+          'wallet_topup',
+          {
+            paymentId: payment.id,
+            description: 'Nap tien vao vi duoc admin xac nhan',
+          },
+        );
+      }
     } else {
       payment.status = PaymentStatus.FAILED;
       if (reason) {
@@ -760,11 +862,48 @@ export class PaymentsService {
   }
 
   async findByStudent(studentId: string): Promise<Payment[]> {
-    return this.paymentRepository.find({
+    const payments = await this.paymentRepository.find({
       where: { studentId },
       relations: ['course'],
       order: { createdAt: 'DESC' },
     });
+
+    const completedTopups = payments.filter(
+      (payment) =>
+        payment.status === PaymentStatus.COMPLETED &&
+        payment.paymentType === PaymentType.WALLET_TOPUP,
+    );
+
+    if (completedTopups.length > 0) {
+      try {
+        const creditedPaymentIds = await this.getCreditedTopupPaymentIds(
+          studentId,
+        );
+
+        for (const topupPayment of completedTopups) {
+          if (creditedPaymentIds.has(topupPayment.id)) {
+            continue;
+          }
+
+          await this.ensureWalletTopupCredited(
+            topupPayment,
+            creditedPaymentIds,
+          );
+
+          this.logger.warn(
+            `Recovered missing wallet credit for completed topup ${topupPayment.id}`,
+          );
+        }
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Unknown wallet credit error';
+        this.logger.error(
+          `Failed to reconcile wallet topups for student ${studentId}: ${message}`,
+        );
+      }
+    }
+
+    return payments;
   }
 
   async findOne(id: string): Promise<Payment> {
