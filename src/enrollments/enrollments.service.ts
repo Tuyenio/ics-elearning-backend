@@ -10,7 +10,7 @@ import { Repository } from 'typeorm';
 import { Enrollment, EnrollmentStatus } from './entities/enrollment.entity';
 import { CreateEnrollmentDto } from './dto/create-enrollment.dto';
 import { UpdateEnrollmentDto } from './dto/update-enrollment.dto';
-import { User } from '../users/entities/user.entity';
+import { User, UserRole } from '../users/entities/user.entity';
 import { Course, CourseStatus } from '../courses/entities/course.entity';
 import { Lesson } from '../lessons/entities/lesson.entity';
 import { LessonProgress } from '../lesson-progress/entities/lesson-progress.entity';
@@ -224,6 +224,22 @@ export class EnrollmentsService {
 
     if (!enrollment) {
       throw new NotFoundException('Đăng ký khoá học không tìm thấy');
+    }
+
+    await this.enrollmentRepository.remove(enrollment);
+  }
+
+  async removeForUser(id: string, user: User): Promise<void> {
+    const enrollment = await this.enrollmentRepository.findOne({
+      where: { id },
+    });
+
+    if (!enrollment) {
+      throw new NotFoundException('Đăng ký khoá học không tìm thấy');
+    }
+
+    if (user.role !== UserRole.ADMIN && enrollment.studentId !== user.id) {
+      throw new ForbiddenException('Bạn không có quyền xóa đăng ký này');
     }
 
     await this.enrollmentRepository.remove(enrollment);
