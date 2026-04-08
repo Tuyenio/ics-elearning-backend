@@ -823,22 +823,26 @@ export class ExamsService {
     });
 
     if (inProgressAttempt) {
-      const completedAt = new Date();
+      const now = new Date();
       const elapsedSeconds = Math.floor(
-        (completedAt.getTime() - inProgressAttempt.startedAt.getTime()) / 1000,
+        (now.getTime() - inProgressAttempt.startedAt.getTime()) / 1000,
       );
       const maxDurationSeconds = Math.max(0, Number(exam.timeLimit || 0) * 60);
-      const normalizedTimeSpent = Math.max(0, elapsedSeconds);
-      const persistedTimeSpent =
-        maxDurationSeconds > 0
-          ? Math.min(normalizedTimeSpent, maxDurationSeconds)
-          : normalizedTimeSpent;
 
-      inProgressAttempt.status = AttemptStatus.TIMED_OUT;
-      inProgressAttempt.completedAt = completedAt;
-      inProgressAttempt.timeSpent = persistedTimeSpent;
-      await this.attemptRepository.save(inProgressAttempt);
+      if (maxDurationSeconds > 0 && elapsedSeconds >= maxDurationSeconds) {
+        const normalizedTimeSpent = Math.max(0, elapsedSeconds);
+        const persistedTimeSpent = Math.min(
+          normalizedTimeSpent,
+          maxDurationSeconds,
+        );
 
+        inProgressAttempt.status = AttemptStatus.TIMED_OUT;
+        inProgressAttempt.completedAt = now;
+        inProgressAttempt.timeSpent = persistedTimeSpent;
+        await this.attemptRepository.save(inProgressAttempt);
+      } else {
+        return inProgressAttempt;
+      }
     }
 
     const attemptCount = await this.attemptRepository.count({

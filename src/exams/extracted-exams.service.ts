@@ -686,16 +686,27 @@ export class ExtractedExamsService {
     });
 
     if (pendingAttempt) {
-      const completedAt = new Date();
-      const persistedTimeSpent = this.resolveAttemptTimeSpentSeconds({
-        startedAt: pendingAttempt.createdAt,
-        endedAt: completedAt,
-        timeLimitMinutes: Number(exam.timeLimit || 0),
-      });
+      const now = new Date();
+      const timeLimitMinutes = Number(exam.timeLimit || 0);
+      const maxDurationSeconds = Math.max(0, Math.floor(timeLimitMinutes * 60));
+      const elapsedSeconds = Math.max(
+        0,
+        Math.floor((now.getTime() - pendingAttempt.createdAt.getTime()) / 1000),
+      );
 
-      pendingAttempt.submittedAt = completedAt;
-      pendingAttempt.timeSpent = persistedTimeSpent;
-      await this.extractedExamAttemptRepo.save(pendingAttempt);
+      if (maxDurationSeconds > 0 && elapsedSeconds >= maxDurationSeconds) {
+        const persistedTimeSpent = this.resolveAttemptTimeSpentSeconds({
+          startedAt: pendingAttempt.createdAt,
+          endedAt: now,
+          timeLimitMinutes,
+        });
+
+        pendingAttempt.submittedAt = now;
+        pendingAttempt.timeSpent = persistedTimeSpent;
+        await this.extractedExamAttemptRepo.save(pendingAttempt);
+      } else {
+        return { id: pendingAttempt.id, startedAt: pendingAttempt.createdAt };
+      }
     }
 
     const attemptCount = await this.extractedExamAttemptRepo.count({
