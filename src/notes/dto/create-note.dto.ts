@@ -42,6 +42,10 @@ class NoteScheduleDto {
 }
 
 export class CreateNoteDto {
+  @IsString()
+  @IsOptional()
+  title?: string;
+
   @IsUUID('all')
   @IsOptional()
   courseId?: string;
@@ -62,6 +66,11 @@ export class CreateNoteDto {
   @IsEnum(['general', 'deadline', 'checklist', 'plan'])
   @IsOptional()
   type?: 'general' | 'deadline' | 'checklist' | 'plan';
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  tags?: string[];
 
   @IsArray()
   @ValidateNested({ each: true })

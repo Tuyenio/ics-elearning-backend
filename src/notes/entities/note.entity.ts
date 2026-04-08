@@ -108,10 +108,16 @@ export class Note {
   type: 'general' | 'deadline' | 'checklist' | 'plan';
 
   @Column({ type: 'text', nullable: true })
+  title: string;
+
+  @Column({ type: 'text', nullable: true })
   content: string;
 
   @Column({ type: 'int', default: 0 })
   timestamp: number; // Video timestamp in seconds
+
+  @Column({ type: 'text', array: true, nullable: true })
+  tags: string[];
 
   @Column({
     type: 'json',

@@ -80,13 +80,26 @@ export class NotesService {
       throw new Error('Student ID is required');
     }
 
+    const trimmedTitle = typeof createNoteDto.title === 'string'
+      ? createNoteDto.title.trim()
+      : '';
+    const contentTitle = typeof createNoteDto.content === 'string'
+      ? createNoteDto.content.split('\n')[0]?.trim()
+      : '';
+    const normalizedTitle = trimmedTitle || contentTitle || null;
+    const normalizedTags = Array.isArray(createNoteDto.tags)
+      ? createNoteDto.tags.map((tag) => String(tag).trim()).filter(Boolean)
+      : null;
+
     const note = new Note();
     Object.assign(note, {
+      title: normalizedTitle,
       content: createNoteDto.content ?? null,
       timestamp: createNoteDto.timestamp ?? 0,
       type: createNoteDto.type ?? 'general',
       items: createNoteDto.items ?? null,
       schedule: createNoteDto.schedule ?? null,
+      tags: normalizedTags,
       studentId: student.id,
       courseId: createNoteDto.courseId ?? null,
       lessonId: createNoteDto.lessonId ?? null,
@@ -141,6 +154,16 @@ export class NotesService {
     user: User,
   ): Promise<Note> {
     const note = await this.findOne(id, user.id);
+
+    if (typeof updateNoteDto.title === 'string') {
+      updateNoteDto.title = updateNoteDto.title.trim();
+    }
+
+    if (Array.isArray(updateNoteDto.tags)) {
+      updateNoteDto.tags = updateNoteDto.tags
+        .map((tag) => String(tag).trim())
+        .filter(Boolean);
+    }
 
     Object.assign(note, updateNoteDto);
     return this.noteRepository.save(note);

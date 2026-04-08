@@ -232,18 +232,7 @@ export class QuizzesService {
       throw new NotFoundException('Bài kiểm tra không tìm thấy');
     }
 
-    // Check previous attempts
-    const previousAttempts = await this.attemptRepository.count({
-      where: {
-        quizId,
-        studentId: student.id,
-        status: AttemptStatus.COMPLETED,
-      },
-    });
-
-    if (previousAttempts >= quiz.maxAttempts) {
-      throw new BadRequestException('Đã hết số lần thử');
-    }
+    // Allow unlimited attempts.
 
     const attempt = this.attemptRepository.create({
       quizId,
