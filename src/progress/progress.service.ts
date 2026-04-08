@@ -29,6 +29,19 @@ export class ProgressService {
     private readonly lessonRepo: Repository<Lesson>,
   ) {}
 
+  private resolveProgressSeconds(progress: LessonProgress): number {
+    const lessonDuration = Number(progress.lesson?.duration || 0);
+    const lastPosition = Number(progress.lastPosition || 0);
+
+    if (progress.completedAt) {
+      if (lessonDuration > 0) return lessonDuration;
+      return Math.max(0, lastPosition);
+    }
+
+    if (lastPosition > 0) return Math.min(lastPosition, lessonDuration || lastPosition);
+    return 0;
+  }
+
   async getOverview(studentId: string): Promise<ProgressOverview> {
     const enrollments = await this.enrollmentRepo.find({
       where: { studentId },
@@ -50,6 +63,7 @@ export class ProgressService {
     const lessonProgress = await this.lessonProgressRepo
       .createQueryBuilder('progress')
       .innerJoin('progress.enrollment', 'enrollment')
+      .leftJoinAndSelect('progress.lesson', 'lesson')
       .where('enrollment.studentId = :studentId', { studentId })
       .orderBy('progress.completedAt', 'DESC')
       .getMany();
@@ -58,7 +72,11 @@ export class ProgressService {
       this.calculateStreaks(lessonProgress);
 
     // Total learning time (placeholder - would need time tracking)
-    const totalLearningTime = lessonProgress.length * 0.5; // Estimate 30 min per lesson
+    const totalLearningSeconds = lessonProgress.reduce(
+      (sum, entry) => sum + this.resolveProgressSeconds(entry),
+      0,
+    );
+    const totalLearningTime = totalLearningSeconds / 3600;
 
     return {
       totalCoursesEnrolled,
@@ -137,13 +155,18 @@ export class ProgressService {
     const weekProgress = await this.lessonProgressRepo
       .createQueryBuilder('progress')
       .innerJoin('progress.enrollment', 'enrollment')
+      .leftJoinAndSelect('progress.lesson', 'lesson')
       .where('enrollment.studentId = :studentId', { studentId })
       .andWhere('progress.completedAt > :weekStart', { weekStart })
       .orderBy('progress.completedAt', 'ASC')
       .getMany();
 
     const lessonsCompleted = weekProgress.length;
-    const timeSpent = lessonsCompleted * 0.5; // Estimate
+    const timeSpentSeconds = weekProgress.reduce(
+      (sum, entry) => sum + this.resolveProgressSeconds(entry),
+      0,
+    );
+    const timeSpent = timeSpentSeconds / 3600;
 
     // Active courses
     const courseIds = new Set(
@@ -162,10 +185,15 @@ export class ProgressService {
         return pDate === dateStr;
       });
 
+      const daySeconds = dayProgress.reduce(
+        (sum, entry) => sum + this.resolveProgressSeconds(entry),
+        0,
+      );
+
       dailyActivity.push({
         date: dateStr,
         lessonsCompleted: dayProgress.length,
-        timeSpent: dayProgress.length * 0.5,
+        timeSpent: Math.round((daySeconds / 3600) * 10) / 10,
         active: dayProgress.length > 0,
       });
     }
@@ -233,6 +261,11 @@ export class ProgressService {
         new Date(a.updatedAt || 0).getTime(),
     )[0];
 
+    const totalSeconds = completedProgress.reduce(
+      (sum, entry) => sum + this.resolveProgressSeconds(entry),
+      0,
+    );
+
     return {
       courseId: enrollment.course.id,
       courseTitle: enrollment.course.title,
@@ -242,7 +275,7 @@ export class ProgressService {
       completedLessons,
       progressPercentage: Math.round(progressPercentage * 10) / 10,
       lastAccessedAt: lastProgress?.updatedAt || enrollment.createdAt,
-      timeSpent: completedLessons * 0.5,
+      timeSpent: Math.round((totalSeconds / 3600) * 10) / 10,
       quizzesTaken: 0, // Placeholder
       averageQuizScore: 0, // Placeholder
       nextLesson: nextLesson

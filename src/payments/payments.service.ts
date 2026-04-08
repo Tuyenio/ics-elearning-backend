@@ -7,7 +7,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import {
   Payment,
   PaymentStatus,
@@ -22,6 +22,7 @@ import { Lesson } from '../lessons/entities/lesson.entity';
 import { LessonProgress } from '../lesson-progress/entities/lesson-progress.entity';
 import { CouponsService } from '../coupons/coupons.service';
 import { WalletService } from '../wallet/wallet.service';
+import { CreateSepayCartPaymentDto } from './dto/create-sepay-cart-payment.dto';
 import { CreateSepayCoursePaymentDto } from './dto/create-sepay-course-payment.dto';
 import { CreateWalletTopupDto } from './dto/create-wallet-topup.dto';
 import { SepayWebhookDto } from './dto/sepay-webhook.dto';
@@ -63,6 +64,22 @@ type PdfDocumentLike = {
 };
 
 type RevenueRow = { total: string | null };
+
+type SepayWebhookDebugOptions = {
+  paymentId?: string;
+  transactionCode?: string;
+  forcePending?: boolean;
+  resetExpiry?: boolean;
+  processWebhook?: boolean;
+  webhookOverrides?: {
+    id?: string;
+    transferType?: 'in' | 'out';
+    transferAmount?: number;
+    content?: string;
+    transactionDate?: string;
+    accountNumber?: string;
+  };
+};
 
 @Injectable()
 export class PaymentsService {
@@ -155,7 +172,7 @@ export class PaymentsService {
       'wallet_topup',
       {
         paymentId: payment.id,
-        description: 'Nap tien vao vi qua SePay',
+        description: 'Nạp tiền vào ví qua SePay',
       },
     );
 
@@ -177,7 +194,7 @@ export class PaymentsService {
     return (
       process.env.SEPAY_BANK_ACCOUNT_NUMBER ||
       process.env.BANK_ACCOUNT_NUMBER ||
-      '8820162447'
+      '9624723T11'
     );
   }
 
@@ -324,7 +341,7 @@ export class PaymentsService {
     const savedPayment = await this.paymentRepository.save(payment);
 
     if (savedPayment.status === PaymentStatus.COMPLETED) {
-      await this.createEnrollmentForPayment(savedPayment);
+      await this.createEnrollmentsForPayment(savedPayment);
     }
 
     return savedPayment;
@@ -354,7 +371,7 @@ export class PaymentsService {
     });
 
     if (existingEnrollment) {
-      throw new ConflictException('Da dang ky khoa hoc nay roi');
+      throw new ConflictException('Đã đăng ký khóa học này rồi');
     }
 
     const { amount, discountAmount, finalAmount, couponCode } =
@@ -386,7 +403,142 @@ export class PaymentsService {
     const savedPayment = await this.paymentRepository.save(payment);
 
     if (savedPayment.status === PaymentStatus.COMPLETED) {
-      await this.createEnrollmentForPayment(savedPayment);
+      await this.createEnrollmentsForPayment(savedPayment);
+      return {
+        payment: savedPayment,
+        checkout: null,
+      };
+    }
+
+    return {
+      payment: savedPayment,
+      checkout: {
+        transactionCode,
+        expiresAt,
+        bankName: this.getSepayBankName(),
+        accountNumber: this.getSepayAccountNumber(),
+        qrImageUrl: this.buildSepayQrUrl(finalAmount, transactionCode),
+      },
+    };
+  }
+
+  async createSepayCartPayment(dto: CreateSepayCartPaymentDto, student: User) {
+    const uniqueCourseIds = Array.from(
+      new Set((dto.courseIds || []).map((id) => String(id || '').trim())),
+    ).filter(Boolean);
+
+    if (uniqueCourseIds.length === 0) {
+      throw new BadRequestException('Danh sach khoa hoc khong hop le');
+    }
+
+    if (uniqueCourseIds.length === 1) {
+      return this.createSepayCoursePayment(
+        {
+          courseId: uniqueCourseIds[0],
+          couponCode: dto.couponCode,
+        },
+        student,
+      );
+    }
+
+    if (dto.couponCode?.trim()) {
+      throw new BadRequestException(
+        'Thanh toan nhieu khoa hoc hien chua ho tro ma giam gia',
+      );
+    }
+
+    const courses = await this.courseRepository.find({
+      where: { id: In(uniqueCourseIds) },
+    });
+
+    if (courses.length !== uniqueCourseIds.length) {
+      throw new NotFoundException('Co khoa hoc khong ton tai trong gio hang');
+    }
+
+    const courseMap = new Map(courses.map((course) => [course.id, course]));
+    const orderedCourses = uniqueCourseIds.map((courseId) =>
+      courseMap.get(courseId),
+    );
+
+    if (orderedCourses.some((course) => !course)) {
+      throw new NotFoundException('Co khoa hoc khong ton tai trong gio hang');
+    }
+
+    for (const course of orderedCourses as Course[]) {
+      if (course.status !== CourseStatus.PUBLISHED) {
+        throw new BadRequestException(
+          `Khoa hoc ${course.title || course.id} khong kha dung`,
+        );
+      }
+    }
+
+    const enrolled = await this.enrollmentRepository.find({
+      where: {
+        studentId: student.id,
+        courseId: In(uniqueCourseIds),
+      },
+      select: ['courseId'],
+    });
+
+    if (enrolled.length > 0) {
+      throw new ConflictException('Đã đăng ký một số khóa học trong danh sách');
+    }
+
+    const resolvedPrices = await Promise.all(
+      (orderedCourses as Course[]).map((course) =>
+        this.resolveCoursePrice(course),
+      ),
+    );
+
+    const amount = this.normalizeAmount(
+      resolvedPrices.reduce((sum, item) => sum + Number(item.amount || 0), 0),
+    );
+    const discountAmount = this.normalizeAmount(
+      resolvedPrices.reduce(
+        (sum, item) => sum + Number(item.discountAmount || 0),
+        0,
+      ),
+    );
+    const finalAmount = this.normalizeAmount(
+      resolvedPrices.reduce(
+        (sum, item) => sum + Number(item.finalAmount || 0),
+        0,
+      ),
+    );
+
+    const transactionCode = this.generateTransactionCode('CRS');
+    const expiresAt = new Date(Date.now() + PaymentsService.PAYMENT_EXPIRE_MS);
+
+    const payment = this.paymentRepository.create({
+      transactionId: this.generateTransactionId(),
+      transactionCode,
+      studentId: student.id,
+      courseId: uniqueCourseIds[0],
+      paymentType: PaymentType.COURSE_ENROLLMENT,
+      amount,
+      discountAmount,
+      finalAmount,
+      currency: 'VND',
+      paymentMethod: PaymentMethod.SEPAY_QR,
+      status:
+        finalAmount === 0 ? PaymentStatus.COMPLETED : PaymentStatus.PENDING,
+      ...(finalAmount === 0 ? { paidAt: new Date() } : { expiresAt }),
+      metadata: {
+        source: 'multi_course_checkout',
+        courseIds: uniqueCourseIds,
+        lineItems: resolvedPrices.map((item, index) => ({
+          courseId: uniqueCourseIds[index],
+          amount: item.amount,
+          discountAmount: item.discountAmount,
+          finalAmount: item.finalAmount,
+        })),
+      },
+    });
+
+    const savedPayment = await this.paymentRepository.save(payment);
+
+    if (savedPayment.status === PaymentStatus.COMPLETED) {
+      await this.createEnrollmentsForPayment(savedPayment);
       return {
         payment: savedPayment,
         checkout: null,
@@ -462,7 +614,7 @@ export class PaymentsService {
     });
 
     if (existingEnrollment) {
-      throw new ConflictException('Da dang ky khoa hoc nay roi');
+      throw new ConflictException('Đã đăng ký khóa học này rồi');
     }
 
     const { amount, discountAmount, finalAmount, couponCode } =
@@ -501,7 +653,7 @@ export class PaymentsService {
       savedPayment.status = PaymentStatus.COMPLETED;
       savedPayment.paidAt = new Date();
       const completedPayment = await this.paymentRepository.save(savedPayment);
-      await this.createEnrollmentForPayment(completedPayment);
+      await this.createEnrollmentsForPayment(completedPayment);
       return completedPayment;
     } catch (error) {
       savedPayment.status = PaymentStatus.FAILED;
@@ -679,14 +831,186 @@ export class PaymentsService {
     payment.status = PaymentStatus.COMPLETED;
     const savedPayment = await this.paymentRepository.save(payment);
 
-    if (savedPayment.paymentType === PaymentType.COURSE_ENROLLMENT) {
-      await this.createEnrollmentForPayment(savedPayment);
-    }
+    await this.createEnrollmentsForPayment(savedPayment);
 
     return {
       success: true,
       message: 'Payment processed',
       paymentId: savedPayment.id,
+    };
+  }
+
+  async debugSepayWebhookForOrder(options: SepayWebhookDebugOptions): Promise<{
+    success: boolean;
+    target: Record<string, unknown>;
+    webhook: SepayWebhookDto;
+    diagnosis: Record<string, unknown>;
+    webhookResult: {
+      success: boolean;
+      message: string;
+      paymentId?: string;
+    } | null;
+    before: Record<string, unknown>;
+    after: Record<string, unknown> | null;
+  }> {
+    if (!options.paymentId && !options.transactionCode) {
+      throw new BadRequestException('Can cung cap paymentId hoac transactionCode');
+    }
+
+    const targetPayment = await this.paymentRepository.findOne({
+      where: options.paymentId
+        ? { id: options.paymentId }
+        : { transactionCode: options.transactionCode || '' },
+    });
+
+    if (!targetPayment) {
+      throw new NotFoundException('Khong tim thay giao dich SePay can debug');
+    }
+
+    if (targetPayment.paymentMethod !== PaymentMethod.SEPAY_QR) {
+      throw new BadRequestException('Giao dich nay khong phai SePay QR');
+    }
+
+    if (options.forcePending) {
+      targetPayment.status = PaymentStatus.PENDING;
+      targetPayment.paidAt = null;
+      targetPayment.webhookProcessedAt = null;
+      targetPayment.failureReason = null;
+
+      if (options.resetExpiry !== false) {
+        targetPayment.expiresAt = new Date(
+          Date.now() + PaymentsService.PAYMENT_EXPIRE_MS,
+        );
+      }
+
+      await this.paymentRepository.save(targetPayment);
+    }
+
+    const before = await this.paymentRepository.findOne({
+      where: { id: targetPayment.id },
+    });
+
+    if (!before) {
+      throw new NotFoundException('Khong tim thay giao dich truoc khi debug');
+    }
+
+    const expectedAmount = this.normalizeAmount(
+      Number(before.finalAmount || before.amount || 0),
+    );
+
+    const webhookData: SepayWebhookDto = {
+      id: options.webhookOverrides?.id || `TEST-${Date.now()}`,
+      transferType: options.webhookOverrides?.transferType || 'in',
+      transferAmount:
+        options.webhookOverrides?.transferAmount ?? expectedAmount,
+      content:
+        options.webhookOverrides?.content || before.transactionCode || undefined,
+      transactionDate:
+        options.webhookOverrides?.transactionDate || new Date().toISOString(),
+      accountNumber:
+        options.webhookOverrides?.accountNumber || this.getSepayAccountNumber(),
+    };
+
+    const normalizedAmount = this.normalizeAmount(webhookData.transferAmount);
+    const extractedTransferCode = this.resolveTransferCode(webhookData.content);
+
+    const matchedByCode = extractedTransferCode
+      ? await this.paymentRepository.findOne({
+          where: {
+            transactionCode: extractedTransferCode,
+            paymentMethod: PaymentMethod.SEPAY_QR,
+          },
+        })
+      : null;
+
+    const validFrom = new Date(Date.now() - PaymentsService.PAYMENT_EXPIRE_MS);
+    const fallbackMatchedByAmount = await this.paymentRepository
+      .createQueryBuilder('payment')
+      .where('payment.status = :status', { status: PaymentStatus.PENDING })
+      .andWhere('payment.paymentMethod = :method', {
+        method: PaymentMethod.SEPAY_QR,
+      })
+      .andWhere('(payment.finalAmount = :amount OR payment.amount = :amount)', {
+        amount: normalizedAmount,
+      })
+      .andWhere('payment.createdAt >= :validFrom', { validFrom })
+      .orderBy('payment.createdAt', 'DESC')
+      .getOne();
+
+    const diagnosis = {
+      extractedTransferCode,
+      normalizedAmount,
+      targetPaymentId: before.id,
+      targetTransactionCode: before.transactionCode,
+      targetStatus: before.status,
+      targetExpectedAmount: expectedAmount,
+      targetAmountMatch: Math.abs(expectedAmount - normalizedAmount) <= 0.01,
+      targetTransferCodeMatch:
+        !!extractedTransferCode && extractedTransferCode === before.transactionCode,
+      targetExpiredByTime: this.isPendingPaymentExpired(before),
+      matchedByCodePaymentId: matchedByCode?.id || null,
+      matchedByCodeStatus: matchedByCode?.status || null,
+      matchedByAmountPaymentId: fallbackMatchedByAmount?.id || null,
+      matchedByAmountStatus: fallbackMatchedByAmount?.status || null,
+      matchedByAmountTransactionCode:
+        fallbackMatchedByAmount?.transactionCode || null,
+      canBeProcessedNow:
+        webhookData.transferType === 'in' &&
+        normalizedAmount > 0 &&
+        before.status === PaymentStatus.PENDING &&
+        !this.isPendingPaymentExpired(before) &&
+        Math.abs(expectedAmount - normalizedAmount) <= 0.01,
+    };
+
+    let webhookResult: {
+      success: boolean;
+      message: string;
+      paymentId?: string;
+    } | null = null;
+
+    if (options.processWebhook !== false) {
+      webhookResult = await this.handleSepayWebhook(webhookData);
+    }
+
+    const after = webhookResult
+      ? await this.paymentRepository.findOne({ where: { id: before.id } })
+      : null;
+
+    return {
+      success: webhookResult?.success ?? true,
+      target: {
+        paymentId: before.id,
+        transactionCode: before.transactionCode,
+      },
+      webhook: webhookData,
+      diagnosis,
+      webhookResult,
+      before: {
+        status: before.status,
+        paymentType: before.paymentType,
+        paymentMethod: before.paymentMethod,
+        amount: before.amount,
+        finalAmount: before.finalAmount,
+        createdAt: before.createdAt,
+        expiresAt: before.expiresAt,
+        paidAt: before.paidAt,
+        webhookProcessedAt: before.webhookProcessedAt,
+      },
+      after: after
+        ? {
+            status: after.status,
+            paymentType: after.paymentType,
+            paymentMethod: after.paymentMethod,
+            amount: after.amount,
+            finalAmount: after.finalAmount,
+            createdAt: after.createdAt,
+            expiresAt: after.expiresAt,
+            paidAt: after.paidAt,
+            webhookProcessedAt: after.webhookProcessedAt,
+            sepayTransactionId: after.sepayTransactionId,
+            gatewayTransactionId: after.gatewayTransactionId,
+          }
+        : null,
     };
   }
 
@@ -713,7 +1037,7 @@ export class PaymentsService {
 
       if (payment.paymentType === PaymentType.COURSE_ENROLLMENT) {
         // Create enrollment after successful course payment
-        await this.createEnrollmentForPayment(payment);
+        await this.createEnrollmentsForPayment(payment);
       } else if (payment.paymentType === PaymentType.WALLET_TOPUP) {
         if (!payment.studentId) {
           throw new BadRequestException('Wallet topup payment missing user');
@@ -729,7 +1053,7 @@ export class PaymentsService {
           'wallet_topup',
           {
             paymentId: payment.id,
-            description: 'Nap tien vao vi duoc admin xac nhan',
+            description: 'Nạp tiền vào ví được admin xác nhận',
           },
         );
       }
@@ -779,7 +1103,7 @@ export class PaymentsService {
       }
 
       // Create enrollment after successful payment
-      await this.createEnrollmentForPayment(payment);
+      await this.createEnrollmentsForPayment(payment);
     } else {
       payment.status = PaymentStatus.FAILED;
     }
@@ -791,7 +1115,47 @@ export class PaymentsService {
     return this.paymentRepository.save(payment);
   }
 
-  private async createEnrollmentForPayment(payment: Payment): Promise<void> {
+  private getCourseIdsFromMetadata(metadata: unknown): string[] {
+    const sanitized = this.sanitizeMetadata(metadata);
+    const value = sanitized.courseIds;
+
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    return value
+      .map((item) => (typeof item === 'string' ? item.trim() : ''))
+      .filter(Boolean);
+  }
+
+  private async createEnrollmentsForPayment(payment: Payment): Promise<void> {
+    if (payment.paymentType !== PaymentType.COURSE_ENROLLMENT) {
+      return;
+    }
+
+    const courseIds = this.getCourseIdsFromMetadata(payment.metadata);
+    if (courseIds.length > 0) {
+      for (const courseId of courseIds) {
+        await this.createEnrollmentForPayment({
+          studentId: payment.studentId,
+          courseId,
+        });
+      }
+      return;
+    }
+
+    if (payment.courseId) {
+      await this.createEnrollmentForPayment(payment);
+    }
+  }
+
+  private async createEnrollmentForPayment(
+    payment: Pick<Payment, 'studentId' | 'courseId'>,
+  ): Promise<void> {
+    if (!payment.studentId || !payment.courseId) {
+      return;
+    }
+
     // ✅ Sử dụng transaction với pessimistic lock để tránh race condition
     try {
       await this.enrollmentRepository.manager.transaction(async (manager) => {

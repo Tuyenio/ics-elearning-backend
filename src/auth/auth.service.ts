@@ -111,7 +111,7 @@ export class AuthService {
       role: user.role,
     };
 
-    await this.usersService.updateLastLoginAt(user.id);
+    await this.usersService.updateLastLoginAt(user.id, new Date(), 'password');
 
     return {
       access_token: this.jwtService.sign(payload),
@@ -121,6 +121,11 @@ export class AuthService {
         name: user.name,
         role: user.role,
         avatar: user.avatar,
+        phone: user.phone ?? null,
+        address: user.address ?? null,
+        bio: user.bio ?? null,
+        dateOfBirth: user.dateOfBirth ?? null,
+        lastLoginAt: user.lastLoginAt ?? null,
         emailVerified: user.emailVerified,
         status: user.status,
       },

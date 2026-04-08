@@ -69,6 +69,7 @@ export class ExtractedExamsController {
     body: {
       variantCode: number | undefined;
       answers: Array<{ questionId: string; answer: string | string[] }>;
+      timeSpent?: number;
     },
     @GetUser() user: AuthenticatedRequestUser,
   ) {
@@ -77,7 +78,18 @@ export class ExtractedExamsController {
       user.id,
       body?.answers || [],
       body?.variantCode,
+      body?.timeSpent,
     );
+  }
+
+  @Post(':id/start')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.STUDENT)
+  startForStudent(
+    @Param('id') id: string,
+    @GetUser() user: AuthenticatedRequestUser,
+  ) {
+    return this.service.startForStudent(id, user.id);
   }
 
   @Get('my')

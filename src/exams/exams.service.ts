@@ -816,8 +816,31 @@ export class ExamsService {
       throw new BadRequestException('Đã hết thời gian làm bài thi');
     }
 
+    const inProgressAttempt = await this.attemptRepository.findOne({
+      where: { examId, studentId, status: AttemptStatus.IN_PROGRESS },
+    });
+
+    if (inProgressAttempt) {
+      const completedAt = new Date();
+      const elapsedSeconds = Math.floor(
+        (completedAt.getTime() - inProgressAttempt.startedAt.getTime()) / 1000,
+      );
+      const maxDurationSeconds = Math.max(0, Number(exam.timeLimit || 0) * 60);
+      const normalizedTimeSpent = Math.max(0, elapsedSeconds);
+      const persistedTimeSpent =
+        maxDurationSeconds > 0
+          ? Math.min(normalizedTimeSpent, maxDurationSeconds)
+          : normalizedTimeSpent;
+
+      inProgressAttempt.status = AttemptStatus.TIMED_OUT;
+      inProgressAttempt.completedAt = completedAt;
+      inProgressAttempt.timeSpent = persistedTimeSpent;
+      await this.attemptRepository.save(inProgressAttempt);
+
+    }
+
     const attemptCount = await this.attemptRepository.count({
-      where: { examId, studentId, status: AttemptStatus.COMPLETED },
+      where: { examId, studentId },
     });
 
     if (attemptCount >= exam.maxAttempts) {
@@ -825,12 +848,6 @@ export class ExamsService {
         `Bạn đã sử dụng hết ${exam.maxAttempts} lần thi`,
       );
     }
-
-    const inProgressAttempt = await this.attemptRepository.findOne({
-      where: { examId, studentId, status: AttemptStatus.IN_PROGRESS },
-    });
-
-    if (inProgressAttempt) return inProgressAttempt;
 
     const questions = this.coerceQuestionsArray(exam.questions);
     const totalPoints = questions.reduce(

@@ -21,6 +21,7 @@ import {
   InstructorSubscription,
   InstructorSubscriptionStatus,
 } from './entities/instructor-subscription.entity';
+import { AdminAuditLog } from '../admin/entities/admin-audit-log.entity';
 import {
   InstructorSubscriptionPayment,
   InstructorSubscriptionPaymentStatus,
@@ -46,6 +47,8 @@ export class InstructorSubscriptionsService implements OnModuleInit {
     private readonly courseRepo: Repository<Course>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    @InjectRepository(AdminAuditLog)
+    private readonly auditLogRepo: Repository<AdminAuditLog>,
     private readonly walletService: WalletService,
   ) {}
 
@@ -71,9 +74,6 @@ export class InstructorSubscriptionsService implements OnModuleInit {
   }
 
   private async ensureDefaultPlans() {
-    const count = await this.planRepo.count();
-    if (count > 0) return;
-
     const defaults: Array<Partial<InstructorPlan>> = [
       {
         name: 'Free',
@@ -86,8 +86,8 @@ export class InstructorSubscriptionsService implements OnModuleInit {
         isActive: true,
       },
       {
-        name: 'Basic',
-        price: 9,
+        name: 'Pro',
+        price: 9000,
         durationMonths: 1,
         courseLimit: 20,
         storageLimitGb: 10,
@@ -96,8 +96,8 @@ export class InstructorSubscriptionsService implements OnModuleInit {
         isActive: true,
       },
       {
-        name: 'Pro',
-        price: 19,
+        name: 'Pro Plus',
+        price: 19000,
         durationMonths: 1,
         courseLimit: 50,
         storageLimitGb: 50,
@@ -107,7 +107,7 @@ export class InstructorSubscriptionsService implements OnModuleInit {
       },
       {
         name: 'Enterprise',
-        price: 49,
+        price: 49000,
         durationMonths: 1,
         courseLimit: 500,
         storageLimitGb: 500,
@@ -115,11 +115,39 @@ export class InstructorSubscriptionsService implements OnModuleInit {
         features: ['Quy mo lon', 'Ho tro uu tien'],
         isActive: true,
       },
+      {
+        name: 'Pro premium',
+        price: 99000,
+        durationMonths: 1,
+        courseLimit: 20,
+        storageLimitGb: 10,
+        studentsLimit: 120,
+        features: ['20 khoa hoc', '10GB storage', 'Uu tien ho tro'],
+        isActive: true,
+      },
     ];
 
-    await this.planRepo.save(
-      defaults.map((item) => this.planRepo.create(item)),
-    );
+    for (const defaultPlan of defaults) {
+      const existing = await this.planRepo
+        .createQueryBuilder('plan')
+        .where('LOWER(plan.name) = LOWER(:name)', { name: defaultPlan.name })
+        .getOne();
+
+      if (existing) {
+        const { name: _name, ...updateFields } = defaultPlan;
+        await this.planRepo.update(existing.id, updateFields);
+        continue;
+      }
+
+      await this.planRepo.save(this.planRepo.create(defaultPlan));
+    }
+
+    await this.planRepo
+      .createQueryBuilder()
+      .update(InstructorPlan)
+      .set({ isActive: false })
+      .where('LOWER(name) IN (:...legacyNames)', { legacyNames: ['basic'] })
+      .execute();
   }
 
   async getPublicPlans() {
@@ -166,20 +194,64 @@ export class InstructorSubscriptionsService implements OnModuleInit {
     return this.planRepo.save(plan);
   }
 
-  async removePlan(id: string) {
+  async removePlan(id: string, actor?: User) {
     const plan = await this.planRepo.findOne({ where: { id } });
     if (!plan) throw new NotFoundException('Khong tim thay goi');
+
+    const actorInfo = actor
+      ? `${actor.email} (${actor.id})`
+      : 'unknown-actor';
+    const nowIso = new Date().toISOString();
 
     const usedCount = await this.subscriptionRepo.count({
       where: { planId: id },
     });
-    if (usedCount > 0) {
+    const paymentCount = await this.paymentRepo.count({
+      where: { planId: id },
+    });
+    if (usedCount > 0 || paymentCount > 0) {
       plan.isActive = false;
       await this.planRepo.save(plan);
-      return { message: 'Goi da duoc khoa vi dang co nguoi su dung' };
+      await this.auditLogRepo.save(
+        this.auditLogRepo.create({
+          action: 'instructor_plan.deactivate',
+          entityType: 'instructor_plan',
+          entityId: plan.id,
+          actorId: actor?.id ?? null,
+          actorEmail: actor?.email ?? null,
+          metadata: {
+            name: plan.name,
+            usedCount,
+            paymentCount,
+            price: plan.price,
+            durationMonths: plan.durationMonths,
+          },
+        }),
+      );
+      this.logger.warn(
+        `[PLAN_DELETE] ${nowIso} admin=${actorInfo} action=deactivate plan=${plan.id} name=${plan.name} usedCount=${usedCount} paymentCount=${paymentCount}`,
+      );
+      return { message: 'Goi da duoc khoa vi con du lieu lien quan' };
     }
 
     await this.planRepo.delete(id);
+    await this.auditLogRepo.save(
+      this.auditLogRepo.create({
+        action: 'instructor_plan.delete',
+        entityType: 'instructor_plan',
+        entityId: plan.id,
+        actorId: actor?.id ?? null,
+        actorEmail: actor?.email ?? null,
+        metadata: {
+          name: plan.name,
+          price: plan.price,
+          durationMonths: plan.durationMonths,
+        },
+      }),
+    );
+    this.logger.log(
+      `[PLAN_DELETE] ${nowIso} admin=${actorInfo} action=delete plan=${plan.id} name=${plan.name}`,
+    );
     return { message: 'Da xoa goi' };
   }
 
@@ -557,7 +629,7 @@ export class InstructorSubscriptionsService implements OnModuleInit {
             'teacher_subscription_payment',
             {
               instructorSubscriptionPaymentId: payment.id,
-              description: `Thanh toan goi giang vien ${plan.name}`,
+              description: `Thanh toán gói giảng viên ${plan.name}`,
               metadata: {
                 planId: plan.id,
               },
@@ -833,7 +905,7 @@ export class InstructorSubscriptionsService implements OnModuleInit {
         planId: plan.id,
         subscriptionId: subscription.id,
         amount: Number(plan.price || 0),
-        currency: 'USD',
+        currency: 'VND',
         paymentMethod: dto.paymentMethod || 'manual',
         status: InstructorSubscriptionPaymentStatus.PAID,
         paidAt: new Date(),

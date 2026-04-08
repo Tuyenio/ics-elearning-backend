@@ -125,8 +125,8 @@ export class InstructorSubscriptionsController {
   @Delete('admin/plans/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  deletePlan(@Param('id') id: string) {
-    return this.service.removePlan(id);
+  deletePlan(@Param('id') id: string, @GetUser() user: User) {
+    return this.service.removePlan(id, user);
   }
 
   @Get('admin/subscriptions')

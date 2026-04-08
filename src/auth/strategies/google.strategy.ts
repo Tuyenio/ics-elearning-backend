@@ -134,6 +134,8 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
         }
       }
 
+      await this.usersService.updateLastLoginAt(user.id, new Date(), 'google');
+
       const userInfo = {
         id: user.id,
         email: user.email,
