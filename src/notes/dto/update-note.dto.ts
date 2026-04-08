@@ -42,6 +42,10 @@ class NoteScheduleDto {
 export class UpdateNoteDto {
   @IsString()
   @IsOptional()
+  title?: string;
+
+  @IsString()
+  @IsOptional()
   content?: string;
 
   @IsNumber()
@@ -52,6 +56,11 @@ export class UpdateNoteDto {
   @IsString()
   @IsOptional()
   type?: 'general' | 'deadline' | 'checklist' | 'plan';
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  tags?: string[];
 
   @IsArray()
   @ValidateNested({ each: true })
