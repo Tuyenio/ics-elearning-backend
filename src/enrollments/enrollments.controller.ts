@@ -92,8 +92,8 @@ export class EnrollmentsController {
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
-  remove(@Param('id') id: string) {
-    return this.enrollmentsService.remove(id);
+  @Roles(UserRole.ADMIN, UserRole.STUDENT)
+  remove(@Param('id') id: string, @GetUser() user: User) {
+    return this.enrollmentsService.removeForUser(id, user);
   }
 }

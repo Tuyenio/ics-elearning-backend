@@ -32,6 +32,7 @@ export class ProgressService {
   private resolveProgressSeconds(progress: LessonProgress): number {
     const lessonDuration = Number(progress.lesson?.duration || 0);
     const lastPosition = Number(progress.lastPosition || 0);
+    const progressPercent = Number(progress.progress || 0);
 
     if (progress.completedAt) {
       if (lessonDuration > 0) return lessonDuration;
@@ -39,6 +40,12 @@ export class ProgressService {
     }
 
     if (lastPosition > 0) return Math.min(lastPosition, lessonDuration || lastPosition);
+    if (lessonDuration > 0 && progressPercent > 0) {
+      return Math.min(
+        lessonDuration,
+        Math.round((lessonDuration * progressPercent) / 100),
+      );
+    }
     return 0;
   }
 
@@ -65,7 +72,7 @@ export class ProgressService {
       .innerJoin('progress.enrollment', 'enrollment')
       .leftJoinAndSelect('progress.lesson', 'lesson')
       .where('enrollment.studentId = :studentId', { studentId })
-      .orderBy('progress.completedAt', 'DESC')
+      .orderBy('progress.updatedAt', 'DESC')
       .getMany();
 
     const { currentStreak, longestStreak } =
@@ -99,7 +106,7 @@ export class ProgressService {
     }
 
     const dates = progressEntries
-      .map((p) => p.completedAt)
+      .map((p) => p.completedAt || p.updatedAt)
       .filter((d) => d)
       .map((d) => new Date(d).toISOString().split('T')[0])
       .filter((d, i, arr) => arr.indexOf(d) === i) // unique dates
@@ -157,11 +164,11 @@ export class ProgressService {
       .innerJoin('progress.enrollment', 'enrollment')
       .leftJoinAndSelect('progress.lesson', 'lesson')
       .where('enrollment.studentId = :studentId', { studentId })
-      .andWhere('progress.completedAt > :weekStart', { weekStart })
-      .orderBy('progress.completedAt', 'ASC')
+      .andWhere('progress.updatedAt > :weekStart', { weekStart })
+      .orderBy('progress.updatedAt', 'ASC')
       .getMany();
 
-    const lessonsCompleted = weekProgress.length;
+    const lessonsCompleted = weekProgress.filter((entry) => entry.completedAt).length;
     const timeSpentSeconds = weekProgress.reduce(
       (sum, entry) => sum + this.resolveProgressSeconds(entry),
       0,
@@ -181,7 +188,9 @@ export class ProgressService {
       const dateStr = date.toISOString().split('T')[0];
 
       const dayProgress = weekProgress.filter((p) => {
-        const pDate = new Date(p.completedAt).toISOString().split('T')[0];
+        const stamp = p.completedAt || p.updatedAt;
+        if (!stamp) return false;
+        const pDate = new Date(stamp).toISOString().split('T')[0];
         return pDate === dateStr;
       });
 
