@@ -198,6 +198,10 @@ export class InstructorSubscriptionsService implements OnModuleInit {
     const plan = await this.planRepo.findOne({ where: { id } });
     if (!plan) throw new NotFoundException('Khong tim thay goi');
 
+    if (String(plan.name || '').trim().toLowerCase() === 'free') {
+      throw new BadRequestException('Goi Free la goi mac dinh, khong the xoa');
+    }
+
     const actorInfo = actor
       ? `${actor.email} (${actor.id})`
       : 'unknown-actor';
@@ -989,6 +993,70 @@ export class InstructorSubscriptionsService implements OnModuleInit {
         };
       }),
     );
+  }
+
+  async updateAdminSubscription(
+    id: string,
+    payload: {
+      status?: string;
+      endDate?: string;
+      cancelReason?: string | null;
+    },
+    actor?: User,
+  ) {
+    const subscription = await this.subscriptionRepo.findOne({
+      where: { id },
+      relations: ['teacher', 'plan'],
+    });
+
+    if (!subscription) {
+      throw new NotFoundException('Khong tim thay subscription');
+    }
+
+    if (payload.status !== undefined) {
+      const nextStatus = String(payload.status || '').toLowerCase();
+      const validStatuses = Object.values(InstructorSubscriptionStatus);
+      if (!validStatuses.includes(nextStatus as InstructorSubscriptionStatus)) {
+        throw new BadRequestException('Trang thai subscription khong hop le');
+      }
+      subscription.status = nextStatus as InstructorSubscriptionStatus;
+    }
+
+    if (payload.endDate !== undefined) {
+      const parsed = new Date(payload.endDate);
+      if (Number.isNaN(parsed.getTime())) {
+        throw new BadRequestException('Ngay het han khong hop le');
+      }
+      subscription.endDate = parsed;
+    }
+
+    if (payload.cancelReason !== undefined) {
+      subscription.cancelReason = this.toNullableText(payload.cancelReason);
+    }
+
+    const saved = await this.subscriptionRepo.save(subscription);
+
+    await this.auditLogRepo.save(
+      this.auditLogRepo.create({
+        action: 'instructor_subscription.admin_update',
+        entityType: 'instructor_subscription',
+        entityId: saved.id,
+        actorId: actor?.id ?? null,
+        actorEmail: actor?.email ?? null,
+        metadata: {
+          teacherId: saved.teacherId,
+          planId: saved.planId,
+          status: saved.status,
+          endDate: saved.endDate,
+          cancelReason: saved.cancelReason,
+        },
+      }),
+    );
+
+    return this.subscriptionRepo.findOne({
+      where: { id: saved.id },
+      relations: ['teacher', 'plan'],
+    });
   }
 
   async getAdminPayments() {

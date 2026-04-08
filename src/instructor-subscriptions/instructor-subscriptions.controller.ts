@@ -136,6 +136,22 @@ export class InstructorSubscriptionsController {
     return this.service.getAdminSubscriptions();
   }
 
+  @Patch('admin/subscriptions/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  updateAdminSubscription(
+    @Param('id') id: string,
+    @Body()
+    body: {
+      status?: 'active' | 'pending' | 'cancelled' | 'expired';
+      endDate?: string;
+      cancelReason?: string | null;
+    },
+    @GetUser() user: User,
+  ) {
+    return this.service.updateAdminSubscription(id, body, user);
+  }
+
   @Get('admin/payments')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
