@@ -303,6 +303,7 @@ export class ExamsService {
       const hasRawQuestionContent = this.hasAnyQuestionContent(rawQuestions);
       const rawArray = this.coerceQuestionsArray(rawQuestions);
       const existingQuestions = this.coerceQuestionsArray(exam.questions);
+      const existingHasContent = this.hasAnyQuestionContent(exam.questions);
       const targetStatus =
         (metaFields.status as ExamStatus | undefined) || exam.status;
       let rawPreserved: any = rawQuestions;
@@ -314,12 +315,12 @@ export class ExamsService {
         }
       }
       let finalQuestions =
-        rawArray.length > 0
-          ? rawArray
-          : normalizedQuestions.length > 0
-            ? normalizedQuestions
-            : fallbackQuestions.length > 0
-              ? fallbackQuestions
+        normalizedQuestions.length > 0
+          ? normalizedQuestions
+          : fallbackQuestions.length > 0
+            ? fallbackQuestions
+            : rawArray.length > 0
+              ? rawArray
               : hasRawQuestionContent
                 ? rawPreserved && typeof rawPreserved === 'object'
                   ? rawPreserved
@@ -328,20 +329,38 @@ export class ExamsService {
 
       // Draft saves should preserve in-progress question editing data.
       if (targetStatus === ExamStatus.DRAFT) {
-        const draftPayload =
-          rawArray.length > 0
+        const parsedRawQuestions = Array.isArray(rawPreserved)
+          ? rawPreserved
+          : [];
+        const parsedCoercedQuestions =
+          rawArray.length > 0 && rawArray.every((item) => item && typeof item === 'object')
             ? rawArray
-            : rawPreserved && typeof rawPreserved === 'object'
-              ? rawPreserved
-              : finalQuestions;
+            : [];
+        const draftPayload =
+          normalizedQuestions.length > 0
+            ? normalizedQuestions
+            : fallbackQuestions.length > 0
+              ? fallbackQuestions
+              : parsedCoercedQuestions.length > 0
+                ? parsedCoercedQuestions
+                : parsedRawQuestions.length > 0
+                  ? parsedRawQuestions
+                  : finalQuestions;
         finalQuestions = draftPayload;
       } else if (targetStatus === ExamStatus.PENDING) {
         const prepared = this.prepareValidQuestionsForReview(finalQuestions);
-        if (prepared.validQuestions.length === 0) {
+        const hasLightweightValid = this.hasReviewableQuestionLightweight(
+          finalQuestions,
+        );
+        if (prepared.validQuestions.length === 0 && !hasLightweightValid) {
           throw new BadRequestException(
             'Không có câu hỏi hợp lệ để gửi duyệt. Vui lòng kiểm tra nội dung, đáp án và tùy chọn.',
           );
         }
+      }
+
+      if (!Array.isArray(finalQuestions)) {
+        finalQuestions = this.coerceQuestionsArray(finalQuestions);
       }
 
       // Guardrail: never wipe question bank on teacher edit when prior data exists.
@@ -358,13 +377,30 @@ export class ExamsService {
         );
         finalQuestions = existingQuestions;
       }
+
+      // Strong guardrail for legacy/non-array shapes: keep original DB payload if it still has content.
+      if (
+        Array.isArray(finalQuestions) &&
+        finalQuestions.length === 0 &&
+        existingHasContent
+      ) {
+        this.debugLog(
+          '[update] Prevented empty overwrite, preserving raw existing payload for exam',
+          id,
+        );
+        finalQuestions = Array.isArray(exam.questions)
+          ? exam.questions
+          : exam.questions && typeof exam.questions === 'object'
+            ? (exam.questions as any)
+            : this.coerceQuestionsArray(exam.questions);
+      }
       this.debugLog(
         '[update] Saving',
         normalizedQuestions.length,
         'normalized /',
         fallbackQuestions.length,
         'fallback /',
-        finalQuestions.length,
+        Array.isArray(finalQuestions) ? finalQuestions.length : 0,
         'final questions for exam',
         id,
       );
@@ -463,12 +499,12 @@ export class ExamsService {
         }
       }
       let finalQuestions =
-        rawArray.length > 0
-          ? rawArray
-          : normalizedQuestions.length > 0
-            ? normalizedQuestions
-            : fallbackQuestions.length > 0
-              ? fallbackQuestions
+        normalizedQuestions.length > 0
+          ? normalizedQuestions
+          : fallbackQuestions.length > 0
+            ? fallbackQuestions
+            : rawArray.length > 0
+              ? rawArray
               : hasRawQuestionContent
                 ? rawPreserved && typeof rawPreserved === 'object'
                   ? rawPreserved
@@ -476,20 +512,70 @@ export class ExamsService {
                 : [];
 
       if (targetStatus === ExamStatus.DRAFT) {
-        const draftPayload =
-          rawArray.length > 0
+        const parsedRawQuestions = Array.isArray(rawPreserved)
+          ? rawPreserved
+          : [];
+        const parsedCoercedQuestions =
+          rawArray.length > 0 && rawArray.every((item) => item && typeof item === 'object')
             ? rawArray
-            : rawPreserved && typeof rawPreserved === 'object'
-              ? rawPreserved
-              : finalQuestions;
+            : [];
+        const draftPayload =
+          normalizedQuestions.length > 0
+            ? normalizedQuestions
+            : fallbackQuestions.length > 0
+              ? fallbackQuestions
+              : parsedCoercedQuestions.length > 0
+                ? parsedCoercedQuestions
+                : parsedRawQuestions.length > 0
+                  ? parsedRawQuestions
+                  : finalQuestions;
         finalQuestions = draftPayload;
       } else if (targetStatus === ExamStatus.PENDING) {
         const prepared = this.prepareValidQuestionsForReview(finalQuestions);
-        if (prepared.validQuestions.length === 0) {
+        const hasLightweightValid = this.hasReviewableQuestionLightweight(
+          finalQuestions,
+        );
+        if (prepared.validQuestions.length === 0 && !hasLightweightValid) {
           throw new BadRequestException(
             'Không có câu hỏi hợp lệ để gửi duyệt. Vui lòng kiểm tra nội dung, đáp án và tùy chọn.',
           );
         }
+      }
+
+      if (!Array.isArray(finalQuestions)) {
+        finalQuestions = this.coerceQuestionsArray(finalQuestions);
+      }
+
+      const existingHasContent = this.hasAnyQuestionContent(exam.questions);
+      const existingQuestions = this.coerceQuestionsArray(exam.questions);
+      if (
+        Array.isArray(finalQuestions) &&
+        finalQuestions.length === 0 &&
+        existingQuestions.length > 0
+      ) {
+        this.debugLog(
+          '[updateAny] Prevented empty overwrite, preserving existing questions for exam',
+          id,
+          'existing=',
+          existingQuestions.length,
+        );
+        finalQuestions = existingQuestions;
+      }
+
+      if (
+        Array.isArray(finalQuestions) &&
+        finalQuestions.length === 0 &&
+        existingHasContent
+      ) {
+        this.debugLog(
+          '[updateAny] Prevented empty overwrite, preserving raw existing payload for exam',
+          id,
+        );
+        finalQuestions = Array.isArray(exam.questions)
+          ? exam.questions
+          : exam.questions && typeof exam.questions === 'object'
+            ? (exam.questions as any)
+            : this.coerceQuestionsArray(exam.questions);
       }
       this.debugLog(
         '[updateAny] raw type:',
@@ -499,7 +585,7 @@ export class ExamsService {
         'fallback:',
         fallbackQuestions.length,
         'final:',
-        finalQuestions.length,
+        Array.isArray(finalQuestions) ? finalQuestions.length : 0,
         'questions for exam',
         id,
       );
@@ -566,15 +652,31 @@ export class ExamsService {
       questionsArray.slice(0, 1),
     );
 
-    if (prepared.validQuestions.length === 0) {
+    const hasLightweightValid = this.hasReviewableQuestionLightweight(
+      questionsArray,
+    );
+    if (prepared.validQuestions.length === 0 && !hasLightweightValid) {
       throw new BadRequestException(
         'Bài thi chưa có câu hỏi hợp lệ để gửi duyệt',
       );
     }
 
-    exam.status = ExamStatus.PENDING;
-    exam.rejectionReason = null;
-    return await this.examRepository.save(exam);
+    // Update only status fields to avoid accidental question payload mutation.
+    await this.dataSource.query(
+      `UPDATE learning.exams
+       SET status = $1,
+           "rejectionReason" = NULL,
+           "updatedAt" = NOW()
+       WHERE id = $2 AND "teacherId" = $3`,
+      [ExamStatus.PENDING, id, teacherId],
+    );
+
+    const updated = await this.examRepository.findOne({
+      where: { id, teacherId },
+      relations: ['course', 'teacher'],
+    });
+    if (!updated) throw new NotFoundException('Không tìm thấy bài thi');
+    return updated;
   }
 
   async findMyExams(teacherId: string): Promise<Exam[]> {
@@ -1126,9 +1228,13 @@ export class ExamsService {
       return [data];
     }
 
-    // Fallback for object maps like { q1: {...}, q2: {...} }
+    // Fallback for object maps like { q1: {...}, q2: {...} }.
+    // Keep only object-like values to avoid exploding a single question object into scalar fields.
     const objectValues = Object.values(data).filter(
-      (item) => item !== undefined && item !== null,
+      (item) =>
+        item !== undefined &&
+        item !== null &&
+        (typeof item === 'object' || Array.isArray(item)),
     );
     if (objectValues.length > 0) {
       return objectValues;
@@ -1231,6 +1337,32 @@ export class ExamsService {
       validQuestions,
       invalidCount: Math.max(0, normalized.length - validQuestions.length),
     };
+  }
+
+  private hasReviewableQuestionLightweight(rawQuestions: any): boolean {
+    const questions = this.coerceQuestionsArray(rawQuestions);
+    if (!Array.isArray(questions) || questions.length === 0) return false;
+
+    return questions.some((q: any) => {
+      if (!q || typeof q !== 'object') return false;
+      const text = String(
+        q.question || q.questionText || q.text || q.content || q.prompt || q.stem || '',
+      ).trim();
+      const options = Array.isArray(q.options)
+        ? q.options
+        : Array.isArray(q.answers)
+          ? q.answers
+          : [];
+      const hasOption = options.some(
+        (item: any) => String(item || '').trim().length > 0,
+      );
+      const answer =
+        q.correctAnswer ?? q.correct_answer ?? q.answer ?? q.correct ?? q.correctAnswers;
+      const hasAnswer = Array.isArray(answer)
+        ? answer.some((item: any) => String(item || '').trim().length > 0)
+        : String(answer || '').trim().length > 0;
+      return text.length > 0 && (hasOption || hasAnswer);
+    });
   }
 
   private isQuestionValidForSubmission(question: any): boolean {
@@ -1424,6 +1556,11 @@ export class ExamsService {
         const token = String(value || '').trim();
         if (!token) return '';
 
+        const same = options.find(
+          (option) => option.toLowerCase() === token.toLowerCase(),
+        );
+        if (same) return same;
+
         const letterMatch = token.match(/^[A-F]$/i);
         if (letterMatch) {
           const idx = letterMatch[0].toUpperCase().charCodeAt(0) - 65;
@@ -1436,10 +1573,6 @@ export class ExamsService {
             return options[numeric - 1];
           if (numeric >= 0 && numeric < options.length) return options[numeric];
         }
-
-        const same = options.find(
-          (option) => option.toLowerCase() === token.toLowerCase(),
-        );
         return same || token;
       };
 
@@ -1541,10 +1674,44 @@ export class ExamsService {
     }
 
     if (Array.isArray(questionData)) {
-      this.debugLog(
-        `[normalizeSingleQuestion] index=${index}, input is array, calling parseFromArray`,
-      );
-      return parseFromArray(questionData);
+      const arrayLikeQuestion = questionData as any;
+      const keys = Object.keys(arrayLikeQuestion);
+      const nonNumericKeys = keys.filter((key) => !/^\d+$/.test(key));
+      const hasQuestionLikeProps = [
+        'id',
+        'type',
+        'questionType',
+        'question',
+        'questionText',
+        'text',
+        'content',
+        'prompt',
+        'stem',
+        'options',
+        'answers',
+        'correctAnswer',
+        'correct_answer',
+        'correctAnswers',
+        'answer',
+        'correct',
+        'points',
+        'score',
+        'mark',
+        'explanation',
+      ].some((key) => key in arrayLikeQuestion);
+
+      if (questionData.length === 0 && hasQuestionLikeProps && nonNumericKeys.length > 0) {
+        const reconstructed: Record<string, any> = {};
+        for (const key of nonNumericKeys) {
+          reconstructed[key] = arrayLikeQuestion[key];
+        }
+        questionData = reconstructed;
+      } else {
+        this.debugLog(
+          `[normalizeSingleQuestion] index=${index}, input is array, calling parseFromArray`,
+        );
+        return parseFromArray(questionData);
+      }
     }
 
     if (!questionData || typeof questionData !== 'object') {
@@ -1573,11 +1740,19 @@ export class ExamsService {
         ? questionData.options
             .map((option) => optionToText(option))
             .filter(Boolean)
-        : Array.isArray(questionData.answers)
-          ? questionData.answers
+        : questionData.options && typeof questionData.options === 'object'
+          ? Object.values(questionData.options)
               .map((option) => optionToText(option))
               .filter(Boolean)
-          : [];
+          : Array.isArray(questionData.answers)
+            ? questionData.answers
+                .map((option) => optionToText(option))
+                .filter(Boolean)
+            : questionData.answers && typeof questionData.answers === 'object'
+              ? Object.values(questionData.answers)
+                  .map((option) => optionToText(option))
+                  .filter(Boolean)
+              : [];
       const answerValue =
         questionData.correctAnswer ??
         questionData.answer ??
@@ -1617,12 +1792,20 @@ export class ExamsService {
 
     const options = Array.isArray(questionData.options)
       ? questionData.options
-          .map((option) => optionToText(option))
-          .filter(Boolean)
+        .map((option) => optionToText(option))
+        .filter(Boolean)
+      : questionData.options && typeof questionData.options === 'object'
+      ? Object.values(questionData.options)
+        .map((option) => optionToText(option))
+        .filter(Boolean)
       : Array.isArray(questionData.answers)
         ? questionData.answers
-            .map((option) => optionToText(option))
-            .filter(Boolean)
+          .map((option) => optionToText(option))
+          .filter(Boolean)
+        : questionData.answers && typeof questionData.answers === 'object'
+        ? Object.values(questionData.answers)
+          .map((option) => optionToText(option))
+          .filter(Boolean)
         : [];
 
     this.debugLog(
@@ -1652,7 +1835,8 @@ export class ExamsService {
       }
     }
 
-    const type = normalizeType(questionData.type || questionData.questionType);
+    const rawTypeText = asString(questionData.type || questionData.questionType);
+    const type = normalizeType(rawTypeText);
     const pointsValue = Number(
       questionData.points ?? questionData.score ?? questionData.mark,
     );
@@ -1663,11 +1847,17 @@ export class ExamsService {
 
     const correctAnswer =
       questionData.correctAnswer ??
+      questionData.correct_answer ??
+      questionData.correctAnswers ??
       questionData.answer ??
       questionData.correct ??
       '';
 
-    const normalizedType = effectiveOptions.length >= 2 ? type : 'fill_in';
+    const normalizedType = rawTypeText
+      ? type
+      : effectiveOptions.length >= 2
+        ? 'multiple_choice'
+        : 'fill_in';
     const finalOptions =
       normalizedType === 'multiple_choice'
         ? normalizeOptions(effectiveOptions)
