@@ -19,15 +19,15 @@ export class AdminAuditLog {
   @Index()
   entityType: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   @Index()
   entityId?: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   @Index()
   actorId?: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   actorEmail?: string | null;
 
   @Column({ type: 'jsonb', nullable: true })
