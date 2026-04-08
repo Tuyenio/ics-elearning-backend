@@ -228,7 +228,7 @@ export class ProgressService {
       relations: ['course', 'course.teacher'],
     });
 
-    if (!enrollment) {
+    if (!enrollment || !enrollment.course) {
       return null;
     }
 
@@ -254,12 +254,17 @@ export class ProgressService {
       .filter((p) => p.completedAt)
       .map((p) => p.lessonId);
 
-    const nextLesson = await this.lessonRepo
+    const nextLessonQuery = this.lessonRepo
       .createQueryBuilder('lesson')
-      .where('lesson.courseId = :courseId', { courseId })
-      .andWhere('lesson.id NOT IN (:...completedIds)', {
-        completedIds: completedLessonIds.length > 0 ? completedLessonIds : [''],
-      })
+      .where('lesson.courseId = :courseId', { courseId });
+
+    if (completedLessonIds.length > 0) {
+      nextLessonQuery.andWhere('lesson.id NOT IN (:...completedIds)', {
+        completedIds: completedLessonIds,
+      });
+    }
+
+    const nextLesson = await nextLessonQuery
       .orderBy('lesson.order', 'ASC')
       .getOne();
 
@@ -279,7 +284,7 @@ export class ProgressService {
       courseId: enrollment.course.id,
       courseTitle: enrollment.course.title,
       courseThumbnail: enrollment.course.thumbnail,
-      teacherName: enrollment.course.teacher.name,
+      teacherName: enrollment.course.teacher?.name || '',
       totalLessons,
       completedLessons,
       progressPercentage: Math.round(progressPercentage * 10) / 10,
@@ -303,9 +308,9 @@ export class ProgressService {
       relations: ['course', 'course.teacher'],
     });
 
-    const progressPromises = enrollments.map((e) =>
-      this.getCourseProgress(studentId, e.courseId),
-    );
+    const progressPromises = enrollments
+      .filter((e) => e?.course)
+      .map((e) => this.getCourseProgress(studentId, e.courseId));
 
     const results = await Promise.all(progressPromises);
     return results.filter((r) => r !== null);
