@@ -25,6 +25,7 @@ import { Course } from '../courses/entities/course.entity';
 import { UserRole } from '../users/entities/user.entity';
 import { ExtractedExamAttempt } from './entities/extracted-exam-attempt.entity';
 import { CertificatesService } from '../certificates/certificates.service';
+import { CoursesService } from '../courses/courses.service';
 
 type StudentAnswerPayload = { questionId: string; answer: string | string[] };
 
@@ -66,6 +67,7 @@ export class ExtractedExamsService {
     @InjectRepository(Course)
     private readonly courseRepo: Repository<Course>,
     private readonly certificatesService: CertificatesService,
+    private readonly coursesService: CoursesService,
   ) {}
 
   private async ensureCertificateForOfficialExtractedPass(
@@ -97,6 +99,17 @@ export class ExtractedExamsService {
       },
     );
 
+    try {
+      await this.coursesService.archivePublishedLineageVersionsWithoutUnfinishedLearners(
+        exam.courseId,
+      );
+    } catch (archiveError) {
+      console.warn(
+        `[ExtractedCertificate] Unable to re-evaluate lineage archival for course ${exam.courseId}:`,
+        archiveError instanceof Error ? archiveError.message : archiveError,
+      );
+    }
+
     return certificate.id;
   }
 
@@ -107,6 +120,41 @@ export class ExtractedExamsService {
       [a[i], a[j]] = [a[j], a[i]];
     }
     return a;
+  }
+
+  private resolveAttemptTimeSpentSeconds(params: {
+    providedTimeSpentSeconds?: number;
+    startedAt?: Date | null;
+    endedAt?: Date | null;
+    timeLimitMinutes?: number;
+  }): number {
+    const normalizedProvided = Number.isFinite(
+      Number(params.providedTimeSpentSeconds),
+    )
+      ? Math.max(0, Math.floor(Number(params.providedTimeSpentSeconds)))
+      : 0;
+
+    const hasElapsedWindow =
+      params.startedAt instanceof Date && params.endedAt instanceof Date;
+    const elapsedSeconds = hasElapsedWindow
+      ? Math.max(
+          0,
+          Math.floor(
+            (params.endedAt!.getTime() - params.startedAt!.getTime()) / 1000,
+          ),
+        )
+      : 0;
+
+    // Prefer client-calculated time when valid, fallback to server-side elapsed time.
+    const rawTimeSpent = normalizedProvided > 0 ? normalizedProvided : elapsedSeconds;
+    const maxDurationSeconds = Math.max(
+      0,
+      Math.floor(Number(params.timeLimitMinutes || 0) * 60),
+    );
+
+    return maxDurationSeconds > 0
+      ? Math.min(rawTimeSpent, maxDurationSeconds)
+      : rawTimeSpent;
   }
 
   /** Create `count` exam variants from the question pool.
@@ -479,15 +527,12 @@ export class ExtractedExamsService {
 
     const score = totalPoints > 0 ? (earnedPoints / totalPoints) * 100 : 0;
     const passed = score >= Number(exam.passingScore || 0);
-    const maxDurationSeconds = Math.max(0, Number(exam.timeLimit || 0) * 60);
-    const normalizedTimeSpent = Math.max(
-      0,
-      Math.floor(Number.isFinite(Number(timeSpentSeconds)) ? Number(timeSpentSeconds) : 0),
-    );
-    const persistedTimeSpent =
-      maxDurationSeconds > 0
-        ? Math.min(normalizedTimeSpent, maxDurationSeconds)
-        : normalizedTimeSpent;
+    const persistedTimeSpent = this.resolveAttemptTimeSpentSeconds({
+      providedTimeSpentSeconds: timeSpentSeconds,
+      startedAt: pendingAttempt?.createdAt,
+      endedAt: submittedAt,
+      timeLimitMinutes: Number(exam.timeLimit || 0),
+    });
 
     let issuedCertificateId: string | null = null;
 
@@ -618,7 +663,12 @@ export class ExtractedExamsService {
         attemptNumber: submittedAttempts.length - index,
         score: Number(attempt.score || 0),
         passed: Boolean(attempt.passed),
-        timeSpent: Number(attempt.timeSpent || 0),
+        timeSpent: this.resolveAttemptTimeSpentSeconds({
+          providedTimeSpentSeconds: Number(attempt.timeSpent || 0),
+          startedAt: attempt.createdAt,
+          endedAt: attempt.submittedAt || attempt.createdAt,
+          timeLimitMinutes: Number(exam.timeLimit || 0),
+        }),
         earnedPoints: Number(attempt.earnedPoints || 0),
         totalPoints: Number(attempt.totalPoints || 0),
         variantCode: attempt.variantCode ?? null,
@@ -637,15 +687,11 @@ export class ExtractedExamsService {
 
     if (pendingAttempt) {
       const completedAt = new Date();
-      const elapsedSeconds = Math.floor(
-        (completedAt.getTime() - pendingAttempt.createdAt.getTime()) / 1000,
-      );
-      const maxDurationSeconds = Math.max(0, Number(exam.timeLimit || 0) * 60);
-      const normalizedTimeSpent = Math.max(0, elapsedSeconds);
-      const persistedTimeSpent =
-        maxDurationSeconds > 0
-          ? Math.min(normalizedTimeSpent, maxDurationSeconds)
-          : normalizedTimeSpent;
+      const persistedTimeSpent = this.resolveAttemptTimeSpentSeconds({
+        startedAt: pendingAttempt.createdAt,
+        endedAt: completedAt,
+        timeLimitMinutes: Number(exam.timeLimit || 0),
+      });
 
       pendingAttempt.submittedAt = completedAt;
       pendingAttempt.timeSpent = persistedTimeSpent;

@@ -2,15 +2,19 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
-  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository, SelectQueryBuilder } from 'typeorm';
 import { Course, CourseStatus } from './entities/course.entity';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { User, UserRole } from '../users/entities/user.entity';
 import { Enrollment, EnrollmentStatus } from '../enrollments/entities/enrollment.entity';
+import { Certificate } from '../certificates/entities/certificate.entity';
+import {
+  CertificateTemplate,
+  TemplateStatus,
+} from '../certificates/entities/certificate-template.entity';
 import {
   CourseFilters,
   FilterOption,
@@ -18,6 +22,11 @@ import {
 } from './dto/course-filters.dto';
 import { Category } from '../categories/entities/category.entity';
 import { InstructorSubscriptionsService } from '../instructor-subscriptions/instructor-subscriptions.service';
+import { Exam, ExamType } from '../exams/entities/exam.entity';
+import {
+  ExtractedExam,
+  ExtractedExamType,
+} from '../exams/entities/extracted-exam.entity';
 
 type FilterRow = { value: string; label: string; count: string };
 
@@ -41,6 +50,12 @@ export class CoursesService {
     private readonly enrollmentRepository: Repository<Enrollment>,
     @InjectRepository(Category)
     private readonly categoryRepository: Repository<Category>,
+    @InjectRepository(CertificateTemplate)
+    private readonly certificateTemplateRepository: Repository<CertificateTemplate>,
+    @InjectRepository(Exam)
+    private readonly examRepository: Repository<Exam>,
+    @InjectRepository(ExtractedExam)
+    private readonly extractedExamRepository: Repository<ExtractedExam>,
     private readonly instructorSubscriptionsService: InstructorSubscriptionsService,
   ) {}
 
@@ -116,6 +131,8 @@ export class CoursesService {
       .leftJoinAndSelect('course.category', 'category')
       .where('course.status = :status', { status: CourseStatus.PUBLISHED });
 
+    this.applyLatestPublishedPerLineageFilter(queryBuilder, 'course');
+
     if (options?.search) {
       queryBuilder.andWhere(
         '(course.title ILIKE :search OR course.description ILIKE :search OR course.tags::text ILIKE :search)',
@@ -152,12 +169,18 @@ export class CoursesService {
   }
 
   async findFeatured(): Promise<Course[]> {
-    return this.courseRepository.find({
-      where: { isFeatured: true, status: CourseStatus.PUBLISHED },
-      relations: ['teacher', 'category'],
-      order: { createdAt: 'DESC' },
-      take: 10,
-    });
+    const queryBuilder = this.courseRepository
+      .createQueryBuilder('course')
+      .leftJoinAndSelect('course.teacher', 'teacher')
+      .leftJoinAndSelect('course.category', 'category')
+      .where('course.isFeatured = :isFeatured', { isFeatured: true })
+      .andWhere('course.status = :status', { status: CourseStatus.PUBLISHED })
+      .orderBy('course.createdAt', 'DESC')
+      .take(10);
+
+    this.applyLatestPublishedPerLineageFilter(queryBuilder, 'course');
+
+    return queryBuilder.getMany();
   }
 
   async findAllAdmin(options?: {
@@ -229,12 +252,18 @@ export class CoursesService {
   }
 
   async findBestsellers(): Promise<Course[]> {
-    return this.courseRepository.find({
-      where: { isBestseller: true, status: CourseStatus.PUBLISHED },
-      relations: ['teacher', 'category'],
-      order: { enrollmentCount: 'DESC' },
-      take: 10,
-    });
+    const queryBuilder = this.courseRepository
+      .createQueryBuilder('course')
+      .leftJoinAndSelect('course.teacher', 'teacher')
+      .leftJoinAndSelect('course.category', 'category')
+      .where('course.isBestseller = :isBestseller', { isBestseller: true })
+      .andWhere('course.status = :status', { status: CourseStatus.PUBLISHED })
+      .orderBy('course.enrollmentCount', 'DESC')
+      .take(10);
+
+    this.applyLatestPublishedPerLineageFilter(queryBuilder, 'course');
+
+    return queryBuilder.getMany();
   }
 
   async findByTeacher(teacherId: string): Promise<Course[]> {
@@ -348,11 +377,80 @@ export class CoursesService {
     updateCourseDto: UpdateCourseDto,
     user: User,
   ): Promise<Course> {
-    const course = await this.findOne(id);
+    const extendedUpdates = updateCourseDto as UpdateCourseDto &
+      Partial<Pick<Course, 'duration' | 'isBestseller'>>;
+
+    const course = await this.courseRepository.findOne({
+      where: { id },
+      relations: ['teacher', 'category', 'lessons', 'reviews'],
+    });
+
+    if (!course) {
+      throw new NotFoundException('Khóa học không tìm thấy');
+    }
 
     // Check permissions
     if (user.role !== UserRole.ADMIN && course.teacherId !== user.id) {
       throw new ForbiddenException('Bạn chỉ có thể cập nhật khóa học của bạn');
+    }
+
+    const shouldCreateRevision =
+      user.role === UserRole.TEACHER &&
+      course.status === CourseStatus.PUBLISHED;
+
+    if (shouldCreateRevision) {
+      const revisionSlugBase =
+        updateCourseDto.slug || `${course.slug}-v${Date.now().toString(36)}`;
+      const revisionSlug = await this.generateUniqueSlug(revisionSlugBase);
+      const rootCourseId = course.sourceCourseId || course.id;
+
+      return this.courseRepository.manager.transaction(async (manager) => {
+        const revisionRepository = manager.getRepository(Course);
+
+        const revision = revisionRepository.create({
+          title: updateCourseDto.title ?? course.title,
+          slug: revisionSlug,
+          description: updateCourseDto.description ?? course.description,
+          shortDescription:
+            updateCourseDto.shortDescription ?? course.shortDescription,
+          thumbnail: updateCourseDto.thumbnail ?? course.thumbnail,
+          previewVideo: updateCourseDto.previewVideo ?? course.previewVideo,
+          price:
+            updateCourseDto.price !== undefined
+              ? Number(updateCourseDto.price)
+              : Number(course.price || 0),
+          discountPrice:
+            updateCourseDto.discountPrice !== undefined
+              ? Number(updateCourseDto.discountPrice)
+              : Number(course.discountPrice || 0),
+          level: updateCourseDto.level ?? course.level,
+          status: CourseStatus.PENDING,
+          rejectionReason: '',
+          sourceCourseId: rootCourseId,
+          duration: extendedUpdates.duration ?? course.duration,
+          requirements: updateCourseDto.requirements ?? course.requirements,
+          outcomes: updateCourseDto.outcomes ?? course.outcomes,
+          tags: updateCourseDto.tags ?? course.tags,
+          enrollmentCount: 0,
+          rating: 0,
+          reviewCount: 0,
+          isFeatured: updateCourseDto.isFeatured ?? course.isFeatured,
+          isBestseller: extendedUpdates.isBestseller ?? false,
+          teacherId: course.teacherId,
+          categoryId: updateCourseDto.categoryId ?? course.categoryId,
+        });
+
+        const savedRevision = await revisionRepository.save(revision);
+
+        await this.cloneAssessmentAndCertificateSetup(
+          manager,
+          course.id,
+          savedRevision.id,
+          course.teacherId,
+        );
+
+        return savedRevision;
+      });
     }
 
     if (updateCourseDto.slug && updateCourseDto.slug !== course.slug) {
@@ -425,11 +523,19 @@ export class CoursesService {
   }
 
   async approveCourse(id: string): Promise<Course> {
-    const course = await this.findOne(id);
+    const course = await this.courseRepository.findOne({ where: { id } });
+
+    if (!course) {
+      throw new NotFoundException('Khóa học không tìm thấy');
+    }
 
     course.status = CourseStatus.PUBLISHED;
     course.rejectionReason = '';
     const savedCourse = await this.courseRepository.save(course);
+
+    await this.archivePublishedLineageVersionsWithoutUnfinishedLearners(
+      savedCourse.id,
+    );
 
     // Keep compatibility with deployments that still rely on isPublished flag.
     try {
@@ -442,6 +548,81 @@ export class CoursesService {
     }
 
     return savedCourse;
+  }
+
+  async archivePublishedLineageVersionsWithoutUnfinishedLearners(
+    courseId: string,
+  ): Promise<void> {
+    const referenceCourse = await this.courseRepository.findOne({
+      where: { id: courseId },
+      select: ['id', 'sourceCourseId'],
+    });
+
+    if (!referenceCourse) {
+      return;
+    }
+
+    const rootCourseId = referenceCourse.sourceCourseId || referenceCourse.id;
+
+    const publishedVersions = await this.courseRepository.find({
+      where: [
+        { id: rootCourseId, status: CourseStatus.PUBLISHED },
+        { sourceCourseId: rootCourseId, status: CourseStatus.PUBLISHED },
+      ],
+      select: ['id', 'createdAt'],
+    });
+
+    if (publishedVersions.length <= 1) {
+      return;
+    }
+
+    const latestPublishedVersion = [...publishedVersions].sort((a, b) => {
+      const timeDiff = b.createdAt.getTime() - a.createdAt.getTime();
+      if (timeDiff !== 0) {
+        return timeDiff;
+      }
+      return b.id.localeCompare(a.id);
+    })[0];
+
+    const candidateIds = publishedVersions
+      .map((version) => version.id)
+      .filter((versionId) => versionId !== latestPublishedVersion.id);
+
+    const archiveIds: string[] = [];
+
+    for (const candidateId of candidateIds) {
+      const hasUnfinishedLearners =
+        await this.versionHasUnfinishedLearners(candidateId);
+      if (!hasUnfinishedLearners) {
+        archiveIds.push(candidateId);
+      }
+    }
+
+    if (archiveIds.length === 0) {
+      return;
+    }
+
+    await this.courseRepository
+      .createQueryBuilder()
+      .update(Course)
+      .set({ status: CourseStatus.ARCHIVED })
+      .where('id IN (:...archiveIds)', { archiveIds })
+      .execute();
+
+    // Keep compatibility with deployments that still rely on legacy isPublished flag.
+    try {
+      const placeholders = archiveIds
+        .map((_, index) => `$${index + 2}`)
+        .join(',');
+      await this.courseRepository.query(
+        `UPDATE learning.courses
+           SET "isPublished" = $1
+         WHERE id IN (${placeholders})`,
+        [false, ...archiveIds],
+      );
+    } catch {
+      // Ignore when schema does not include this legacy column.
+    }
   }
 
   async rejectCourse(id: string, reason: string): Promise<Course> {
@@ -625,6 +806,183 @@ export class CoursesService {
       }
       index += 1;
       candidate = `${safeBase}-${index}`;
+    }
+  }
+
+  private applyLatestPublishedPerLineageFilter(
+    queryBuilder: SelectQueryBuilder<any>,
+    alias: string,
+  ): void {
+    queryBuilder.andWhere(
+      `NOT EXISTS (
+         SELECT 1
+         FROM learning.courses newer
+         WHERE newer.status = :lineagePublishedStatus
+           AND COALESCE(newer."sourceCourseId", newer.id) = COALESCE(${alias}."sourceCourseId", ${alias}.id)
+           AND (
+             newer."createdAt" > ${alias}."createdAt"
+             OR (newer."createdAt" = ${alias}."createdAt" AND newer.id > ${alias}.id)
+           )
+       )`,
+      { lineagePublishedStatus: CourseStatus.PUBLISHED },
+    );
+  }
+
+  private async versionHasUnfinishedLearners(courseId: string): Promise<boolean> {
+    const activeLearnerCount = await this.enrollmentRepository.count({
+      where: { courseId, status: EnrollmentStatus.ACTIVE },
+    });
+
+    if (activeLearnerCount > 0) {
+      return true;
+    }
+
+    const [officialExamCount, officialExtractedExamCount] = await Promise.all([
+      this.examRepository.count({ where: { courseId, type: ExamType.OFFICIAL } }),
+      this.extractedExamRepository.count({
+        where: { courseId, type: ExtractedExamType.OFFICIAL },
+      }),
+    ]);
+
+    const hasOfficialAssessment =
+      officialExamCount + officialExtractedExamCount > 0;
+
+    if (!hasOfficialAssessment) {
+      return false;
+    }
+
+    const learnersWithoutCertificate = await this.enrollmentRepository
+      .createQueryBuilder('enrollment')
+      .leftJoin(
+        Certificate,
+        'certificate',
+        'certificate."enrollmentId" = enrollment.id',
+      )
+      .where('enrollment."courseId" = :courseId', { courseId })
+      .andWhere('enrollment.status IN (:...statuses)', {
+        statuses: [EnrollmentStatus.ACTIVE, EnrollmentStatus.COMPLETED],
+      })
+      .andWhere('certificate.id IS NULL')
+      .getCount();
+
+    return learnersWithoutCertificate > 0;
+  }
+
+  private async cloneAssessmentAndCertificateSetup(
+    manager: EntityManager,
+    sourceCourseId: string,
+    targetCourseId: string,
+    teacherId: string,
+  ): Promise<void> {
+    const templateRepository = manager.getRepository(CertificateTemplate);
+    const examRepository = manager.getRepository(Exam);
+    const extractedExamRepository = manager.getRepository(ExtractedExam);
+
+    const sourceTemplates = await templateRepository.find({
+      where: { courseId: sourceCourseId, teacherId },
+      order: { createdAt: 'ASC' },
+    });
+
+    const sourceExams = await examRepository.find({
+      where: { courseId: sourceCourseId, teacherId },
+      order: { createdAt: 'ASC' },
+    });
+
+    const sourceExtractedExams = await extractedExamRepository.find({
+      where: { courseId: sourceCourseId, teacherId },
+      order: { createdAt: 'ASC' },
+    });
+
+    const templateIdMap = new Map<string, string>();
+
+    if (sourceTemplates.length > 0) {
+      const clonedTemplates = sourceTemplates.map((template) =>
+        templateRepository.create({
+          title: template.title,
+          description: template.description,
+          courseId: targetCourseId,
+          teacherId,
+          validityPeriod: template.validityPeriod,
+          backgroundColor: template.backgroundColor,
+          borderColor: template.borderColor,
+          borderStyle: template.borderStyle,
+          textColor: template.textColor,
+          logoUrl: template.logoUrl,
+          signatureUrl: template.signatureUrl,
+          templateImageUrl: template.templateImageUrl,
+          templateStyle: template.templateStyle,
+          badgeStyle: template.badgeStyle,
+          status: template.status || TemplateStatus.DRAFT,
+          rejectionReason: template.rejectionReason,
+          issuedCount: 0,
+        }),
+      );
+
+      const savedTemplates = await templateRepository.save(clonedTemplates);
+
+      sourceTemplates.forEach((sourceTemplate, index) => {
+        templateIdMap.set(sourceTemplate.id, savedTemplates[index].id);
+      });
+    }
+
+    if (sourceExams.length > 0) {
+      const clonedExams = sourceExams.map((exam) => {
+        const mappedTemplateId = exam.certificateTemplateId
+          ? templateIdMap.get(exam.certificateTemplateId)
+          : undefined;
+
+        return examRepository.create({
+          title: exam.title,
+          description: exam.description,
+          type: exam.type,
+          status: exam.status,
+          questions: exam.questions,
+          timeLimit: exam.timeLimit,
+          passingScore: exam.passingScore,
+          maxAttempts: exam.maxAttempts,
+          shuffleQuestions: exam.shuffleQuestions,
+          shuffleAnswers: exam.shuffleAnswers,
+          showCorrectAnswers: exam.showCorrectAnswers,
+          availableFrom: exam.availableFrom,
+          availableUntil: exam.availableUntil,
+          certificateTemplateId: mappedTemplateId,
+          rejectionReason: exam.rejectionReason,
+          courseId: targetCourseId,
+          teacherId,
+        });
+      });
+
+      await examRepository.save(clonedExams);
+    }
+
+    if (sourceExtractedExams.length > 0) {
+      const clonedExtractedExams = sourceExtractedExams.map((exam) =>
+        extractedExamRepository.create({
+          title: exam.title,
+          description: exam.description,
+          type: exam.type,
+          status: exam.status,
+          questions: exam.questions,
+          timeLimit: exam.timeLimit,
+          passingScore: exam.passingScore,
+          maxAttempts: exam.maxAttempts,
+          shuffleQuestions: exam.shuffleQuestions,
+          shuffleAnswers: exam.shuffleAnswers,
+          showCorrectAnswers: exam.showCorrectAnswers,
+          availableFrom: exam.availableFrom,
+          availableUntil: exam.availableUntil,
+          certificateTemplateId: exam.certificateTemplateId
+            ? (templateIdMap.get(exam.certificateTemplateId) ?? null)
+            : null,
+          variantCount: exam.variantCount,
+          variants: exam.variants,
+          sourceExamId: exam.sourceExamId || exam.id,
+          courseId: targetCourseId,
+          teacherId,
+        }),
+      );
+
+      await extractedExamRepository.save(clonedExtractedExams);
     }
   }
 }

@@ -18,6 +18,7 @@ import {
 } from '../enrollments/entities/enrollment.entity';
 import { CertificatesService } from '../certificates/certificates.service';
 import { UserRole } from '../users/entities/user.entity';
+import { CoursesService } from '../courses/courses.service';
 
 @Injectable()
 export class ExamsService {
@@ -36,6 +37,7 @@ export class ExamsService {
     private dataSource: DataSource,
     @Inject(forwardRef(() => CertificatesService))
     private certificatesService: CertificatesService,
+    private readonly coursesService: CoursesService,
   ) {}
 
   private debugLog(...args: unknown[]): void {
@@ -961,6 +963,20 @@ export class ExamsService {
             savedAttempt.certificateId = certificate.id;
             const finalAttempt = await this.attemptRepository.save(savedAttempt);
 
+            try {
+              await this.coursesService.archivePublishedLineageVersionsWithoutUnfinishedLearners(
+                exam.courseId,
+              );
+            } catch (archiveError) {
+              this.logger.warn(
+                `[Certificate] Unable to re-evaluate lineage archival for course ${exam.courseId}: ${
+                  archiveError instanceof Error
+                    ? archiveError.message
+                    : String(archiveError)
+                }`,
+              );
+            }
+
             console.log(
               `[Certificate] Attempt updated with certificateId: ${finalAttempt.certificateId}`,
             );
@@ -1090,6 +1106,21 @@ export class ExamsService {
       attempt.certificateIssued = true;
 
       const updated = await this.attemptRepository.save(attempt);
+
+      try {
+        await this.coursesService.archivePublishedLineageVersionsWithoutUnfinishedLearners(
+          attempt.exam.courseId,
+        );
+      } catch (archiveError) {
+        this.logger.warn(
+          `[RetryCertificate] Unable to re-evaluate lineage archival for course ${attempt.exam.courseId}: ${
+            archiveError instanceof Error
+              ? archiveError.message
+              : String(archiveError)
+          }`,
+        );
+      }
+
       console.log(`[RetryCertificate] Certificate issued: ${certificate.id}`);
       return updated;
     } catch (error) {

@@ -11,6 +11,7 @@ import { ExtractedExamAttempt } from './entities/extracted-exam-attempt.entity';
 import { ExtractedExamsService } from './extracted-exams.service';
 import { ExtractedExamsController } from './extracted-exams.controller';
 import { Course } from '../courses/entities/course.entity';
+import { CoursesModule } from '../courses/courses.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { Course } from '../courses/entities/course.entity';
       ExtractedExamAttempt,
       Course,
     ]),
+    CoursesModule,
     forwardRef(() => CertificatesModule),
   ],
   controllers: [ExamsController, ExtractedExamsController],

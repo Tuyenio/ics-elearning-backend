@@ -12,6 +12,38 @@ import { EnrollmentStatus } from '../enrollments/entities/enrollment.entity';
 
 @Injectable()
 export class TeacherService {
+  private getRootCourseId(course: Pick<Course, 'id' | 'sourceCourseId'>): string {
+    return course.sourceCourseId || course.id;
+  }
+
+  private buildCourseVersionIndex(courses: Array<Pick<Course, 'id' | 'sourceCourseId' | 'createdAt'>>) {
+    const coursesByRoot = new Map<string, Array<Pick<Course, 'id' | 'sourceCourseId' | 'createdAt'>>>();
+
+    for (const course of courses) {
+      const rootCourseId = this.getRootCourseId(course);
+      if (!coursesByRoot.has(rootCourseId)) {
+        coursesByRoot.set(rootCourseId, []);
+      }
+      coursesByRoot.get(rootCourseId)!.push(course);
+    }
+
+    const versionByCourseId = new Map<string, number>();
+
+    for (const [, lineageCourses] of coursesByRoot.entries()) {
+      lineageCourses
+        .sort((a, b) => {
+          const timeDiff = a.createdAt.getTime() - b.createdAt.getTime();
+          if (timeDiff !== 0) return timeDiff;
+          return a.id.localeCompare(b.id);
+        })
+        .forEach((course, index) => {
+          versionByCourseId.set(course.id, index + 1);
+        });
+    }
+
+    return versionByCourseId;
+  }
+
   private startOfDay(date: Date) {
     return new Date(date.getFullYear(), date.getMonth(), date.getDate());
   }
@@ -185,6 +217,14 @@ export class TeacherService {
       throw new NotFoundException('Khóa học không tồn tại hoặc không thuộc quyền quản lý của giảng viên');
     }
 
+    const rootCourseId = this.getRootCourseId(course);
+    const lineageCourses = await this.courseRepo.find({
+      where: [{ id: rootCourseId, teacherId }, { sourceCourseId: rootCourseId, teacherId }],
+      order: { createdAt: 'ASC' },
+    });
+    const versionByCourseId = this.buildCourseVersionIndex(lineageCourses);
+    const courseVersionNumber = versionByCourseId.get(course.id) || 1;
+
     const enrollments = await this.enrollmentRepo.find({
       where: { courseId },
       relations: ['student'],
@@ -264,6 +304,11 @@ export class TeacherService {
         studentId: enrollment.studentId,
         studentName: enrollment.student?.name || 'N/A',
         studentEmail: enrollment.student?.email || '',
+        rootCourseId,
+        courseVersionId: course.id,
+        courseVersionNumber,
+        courseVersionLabel: `v${courseVersionNumber}`,
+        courseVersionCreatedAt: course.createdAt,
         progress: Number(enrollment.progress || 0),
         enrollmentStatus: enrollment.status,
         joinedAt: enrollment.createdAt,
@@ -302,6 +347,13 @@ export class TeacherService {
     return {
       courseId: course.id,
       courseTitle: course.title,
+      courseVersion: {
+        rootCourseId,
+        courseVersionId: course.id,
+        courseVersionNumber,
+        courseVersionLabel: `v${courseVersionNumber}`,
+        courseVersionCreatedAt: course.createdAt,
+      },
       summary: {
         totalStudents: students.length,
         totalAssignments: assignments.length,
@@ -857,6 +909,7 @@ export class TeacherService {
   async getStudentList(teacherId: string) {
     const courses = await this.courseRepo.find({ where: { teacherId } });
     const courseIds = courses.map((c) => c.id);
+    const versionByCourseId = this.buildCourseVersionIndex(courses);
 
     if (courseIds.length === 0) {
       return { data: [], total: 0 };
@@ -869,6 +922,11 @@ export class TeacherService {
     });
 
     const data = enrollments.map((e) => ({
+      rootCourseId: this.getRootCourseId(e.course),
+      courseVersionId: e.courseId,
+      courseVersionNumber: versionByCourseId.get(e.courseId) || 1,
+      courseVersionLabel: `v${versionByCourseId.get(e.courseId) || 1}`,
+      courseVersionCreatedAt: e.course?.createdAt || null,
       id: e.id,
       studentId: e.studentId,
       name: e.student?.name || 'N/A',
