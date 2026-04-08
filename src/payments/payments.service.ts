@@ -279,41 +279,6 @@ export class PaymentsService {
     };
   }
 
-  private async ensureCourseIsPurchasable(
-    course: Pick<
-      Course,
-      'id' | 'title' | 'status' | 'sourceCourseId' | 'createdAt'
-    >,
-  ): Promise<void> {
-    if (course.status !== CourseStatus.PUBLISHED) {
-      throw new BadRequestException('Khoa hoc khong kha dung');
-    }
-
-    const rootCourseId = course.sourceCourseId || course.id;
-    const newerPublishedCount = await this.courseRepository
-      .createQueryBuilder('newer')
-      .where('newer.status = :publishedStatus', {
-        publishedStatus: CourseStatus.PUBLISHED,
-      })
-      .andWhere('COALESCE(newer."sourceCourseId", newer.id) = :rootCourseId', {
-        rootCourseId,
-      })
-      .andWhere(
-        '(newer."createdAt" > :createdAt OR (newer."createdAt" = :createdAt AND newer.id > :courseId))',
-        {
-          createdAt: course.createdAt,
-          courseId: course.id,
-        },
-      )
-      .getCount();
-
-    if (newerPublishedCount > 0) {
-      throw new BadRequestException(
-        'Phien ban khoa hoc nay da cu. Vui long mua phien ban moi nhat.',
-      );
-    }
-  }
-
   async create(
     createPaymentDto: CreatePaymentDto,
     student: User,
@@ -326,7 +291,10 @@ export class PaymentsService {
       throw new NotFoundException('Khóa học không tìm thấy');
     }
 
-    await this.ensureCourseIsPurchasable(course);
+    // ✅ Validate course status
+    if (course.status !== CourseStatus.PUBLISHED) {
+      throw new BadRequestException('Khóa học không khả dụng');
+    }
 
     // Check if already enrolled
     const existingEnrollment = await this.enrollmentRepository.findOne({
@@ -391,7 +359,9 @@ export class PaymentsService {
       throw new NotFoundException('Khoa hoc khong tim thay');
     }
 
-    await this.ensureCourseIsPurchasable(course);
+    if (course.status !== CourseStatus.PUBLISHED) {
+      throw new BadRequestException('Khoa hoc khong kha dung');
+    }
 
     const existingEnrollment = await this.enrollmentRepository.findOne({
       where: {
@@ -495,7 +465,11 @@ export class PaymentsService {
     }
 
     for (const course of orderedCourses as Course[]) {
-      await this.ensureCourseIsPurchasable(course);
+      if (course.status !== CourseStatus.PUBLISHED) {
+        throw new BadRequestException(
+          `Khoa hoc ${course.title || course.id} khong kha dung`,
+        );
+      }
     }
 
     const enrolled = await this.enrollmentRepository.find({
@@ -628,7 +602,9 @@ export class PaymentsService {
       throw new NotFoundException('Khoa hoc khong tim thay');
     }
 
-    await this.ensureCourseIsPurchasable(course);
+    if (course.status !== CourseStatus.PUBLISHED) {
+      throw new BadRequestException('Khoa hoc khong kha dung');
+    }
 
     const existingEnrollment = await this.enrollmentRepository.findOne({
       where: {
@@ -1179,17 +1155,6 @@ export class PaymentsService {
     if (!payment.studentId || !payment.courseId) {
       return;
     }
-
-    const course = await this.courseRepository.findOne({
-      where: { id: payment.courseId },
-      select: ['id', 'title', 'status', 'sourceCourseId', 'createdAt'],
-    });
-
-    if (!course) {
-      throw new NotFoundException('Khoa hoc khong tim thay');
-    }
-
-    await this.ensureCourseIsPurchasable(course);
 
     // ✅ Sử dụng transaction với pessimistic lock để tránh race condition
     try {

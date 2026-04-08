@@ -30,41 +30,6 @@ export class EnrollmentsService {
     private readonly coursesService: CoursesService,
   ) {}
 
-  private async ensureCourseIsPurchasable(
-    course: Pick<Course, 'id' | 'status' | 'sourceCourseId' | 'createdAt'>,
-  ): Promise<void> {
-    if (course.status !== CourseStatus.PUBLISHED) {
-      throw new BadRequestException(
-        'Khóa học chưa được công bố hoặc không còn khả dụng',
-      );
-    }
-
-    const rootCourseId = course.sourceCourseId || course.id;
-
-    const newerPublishedCount = await this.courseRepository
-      .createQueryBuilder('newer')
-      .where('newer.status = :publishedStatus', {
-        publishedStatus: CourseStatus.PUBLISHED,
-      })
-      .andWhere('COALESCE(newer."sourceCourseId", newer.id) = :rootCourseId', {
-        rootCourseId,
-      })
-      .andWhere(
-        '(newer."createdAt" > :createdAt OR (newer."createdAt" = :createdAt AND newer.id > :courseId))',
-        {
-          createdAt: course.createdAt,
-          courseId: course.id,
-        },
-      )
-      .getCount();
-
-    if (newerPublishedCount > 0) {
-      throw new BadRequestException(
-        'Phiên bản khóa học này đã cũ. Vui lòng mua phiên bản mới nhất.',
-      );
-    }
-  }
-
   async create(
     createEnrollmentDto: CreateEnrollmentDto,
     student: User,
@@ -77,7 +42,12 @@ export class EnrollmentsService {
       throw new NotFoundException('Khóa học không tìm thấy');
     }
 
-    await this.ensureCourseIsPurchasable(course);
+    // ✅ Check course status
+    if (course.status !== CourseStatus.PUBLISHED) {
+      throw new BadRequestException(
+        'Khóa học chưa được công bố hoặc không còn khả dụng',
+      );
+    }
 
     // ✅ Check if paid course
     const basePrice = Number(course.price || 0);

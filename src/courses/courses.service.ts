@@ -39,8 +39,6 @@ type CourseRatingDistributionItem = {
 type CourseWithRatingDistribution = Course & {
   ratingDistribution: CourseRatingDistributionItem[];
   publishedReviewCount: number;
-  isPurchasable: boolean;
-  purchaseBlockedReason: string | null;
 };
 
 @Injectable()
@@ -313,8 +311,7 @@ export class CoursesService {
       throw new NotFoundException('Khóa học không tìm thấy');
     }
 
-    const courseWithRatings = this.attachRatingDistribution(course);
-    return this.attachPurchasabilityMeta(courseWithRatings);
+    return this.attachRatingDistribution(course);
   }
 
   async findBySlug(slug: string): Promise<CourseWithRatingDistribution> {
@@ -327,8 +324,7 @@ export class CoursesService {
       throw new NotFoundException('Khóa học không tìm thấy');
     }
 
-    const courseWithRatings = this.attachRatingDistribution(course);
-    return this.attachPurchasabilityMeta(courseWithRatings);
+    return this.attachRatingDistribution(course);
   }
 
   private attachRatingDistribution(
@@ -343,51 +339,7 @@ export class CoursesService {
     return Object.assign(course, {
       ratingDistribution,
       publishedReviewCount,
-      isPurchasable: false,
-      purchaseBlockedReason: null,
     });
-  }
-
-  private async attachPurchasabilityMeta(
-    course: CourseWithRatingDistribution,
-  ): Promise<CourseWithRatingDistribution> {
-    const isPurchasable = await this.isPurchasableForNewEnrollment(course);
-
-    return Object.assign(course, {
-      isPurchasable,
-      purchaseBlockedReason: isPurchasable
-        ? null
-        : 'Phiên bản khóa học này đã cũ hoặc không còn khả dụng. Vui lòng mua phiên bản mới nhất.',
-    });
-  }
-
-  private async isPurchasableForNewEnrollment(
-    course: Pick<Course, 'id' | 'status' | 'sourceCourseId' | 'createdAt'>,
-  ): Promise<boolean> {
-    if (course.status !== CourseStatus.PUBLISHED) {
-      return false;
-    }
-
-    const rootCourseId = course.sourceCourseId || course.id;
-
-    const newerPublishedCount = await this.courseRepository
-      .createQueryBuilder('newer')
-      .where('newer.status = :publishedStatus', {
-        publishedStatus: CourseStatus.PUBLISHED,
-      })
-      .andWhere('COALESCE(newer."sourceCourseId", newer.id) = :rootCourseId', {
-        rootCourseId,
-      })
-      .andWhere(
-        '(newer."createdAt" > :createdAt OR (newer."createdAt" = :createdAt AND newer.id > :courseId))',
-        {
-          createdAt: course.createdAt,
-          courseId: course.id,
-        },
-      )
-      .getCount();
-
-    return newerPublishedCount === 0;
   }
 
   private buildRatingDistribution(
