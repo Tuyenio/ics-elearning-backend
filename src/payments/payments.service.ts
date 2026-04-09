@@ -149,6 +149,49 @@ export class PaymentsService {
       .execute();
   }
 
+  private async markPreviousPendingSepayAsFailed(
+    studentId: string,
+    paymentType?: PaymentType,
+  ): Promise<void> {
+    const whereClause: {
+      studentId: string;
+      paymentMethod: PaymentMethod;
+      status: PaymentStatus;
+      paymentType?: PaymentType;
+    } = {
+      studentId,
+      paymentMethod: PaymentMethod.SEPAY_QR,
+      status: PaymentStatus.PENDING,
+    };
+
+    if (paymentType) {
+      whereClause.paymentType = paymentType;
+    }
+
+    const pendingPayments = await this.paymentRepository.find({
+      where: whereClause,
+      order: { createdAt: 'DESC' },
+    });
+
+    if (pendingPayments.length === 0) {
+      return;
+    }
+
+    const replacedAt = new Date().toISOString();
+
+    for (const pendingPayment of pendingPayments) {
+      pendingPayment.status = PaymentStatus.FAILED;
+      pendingPayment.failureReason = 'replaced_by_new_checkout';
+      pendingPayment.metadata = {
+        ...this.sanitizeMetadata(pendingPayment.metadata),
+        failureReason: 'replaced_by_new_checkout',
+        replacedAt,
+      };
+    }
+
+    await this.paymentRepository.save(pendingPayments);
+  }
+
   private async getCreditedTopupPaymentIds(
     userId: string,
   ): Promise<Set<string>> {
@@ -423,6 +466,11 @@ export class PaymentsService {
     const { amount, discountAmount, finalAmount, couponCode } =
       await this.resolveCoursePrice(course, dto.couponCode);
 
+    if (finalAmount > 0) {
+      await this.syncExpiredSepayPayments();
+      await this.markPreviousPendingSepayAsFailed(student.id);
+    }
+
     const transactionCode = this.generateTransactionCode('CRS');
     const expiresAt = new Date(Date.now() + PaymentsService.PAYMENT_EXPIRE_MS);
 
@@ -544,6 +592,11 @@ export class PaymentsService {
       ),
     );
 
+    if (finalAmount > 0) {
+      await this.syncExpiredSepayPayments();
+      await this.markPreviousPendingSepayAsFailed(student.id);
+    }
+
     const transactionCode = this.generateTransactionCode('CRS');
     const expiresAt = new Date(Date.now() + PaymentsService.PAYMENT_EXPIRE_MS);
 
@@ -597,6 +650,10 @@ export class PaymentsService {
 
   async createWalletTopupSepay(dto: CreateWalletTopupDto, user: User) {
     const amount = this.normalizeAmount(dto.amount);
+
+    await this.syncExpiredSepayPayments();
+    await this.markPreviousPendingSepayAsFailed(user.id);
+
     const transactionCode = this.generateTransactionCode('NAP');
     const expiresAt = new Date(Date.now() + PaymentsService.PAYMENT_EXPIRE_MS);
 
@@ -743,6 +800,61 @@ export class PaymentsService {
               ),
             }
           : null,
+    };
+  }
+
+  async cancelSepayPayment(
+    transactionCode: string,
+    userId: string,
+    reason = 'cancelled_by_user',
+  ): Promise<{ success: boolean; paymentId?: string; message: string }> {
+    const payment = await this.paymentRepository.findOne({
+      where: { transactionCode, studentId: userId },
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Khong tim thay giao dich');
+    }
+
+    if (payment.paymentMethod !== PaymentMethod.SEPAY_QR) {
+      throw new BadRequestException('Chi ho tro huy giao dich SePay QR');
+    }
+
+    if (payment.status === PaymentStatus.COMPLETED) {
+      return {
+        success: false,
+        paymentId: payment.id,
+        message: 'Payment already completed',
+      };
+    }
+
+    if (payment.status !== PaymentStatus.PENDING) {
+      return {
+        success: false,
+        paymentId: payment.id,
+        message: `Payment is ${payment.status}`,
+      };
+    }
+
+    if (this.isPendingPaymentExpired(payment)) {
+      payment.status = PaymentStatus.EXPIRED;
+      payment.failureReason = 'Payment expired';
+    } else {
+      payment.status = PaymentStatus.FAILED;
+      payment.failureReason = reason;
+      payment.metadata = {
+        ...this.sanitizeMetadata(payment.metadata),
+        failureReason: reason,
+        cancelledAt: new Date().toISOString(),
+      };
+    }
+
+    await this.paymentRepository.save(payment);
+
+    return {
+      success: true,
+      paymentId: payment.id,
+      message: 'Payment cancelled',
     };
   }
 

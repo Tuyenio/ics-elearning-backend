@@ -10,6 +10,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Course } from '../courses/entities/course.entity';
 import { User, UserRole } from '../users/entities/user.entity';
+import { Enrollment, EnrollmentStatus } from '../enrollments/entities/enrollment.entity';
 import { UpsertPlanDto } from './dto/upsert-plan.dto';
 import { UpgradeSubscriptionDto } from './dto/upgrade-subscription.dto';
 import {
@@ -45,6 +46,8 @@ export class InstructorSubscriptionsService implements OnModuleInit {
     private readonly paymentMethodRepo: Repository<InstructorPaymentMethod>,
     @InjectRepository(Course)
     private readonly courseRepo: Repository<Course>,
+    @InjectRepository(Enrollment)
+    private readonly enrollmentRepo: Repository<Enrollment>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
     @InjectRepository(AdminAuditLog)
@@ -317,6 +320,48 @@ export class InstructorSubscriptionsService implements OnModuleInit {
     });
     const courseLimit = subscription.plan?.courseLimit || 2;
     const remainingCourses = Math.max(0, courseLimit - coursesCreated);
+    const studentsUsedRaw = await this.enrollmentRepo
+      .createQueryBuilder('enrollment')
+      .innerJoin('enrollment.course', 'course')
+      .where('course.teacherId = :teacherId', { teacherId })
+      .andWhere('enrollment.status IN (:...statuses)', {
+        statuses: [EnrollmentStatus.ACTIVE, EnrollmentStatus.COMPLETED],
+      })
+      .select('COUNT(DISTINCT enrollment.studentId)', 'count')
+      .getRawOne<{ count: string | null }>();
+
+    const studentsUsed = Number.parseInt(studentsUsedRaw?.count || '0', 10) || 0;
+    const studentsLimit =
+      subscription.plan?.studentsLimit === null ||
+      subscription.plan?.studentsLimit === undefined
+        ? null
+        : Number(subscription.plan.studentsLimit || 0);
+    const remainingStudents =
+      studentsLimit === null
+        ? null
+        : Math.max(0, studentsLimit - studentsUsed);
+
+    const storageLimitGb =
+      subscription.plan?.storageLimitGb === null ||
+      subscription.plan?.storageLimitGb === undefined
+        ? null
+        : Number(subscription.plan.storageLimitGb || 0);
+
+    // The system currently does not persist per-teacher media bytes,
+    // so we expose a bounded estimate based on course usage ratio.
+    const storageUsedGbEstimate =
+      storageLimitGb === null || storageLimitGb <= 0
+        ? null
+        : Number(
+            (
+              Math.min(1, courseLimit > 0 ? coursesCreated / courseLimit : 0) *
+              storageLimitGb
+            ).toFixed(2),
+          );
+    const remainingStorageGbEstimate =
+      storageLimitGb === null || storageUsedGbEstimate === null
+        ? null
+        : Number(Math.max(0, storageLimitGb - storageUsedGbEstimate).toFixed(2));
 
     const billingHistory = await this.paymentRepo.find({
       where: { teacherId },
@@ -331,6 +376,13 @@ export class InstructorSubscriptionsService implements OnModuleInit {
         coursesCreated,
         courseLimit,
         remainingCourses,
+        studentsUsed,
+        studentsLimit,
+        remainingStudents,
+        storageLimitGb,
+        storageUsedGbEstimate,
+        remainingStorageGbEstimate,
+        storageUsageSource: 'estimate_by_course_usage_ratio',
       },
       billingHistory,
     };
@@ -873,6 +925,35 @@ export class InstructorSubscriptionsService implements OnModuleInit {
               ),
             }
           : null,
+    };
+  }
+
+  async cancelCheckout(teacherId: string, transactionId: string) {
+    const payment = await this.paymentRepo.findOne({
+      where: { teacherId, transactionId },
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Không tìm thấy giao dịch');
+    }
+
+    if (payment.status !== InstructorSubscriptionPaymentStatus.PENDING) {
+      throw new BadRequestException('Chỉ có thể hủy giao dịch ở trạng thái Chờ xử lý');
+    }
+
+    // Mark payment as failed
+    payment.status = InstructorSubscriptionPaymentStatus.FAILED;
+    payment.metadata = {
+      ...(payment.metadata || {}),
+      failureReason: 'user_cancelled',
+      cancelledAt: new Date().toISOString(),
+    };
+    await this.paymentRepo.save(payment);
+
+    return {
+      success: true,
+      message: 'Giao dịch đã được hủy',
+      payment,
     };
   }
 
