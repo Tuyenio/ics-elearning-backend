@@ -76,6 +76,14 @@ export class CoursesController {
     return this.coursesService.findBestsellers();
   }
 
+  @Get('top-teachers')
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(180000) // Cache for 3 minutes
+  findTopTeachers(@Query('limit') limit?: string) {
+    const parsedLimit = limit ? parseInt(limit, 10) : 9;
+    return this.coursesService.findTopTeachers(parsedLimit);
+  }
+
   @Get('teacher/:teacherId')
   findByTeacher(@Param('teacherId') teacherId: string) {
     return this.coursesService.findByTeacher(teacherId);
