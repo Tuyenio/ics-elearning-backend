@@ -111,6 +111,55 @@ export class ReviewsService {
     };
   }
 
+  async findLatestFiveStarComments(limit = 3): Promise<
+    Array<{
+      id: string;
+      rating: number;
+      comment: string;
+      createdAt: Date;
+      student: {
+        id: string;
+        name: string;
+        avatar: string | null;
+      };
+      course: {
+        id: string;
+        title: string;
+      };
+    }>
+  > {
+    const safeLimit = Number.isFinite(limit)
+      ? Math.max(1, Math.min(12, Math.floor(limit)))
+      : 3;
+
+    const reviews = await this.reviewRepository
+      .createQueryBuilder('review')
+      .leftJoinAndSelect('review.student', 'student')
+      .leftJoinAndSelect('review.course', 'course')
+      .where('review.rating = :rating', { rating: 5 })
+      .andWhere('review.isPublished = :isPublished', { isPublished: true })
+      .andWhere("COALESCE(TRIM(review.comment), '') <> ''")
+      .orderBy('review.createdAt', 'DESC')
+      .take(safeLimit)
+      .getMany();
+
+    return reviews.map((review) => ({
+      id: review.id,
+      rating: review.rating,
+      comment: review.comment,
+      createdAt: review.createdAt,
+      student: {
+        id: review.studentId,
+        name: review.student?.name || 'Học viên',
+        avatar: review.student?.avatar || null,
+      },
+      course: {
+        id: review.courseId,
+        title: review.course?.title || 'Khóa học',
+      },
+    }));
+  }
+
   async findByStudent(studentId: string): Promise<Review[]> {
     return this.reviewRepository.find({
       where: { studentId },

@@ -26,6 +26,13 @@ import { UserRole, User } from '../users/entities/user.entity';
 export class ReviewsController {
   constructor(private readonly reviewsService: ReviewsService) {}
 
+  @Get('latest-five-star')
+  @ApiOperation({ summary: 'Lấy bình luận 5 sao mới nhất cho trang chủ' })
+  findLatestFiveStar(@Query('limit') limit?: string) {
+    const parsedLimit = limit ? parseInt(limit, 10) : 3;
+    return this.reviewsService.findLatestFiveStarComments(parsedLimit);
+  }
+
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.STUDENT)
