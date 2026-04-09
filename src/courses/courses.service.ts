@@ -173,7 +173,7 @@ export class CoursesService {
   }
 
   async findFeatured(): Promise<Course[]> {
-    const queryBuilder = this.courseRepository
+    const featuredQueryBuilder = this.courseRepository
       .createQueryBuilder('course')
       .leftJoinAndSelect('course.teacher', 'teacher')
       .leftJoinAndSelect('course.category', 'category')
@@ -182,9 +182,27 @@ export class CoursesService {
       .orderBy('course.createdAt', 'DESC')
       .take(10);
 
-    this.applyLatestPublishedPerLineageFilter(queryBuilder, 'course');
+    this.applyLatestPublishedPerLineageFilter(featuredQueryBuilder, 'course');
 
-    return queryBuilder.getMany();
+    const featuredCourses = await featuredQueryBuilder.getMany();
+    if (featuredCourses.length > 0) {
+      return featuredCourses;
+    }
+
+    const fallbackQueryBuilder = this.courseRepository
+      .createQueryBuilder('course')
+      .leftJoinAndSelect('course.teacher', 'teacher')
+      .leftJoinAndSelect('course.category', 'category')
+      .where('course.status = :status', { status: CourseStatus.PUBLISHED })
+      .orderBy('course.rating', 'DESC')
+      .addOrderBy('course.enrollmentCount', 'DESC')
+      .addOrderBy('course.reviewCount', 'DESC')
+      .addOrderBy('course.createdAt', 'DESC')
+      .take(10);
+
+    this.applyLatestPublishedPerLineageFilter(fallbackQueryBuilder, 'course');
+
+    return fallbackQueryBuilder.getMany();
   }
 
   async findAllAdmin(options?: {
