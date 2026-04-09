@@ -124,6 +124,25 @@ export class PaymentsService {
     return payment.expiresAt.getTime() <= Date.now();
   }
 
+  private async syncExpiredSepayPayments(): Promise<void> {
+    await this.paymentRepository
+      .createQueryBuilder()
+      .update(Payment)
+      .set({
+        status: PaymentStatus.EXPIRED,
+        failureReason: 'Payment expired',
+      })
+      .where('status = :pendingStatus', {
+        pendingStatus: PaymentStatus.PENDING,
+      })
+      .andWhere('paymentMethod = :paymentMethod', {
+        paymentMethod: PaymentMethod.SEPAY_QR,
+      })
+      .andWhere('expiresAt IS NOT NULL')
+      .andWhere('expiresAt <= :now', { now: new Date() })
+      .execute();
+  }
+
   private async getCreditedTopupPaymentIds(
     userId: string,
   ): Promise<Set<string>> {
@@ -1226,6 +1245,8 @@ export class PaymentsService {
   }
 
   async findByStudent(studentId: string): Promise<Payment[]> {
+    await this.syncExpiredSepayPayments();
+
     const payments = await this.paymentRepository.find({
       where: { studentId },
       relations: ['course'],
@@ -1340,6 +1361,8 @@ export class PaymentsService {
   }
 
   async findAllWithFilters(filters: PaymentFilters) {
+    await this.syncExpiredSepayPayments();
+
     const {
       page,
       limit,
@@ -1411,6 +1434,8 @@ export class PaymentsService {
   }
 
   async getPaymentStats(startDate?: string, endDate?: string) {
+    await this.syncExpiredSepayPayments();
+
     const query = this.paymentRepository.createQueryBuilder('payment');
 
     if (startDate) {
