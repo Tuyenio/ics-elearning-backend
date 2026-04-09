@@ -1010,7 +1010,11 @@ export class TeacherService {
   }
 
   async getTeacherReviews(teacherId: string) {
-    const courses = await this.courseRepo.find({ where: { teacherId } });
+    // Only get published courses (excluding rejected, draft, etc.)
+    const courses = await this.courseRepo.find({
+      where: { teacherId, status: CourseStatus.PUBLISHED },
+      relations: ['category'],
+    });
     const courseIds = courses.map((c) => c.id);
 
     if (courseIds.length === 0) {
@@ -1025,6 +1029,9 @@ export class TeacherService {
         reviews: [],
       };
     }
+
+    // Build version index for all published courses
+    const versionByCourseId = this.buildCourseVersionIndex(courses);
 
     const reviews = await this.reviewRepo.find({
       where: { courseId: In(courseIds) },
@@ -1050,24 +1057,39 @@ export class TeacherService {
           )
         : 0;
 
-    const coursesList = courses.map((c) => ({ id: c.id, name: c.title }));
-
-    const mapped = reviews.map((r) => ({
-      id: r.id,
-      courseId: r.courseId,
-      courseName: r.course?.title || '',
-      studentName: r.student?.name || 'N/A',
-      studentAvatar: r.student?.avatar || '',
-      studentEmail: r.student?.email || '',
-      rating: r.rating,
-      comment: r.comment,
-      createdAt: r.createdAt,
-      helpful: r.helpfulCount,
-      teacherReply: r.teacherReply || '',
-      repliedAt: r.repliedAt || undefined,
-      response: r.teacherReply || '',
-      responseDate: r.repliedAt || undefined,
+    const coursesList = courses.map((c) => ({
+      id: c.id,
+      name: c.title,
+      level: c.level,
+      categoryName: c.category?.name || 'Chưa phân loại',
+      version: versionByCourseId.get(c.id) || 1,
+      isOldVersion: !!c.sourceCourseId && versionByCourseId.get(c.id)! > 1,
+      sourceCourseId: c.sourceCourseId || null,
     }));
+
+    const mapped = reviews.map((r) => {
+      const course = courses.find((c) => c.id === r.courseId);
+      return {
+        id: r.id,
+        courseId: r.courseId,
+        courseName: r.course?.title || '',
+        level: r.course?.level || '',
+        categoryName: course?.category?.name || 'Chưa phân loại',
+        version: versionByCourseId.get(r.courseId) || 1,
+        isOldVersion: !!r.course?.sourceCourseId && versionByCourseId.get(r.courseId)! > 1,
+        studentName: r.student?.name || 'N/A',
+        studentAvatar: r.student?.avatar || '',
+        studentEmail: r.student?.email || '',
+        rating: r.rating,
+        comment: r.comment,
+        createdAt: r.createdAt,
+        helpful: r.helpfulCount,
+        teacherReply: r.teacherReply || '',
+        repliedAt: r.repliedAt || undefined,
+        response: r.teacherReply || '',
+        responseDate: r.repliedAt || undefined,
+      };
+    });
 
     return {
       stats: {
