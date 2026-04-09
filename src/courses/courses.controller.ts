@@ -101,6 +101,15 @@ export class CoursesController {
     return this.coursesService.findOne(id);
   }
 
+  @Get('public/:id')
+  @ApiOperation({
+    summary:
+      'Lấy khóa học public theo id (chỉ trả phiên bản xuất bản mới nhất trong cùng lineage)',
+  })
+  findPublicById(@Param('id') id: string) {
+    return this.coursesService.findPublicById(id);
+  }
+
   @Get('slug/:slug')
   findBySlug(@Param('slug') slug: string) {
     return this.coursesService.findBySlug(slug);

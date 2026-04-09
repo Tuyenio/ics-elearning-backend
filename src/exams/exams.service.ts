@@ -954,6 +954,7 @@ export class ExamsService {
                 enrollment.id,
                 {
                   examId: exam.id,
+                  examTitle: exam.title,
                   score: savedAttempt.score,
                   attemptId: savedAttempt.id,
                 },
@@ -1101,6 +1102,7 @@ export class ExamsService {
           enrollment.id,
           {
             examId: attempt.exam.id,
+            examTitle: attempt.exam.title,
             score: attempt.score,
             attemptId: attempt.id,
           },

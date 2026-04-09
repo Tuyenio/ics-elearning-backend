@@ -116,6 +116,12 @@ export class PaymentsService {
     return Number(normalized.toFixed(2));
   }
 
+  private async ensureCourseIsPurchasable(course: Course): Promise<void> {
+    if (course.status !== CourseStatus.PUBLISHED) {
+      throw new BadRequestException('Khoa hoc khong kha dung');
+    }
+  }
+
   private isPendingPaymentExpired(payment: Pick<Payment, 'expiresAt'>): boolean {
     if (!payment.expiresAt) {
       return false;
@@ -298,28 +304,57 @@ export class PaymentsService {
     };
   }
 
+  private async resolveLatestPublishedCourse(courseId: string): Promise<Course> {
+    const normalizedCourseId = String(courseId || '').trim();
+
+    if (!normalizedCourseId) {
+      throw new BadRequestException('Khoa hoc khong hop le');
+    }
+
+    const referenceCourse = await this.courseRepository.findOne({
+      where: { id: normalizedCourseId },
+      select: ['id', 'sourceCourseId'],
+    });
+
+    if (!referenceCourse) {
+      throw new NotFoundException('Khoa hoc khong tim thay');
+    }
+
+    const rootCourseId = referenceCourse.sourceCourseId || referenceCourse.id;
+
+    const latestPublishedCourse = await this.courseRepository
+      .createQueryBuilder('course')
+      .where('course.status = :status', { status: CourseStatus.PUBLISHED })
+      .andWhere(
+        '(course.id = :rootCourseId OR course."sourceCourseId" = :rootCourseId)',
+        { rootCourseId },
+      )
+      .orderBy('course.createdAt', 'DESC')
+      .addOrderBy('course.id', 'DESC')
+      .getOne();
+
+    if (!latestPublishedCourse) {
+      throw new BadRequestException('Khoa hoc da het han hoac khong kha dung');
+    }
+
+    return latestPublishedCourse;
+  }
+
   async create(
     createPaymentDto: CreatePaymentDto,
     student: User,
   ): Promise<Payment> {
-    const course = await this.courseRepository.findOne({
-      where: { id: createPaymentDto.courseId },
-    });
+    const course = await this.resolveLatestPublishedCourse(
+      createPaymentDto.courseId,
+    );
 
-    if (!course) {
-      throw new NotFoundException('Khóa học không tìm thấy');
-    }
-
-    // ✅ Validate course status
-    if (course.status !== CourseStatus.PUBLISHED) {
-      throw new BadRequestException('Khóa học không khả dụng');
-    }
+    await this.ensureCourseIsPurchasable(course);
 
     // Check if already enrolled
     const existingEnrollment = await this.enrollmentRepository.findOne({
       where: {
         studentId: student.id,
-        courseId: createPaymentDto.courseId,
+        courseId: course.id,
       },
     });
 
@@ -336,7 +371,7 @@ export class PaymentsService {
     const payment = this.paymentRepository.create({
       transactionId,
       studentId: student.id,
-      courseId: createPaymentDto.courseId,
+      courseId: course.id,
       amount,
       discountAmount,
       finalAmount,
@@ -354,7 +389,7 @@ export class PaymentsService {
     });
 
     this.logger.log(
-      `Created payment ${transactionId} for course ${createPaymentDto.courseId}`,
+      `Created payment ${transactionId} for course ${course.id}`,
     );
 
     const savedPayment = await this.paymentRepository.save(payment);
@@ -370,22 +405,14 @@ export class PaymentsService {
     dto: CreateSepayCoursePaymentDto,
     student: User,
   ) {
-    const course = await this.courseRepository.findOne({
-      where: { id: dto.courseId },
-    });
+    const course = await this.resolveLatestPublishedCourse(dto.courseId);
 
-    if (!course) {
-      throw new NotFoundException('Khoa hoc khong tim thay');
-    }
-
-    if (course.status !== CourseStatus.PUBLISHED) {
-      throw new BadRequestException('Khoa hoc khong kha dung');
-    }
+    await this.ensureCourseIsPurchasable(course);
 
     const existingEnrollment = await this.enrollmentRepository.findOne({
       where: {
         studentId: student.id,
-        courseId: dto.courseId,
+        courseId: course.id,
       },
     });
 
@@ -403,7 +430,7 @@ export class PaymentsService {
       transactionId: this.generateTransactionId(),
       transactionCode,
       studentId: student.id,
-      courseId: dto.courseId,
+      courseId: course.id,
       paymentType: PaymentType.COURSE_ENROLLMENT,
       amount,
       discountAmount,
@@ -442,22 +469,27 @@ export class PaymentsService {
   }
 
   async createSepayCartPayment(dto: CreateSepayCartPaymentDto, student: User) {
-    const uniqueCourseIds = Array.from(
+    const requestedCourseIds = Array.from(
       new Set((dto.courseIds || []).map((id) => String(id || '').trim())),
     ).filter(Boolean);
 
-    if (uniqueCourseIds.length === 0) {
+    if (requestedCourseIds.length === 0) {
       throw new BadRequestException('Danh sach khoa hoc khong hop le');
     }
 
+    const resolvedCourseMap = new Map<string, Course>();
+    for (const requestedCourseId of requestedCourseIds) {
+      const latestCourse = await this.resolveLatestPublishedCourse(requestedCourseId);
+      resolvedCourseMap.set(latestCourse.id, latestCourse);
+    }
+
+    const uniqueCourseIds = Array.from(resolvedCourseMap.keys());
+
     if (uniqueCourseIds.length === 1) {
-      return this.createSepayCoursePayment(
-        {
-          courseId: uniqueCourseIds[0],
-          couponCode: dto.couponCode,
-        },
-        student,
-      );
+      return this.createSepayCoursePayment({
+        courseId: uniqueCourseIds[0],
+        couponCode: dto.couponCode,
+      }, student);
     }
 
     if (dto.couponCode?.trim()) {
@@ -466,17 +498,8 @@ export class PaymentsService {
       );
     }
 
-    const courses = await this.courseRepository.find({
-      where: { id: In(uniqueCourseIds) },
-    });
-
-    if (courses.length !== uniqueCourseIds.length) {
-      throw new NotFoundException('Co khoa hoc khong ton tai trong gio hang');
-    }
-
-    const courseMap = new Map(courses.map((course) => [course.id, course]));
     const orderedCourses = uniqueCourseIds.map((courseId) =>
-      courseMap.get(courseId),
+      resolvedCourseMap.get(courseId),
     );
 
     if (orderedCourses.some((course) => !course)) {
@@ -484,11 +507,7 @@ export class PaymentsService {
     }
 
     for (const course of orderedCourses as Course[]) {
-      if (course.status !== CourseStatus.PUBLISHED) {
-        throw new BadRequestException(
-          `Khoa hoc ${course.title || course.id} khong kha dung`,
-        );
-      }
+      await this.ensureCourseIsPurchasable(course);
     }
 
     const enrolled = await this.enrollmentRepository.find({
@@ -613,22 +632,14 @@ export class PaymentsService {
   }
 
   async payCourseByWallet(dto: CreateSepayCoursePaymentDto, student: User) {
-    const course = await this.courseRepository.findOne({
-      where: { id: dto.courseId },
-    });
+    const course = await this.resolveLatestPublishedCourse(dto.courseId);
 
-    if (!course) {
-      throw new NotFoundException('Khoa hoc khong tim thay');
-    }
-
-    if (course.status !== CourseStatus.PUBLISHED) {
-      throw new BadRequestException('Khoa hoc khong kha dung');
-    }
+    await this.ensureCourseIsPurchasable(course);
 
     const existingEnrollment = await this.enrollmentRepository.findOne({
       where: {
         studentId: student.id,
-        courseId: dto.courseId,
+        courseId: course.id,
       },
     });
 
@@ -642,7 +653,7 @@ export class PaymentsService {
     const payment = this.paymentRepository.create({
       transactionId: this.generateTransactionId(),
       studentId: student.id,
-      courseId: dto.courseId,
+      courseId: course.id,
       paymentType: PaymentType.COURSE_ENROLLMENT,
       amount,
       discountAmount,

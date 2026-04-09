@@ -95,6 +95,7 @@ export class ExtractedExamsService {
       enrollment.id,
       {
         examId: exam.id,
+        examTitle: exam.title,
         score,
       },
     );

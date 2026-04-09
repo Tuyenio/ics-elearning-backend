@@ -10,7 +10,10 @@ import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { User, UserRole } from '../users/entities/user.entity';
 import { Enrollment, EnrollmentStatus } from '../enrollments/entities/enrollment.entity';
-import { Certificate } from '../certificates/entities/certificate.entity';
+import {
+  Certificate,
+  CertificateStatus,
+} from '../certificates/entities/certificate.entity';
 import {
   CertificateTemplate,
   TemplateStatus,
@@ -22,9 +25,10 @@ import {
 } from './dto/course-filters.dto';
 import { Category } from '../categories/entities/category.entity';
 import { InstructorSubscriptionsService } from '../instructor-subscriptions/instructor-subscriptions.service';
-import { Exam, ExamType } from '../exams/entities/exam.entity';
+import { Exam, ExamStatus, ExamType } from '../exams/entities/exam.entity';
 import {
   ExtractedExam,
+  ExtractedExamStatus,
   ExtractedExamType,
 } from '../exams/entities/extracted-exam.entity';
 
@@ -315,13 +319,68 @@ export class CoursesService {
   }
 
   async findBySlug(slug: string): Promise<CourseWithRatingDistribution> {
-    const course = await this.courseRepository.findOne({
-      where: { slug },
-      relations: ['teacher', 'category', 'lessons', 'reviews'],
-    });
+    const queryBuilder = this.courseRepository
+      .createQueryBuilder('course')
+      .leftJoinAndSelect('course.teacher', 'teacher')
+      .leftJoinAndSelect('course.category', 'category')
+      .leftJoinAndSelect('course.lessons', 'lessons')
+      .leftJoinAndSelect('course.reviews', 'reviews')
+      .where('course.slug = :slug', { slug })
+      .andWhere('course.status = :status', { status: CourseStatus.PUBLISHED });
+
+    this.applyLatestPublishedPerLineageFilter(queryBuilder, 'course');
+
+    const course = await queryBuilder.getOne();
 
     if (!course) {
-      throw new NotFoundException('Khóa học không tìm thấy');
+      throw new NotFoundException('Khóa học đã hết hạn hoặc không tồn tại');
+    }
+
+    return this.attachRatingDistribution(course);
+  }
+
+  async findPublicById(id: string): Promise<CourseWithRatingDistribution> {
+    const queryBuilder = this.courseRepository
+      .createQueryBuilder('course')
+      .leftJoinAndSelect('course.teacher', 'teacher')
+      .leftJoinAndSelect('course.category', 'category')
+      .leftJoinAndSelect('course.lessons', 'lessons')
+      .leftJoinAndSelect('course.reviews', 'reviews')
+      .where('course.id = :id', { id })
+      .andWhere('course.status = :status', { status: CourseStatus.PUBLISHED });
+
+    this.applyLatestPublishedPerLineageFilter(queryBuilder, 'course');
+
+    let course = await queryBuilder.getOne();
+
+    if (!course) {
+      const referenceCourse = await this.courseRepository.findOne({
+        where: { id },
+        select: ['id', 'sourceCourseId'],
+      });
+
+      if (referenceCourse) {
+        const rootCourseId = referenceCourse.sourceCourseId || referenceCourse.id;
+
+        course = await this.courseRepository
+          .createQueryBuilder('course')
+          .leftJoinAndSelect('course.teacher', 'teacher')
+          .leftJoinAndSelect('course.category', 'category')
+          .leftJoinAndSelect('course.lessons', 'lessons')
+          .leftJoinAndSelect('course.reviews', 'reviews')
+          .where('course.status = :status', { status: CourseStatus.PUBLISHED })
+          .andWhere(
+            '(course.id = :rootCourseId OR course."sourceCourseId" = :rootCourseId)',
+            { rootCourseId },
+          )
+          .orderBy('course.createdAt', 'DESC')
+          .addOrderBy('course.id', 'DESC')
+          .getOne();
+      }
+    }
+
+    if (!course) {
+      throw new NotFoundException('Khóa học đã hết hạn hoặc không tồn tại');
     }
 
     return this.attachRatingDistribution(course);
@@ -838,9 +897,19 @@ export class CoursesService {
     }
 
     const [officialExamCount, officialExtractedExamCount] = await Promise.all([
-      this.examRepository.count({ where: { courseId, type: ExamType.OFFICIAL } }),
+      this.examRepository.count({
+        where: {
+          courseId,
+          type: ExamType.OFFICIAL,
+          status: ExamStatus.APPROVED,
+        },
+      }),
       this.extractedExamRepository.count({
-        where: { courseId, type: ExtractedExamType.OFFICIAL },
+        where: {
+          courseId,
+          type: ExtractedExamType.OFFICIAL,
+          status: ExtractedExamStatus.APPROVED,
+        },
       }),
     ]);
 
@@ -848,7 +917,9 @@ export class CoursesService {
       officialExamCount + officialExtractedExamCount > 0;
 
     if (!hasOfficialAssessment) {
-      return false;
+      // Course must have a final official assessment before the previous
+      // published version can be archived.
+      return true;
     }
 
     const learnersWithoutCertificate = await this.enrollmentRepository
@@ -856,7 +927,8 @@ export class CoursesService {
       .leftJoin(
         Certificate,
         'certificate',
-        'certificate."enrollmentId" = enrollment.id',
+        'certificate."enrollmentId" = enrollment.id AND certificate.status = :certificateStatus',
+        { certificateStatus: CertificateStatus.APPROVED },
       )
       .where('enrollment."courseId" = :courseId', { courseId })
       .andWhere('enrollment.status IN (:...statuses)', {

@@ -17,6 +17,7 @@ import {
   EnrollmentStatus,
 } from '../enrollments/entities/enrollment.entity';
 import { Exam, ExamType } from '../exams/entities/exam.entity';
+import { ExtractedExam, ExtractedExamType } from '../exams/entities/extracted-exam.entity';
 
 @Injectable()
 export class CertificatesService {
@@ -29,7 +30,31 @@ export class CertificatesService {
     private readonly enrollmentRepository: Repository<Enrollment>,
     @InjectRepository(Exam)
     private readonly examRepository: Repository<Exam>,
+    @InjectRepository(ExtractedExam)
+    private readonly extractedExamRepository: Repository<ExtractedExam>,
   ) {}
+
+  private mergeCertificateMetadata(base: any, patch: any): any {
+    const baseMetadata = base && typeof base === 'object' ? { ...base } : {};
+    const patchMetadata = patch && typeof patch === 'object' ? patch : {};
+    const baseSnapshot =
+      baseMetadata.snapshot && typeof baseMetadata.snapshot === 'object'
+        ? { ...baseMetadata.snapshot }
+        : {};
+    const patchSnapshot =
+      patchMetadata.snapshot && typeof patchMetadata.snapshot === 'object'
+        ? patchMetadata.snapshot
+        : {};
+
+    return {
+      ...baseMetadata,
+      ...patchMetadata,
+      snapshot: {
+        ...baseSnapshot,
+        ...patchSnapshot,
+      },
+    };
+  }
 
   async generateCertificate(enrollmentId: string): Promise<Certificate> {
     const enrollment = await this.enrollmentRepository.findOne({
@@ -82,7 +107,13 @@ export class CertificatesService {
 
   async generateCertificateForExamPass(
     enrollmentId: string,
-    examInfo?: { examId?: string; attemptId?: string; score?: number },
+    examInfo?: {
+      examId?: string;
+      attemptId?: string;
+      score?: number;
+      examTitle?: string;
+      certificateTitle?: string;
+    },
   ): Promise<Certificate> {
     console.log(
       `[CertificateService] Generating certificate for exam pass. Enrollment: ${enrollmentId}, ExamInfo:`,
@@ -122,6 +153,12 @@ export class CertificatesService {
       examInfo?.examId,
     );
 
+    const certificateTitle =
+      examInfo?.certificateTitle ||
+      templateSnapshot?.title ||
+      examInfo?.examTitle ||
+      null;
+
     const certificate = this.certificateRepository.create({
       certificateNumber: this.generateCertificateNumber(),
       studentId: enrollment.studentId,
@@ -131,16 +168,19 @@ export class CertificatesService {
       metadata: {
         studentName: enrollment.student.name,
         courseName: enrollment.course.title,
+        ...(certificateTitle ? { certificateTitle } : {}),
         source: 'official_exam',
         ...examInfo,
         snapshot: {
           studentName: enrollment.student.name,
           courseName: enrollment.course.title,
+          ...(certificateTitle ? { certificateTitle } : {}),
           issuedAt: new Date().toISOString(),
           certificateId: undefined,
           examId: examInfo?.examId,
           attemptId: examInfo?.attemptId,
           score: examInfo?.score,
+          ...(examInfo?.examTitle ? { examTitle: examInfo.examTitle } : {}),
           template: templateSnapshot,
         },
       },
@@ -154,11 +194,61 @@ export class CertificatesService {
   }
 
   async findByStudent(studentId: string): Promise<Certificate[]> {
-    return this.certificateRepository.find({
+    const certificates = await this.certificateRepository.find({
       where: { studentId },
       relations: ['course', 'student'],
       order: { issueDate: 'DESC' },
     });
+
+    const templateSnapshotCache = new Map<string, any | null>();
+
+    return Promise.all(
+      certificates.map(async (certificate) => {
+        const metadata =
+          certificate.metadata && typeof certificate.metadata === 'object'
+            ? { ...certificate.metadata }
+            : {};
+        const snapshot =
+          metadata.snapshot && typeof metadata.snapshot === 'object'
+            ? { ...metadata.snapshot }
+            : {};
+
+        const examId = String(snapshot.examId || metadata.examId || '').trim();
+        const hasTemplateSnapshot = Boolean(snapshot.template?.title || snapshot.template?.id);
+        const hasCertificateTitle = Boolean(snapshot.certificateTitle || metadata.certificateTitle);
+
+        if (!examId || (hasTemplateSnapshot && hasCertificateTitle)) {
+          return certificate;
+        }
+
+        let resolvedTemplateSnapshot: any | null = null;
+        if (templateSnapshotCache.has(examId)) {
+          resolvedTemplateSnapshot = templateSnapshotCache.get(examId) || null;
+        } else {
+          resolvedTemplateSnapshot = await this.getTemplateSnapshotByExamId(examId);
+          templateSnapshotCache.set(examId, resolvedTemplateSnapshot || null);
+        }
+
+        const resolvedCertificateTitle =
+          snapshot.certificateTitle ||
+          metadata.certificateTitle ||
+          resolvedTemplateSnapshot?.title ||
+          snapshot.examTitle ||
+          metadata.examTitle ||
+          null;
+
+        certificate.metadata = this.mergeCertificateMetadata(metadata, {
+          ...(resolvedCertificateTitle ? { certificateTitle: resolvedCertificateTitle } : {}),
+          snapshot: {
+            ...(examId ? { examId } : {}),
+            ...(resolvedCertificateTitle ? { certificateTitle: resolvedCertificateTitle } : {}),
+            ...(resolvedTemplateSnapshot ? { template: resolvedTemplateSnapshot } : {}),
+          },
+        });
+
+        return certificate;
+      }),
+    );
   }
 
   async findAllForAdmin(): Promise<Certificate[]> {
@@ -283,10 +373,26 @@ export class CertificatesService {
       where: { id: examId },
     });
 
-    if (!exam?.certificateTemplateId) return null;
+    let certificateTemplateId = exam?.certificateTemplateId || null;
+    let examTitle = exam?.title || null;
+    let examType: string | null = exam?.type || null;
+
+    if (!certificateTemplateId) {
+      const extractedExam = await this.extractedExamRepository.findOne({
+        where: { id: examId },
+      });
+
+      if (extractedExam && extractedExam.type === ExtractedExamType.OFFICIAL) {
+        certificateTemplateId = extractedExam.certificateTemplateId || null;
+        examTitle = extractedExam.title || examTitle;
+        examType = extractedExam.type;
+      }
+    }
+
+    if (!certificateTemplateId) return null;
 
     const template = await this.templateRepository.findOne({
-      where: { id: exam.certificateTemplateId },
+      where: { id: certificateTemplateId },
     });
 
     if (!template) return null;
@@ -306,6 +412,8 @@ export class CertificatesService {
       signatureUrl: template.signatureUrl,
       validityPeriod: template.validityPeriod,
       status: template.status,
+      examTitle,
+      examType,
       capturedAt: new Date().toISOString(),
     };
   }

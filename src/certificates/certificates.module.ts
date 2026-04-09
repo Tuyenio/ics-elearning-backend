@@ -6,6 +6,7 @@ import { Certificate } from './entities/certificate.entity';
 import { CertificateTemplate } from './entities/certificate-template.entity';
 import { Enrollment } from '../enrollments/entities/enrollment.entity';
 import { Exam } from '../exams/entities/exam.entity';
+import { ExtractedExam } from '../exams/entities/extracted-exam.entity';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { Exam } from '../exams/entities/exam.entity';
       CertificateTemplate,
       Enrollment,
       Exam,
+      ExtractedExam,
     ]),
   ],
   controllers: [CertificatesController],
