@@ -21,25 +21,35 @@ interface GoogleProfile {
 
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
+  private readonly isGoogleConfigured: boolean;
+
   constructor(
     private configService: ConfigService,
     private usersService: UsersService,
   ) {
+    const clientID = configService.get<string>('google.clientId')?.trim();
+    const clientSecret = configService.get<string>('google.clientSecret')?.trim();
+    const callbackURL = configService.get<string>('google.callbackURL');
+    const isGoogleConfigured = Boolean(clientID && clientSecret);
+
     const googleConfig = {
-      clientID: configService.get<string>('google.clientId'),
-      clientSecret: configService.get<string>('google.clientSecret'),
-      callbackURL: configService.get<string>('google.callbackURL'),
+      // Use placeholders when OAuth is not configured to keep backend booting.
+      clientID: clientID || 'google-oauth-disabled',
+      clientSecret: clientSecret || 'google-oauth-disabled',
+      callbackURL: callbackURL || 'http://localhost:5001/auth/google/callback',
       scope: ['email', 'profile'],
     };
 
     // Validate required Google OAuth config
-    if (!googleConfig.clientID || !googleConfig.clientSecret) {
+    if (!isGoogleConfigured) {
       console.warn(
         '⚠️  Google OAuth not configured. Sign-in with Google will be unavailable.',
       );
     }
 
     super(googleConfig as any);
+
+    this.isGoogleConfigured = isGoogleConfigured;
   }
 
   async validate(
@@ -48,6 +58,10 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     profile: GoogleProfile,
     done: VerifyCallback,
   ): Promise<any> {
+    if (!this.isGoogleConfigured) {
+      return done(new Error('Google OAuth is not configured on server'));
+    }
+
     const { name, emails, photos } = profile;
     const email = emails && emails[0] ? emails[0].value : null;
     const picture = photos && photos[0] ? photos[0].value : null;

@@ -43,6 +43,13 @@ import { ScheduleModule } from './schedule/schedule.module';
 import { InstructorSubscriptionsModule } from './instructor-subscriptions/instructor-subscriptions.module';
 import { WalletModule } from './wallet/wallet.module';
 
+const envFileCandidates = [
+  `.env.${process.env.NODE_ENV || 'development'}.local`,
+  `.env.${process.env.NODE_ENV || 'development'}`,
+  '.env.local',
+  '.env',
+];
+
 @Module({
   imports: [
     SystemSettingsModule,
@@ -57,7 +64,7 @@ import { WalletModule } from './wallet/wallet.module';
     ConfigModule.forRoot({
       isGlobal: true,
       load: [configuration],
-      envFilePath: '.env',
+      envFilePath: envFileCandidates,
     }),
     // Rate limiting
     ThrottlerModule.forRoot([
