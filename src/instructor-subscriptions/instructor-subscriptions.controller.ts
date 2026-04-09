@@ -33,6 +33,16 @@ export class InstructorSubscriptionsController {
     return this.service.getTeacherSubscription(user.id);
   }
 
+  @Patch('teacher/auto-renew')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.TEACHER)
+  updateTeacherAutoRenew(
+    @GetUser() user: User,
+    @Body('enabled') enabled?: boolean,
+  ) {
+    return this.service.updateTeacherAutoRenew(user.id, enabled === true);
+  }
+
   @Post('teacher/upgrade')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.TEACHER)

@@ -4,6 +4,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -31,9 +32,12 @@ import { WalletService } from '../wallet/wallet.service';
 import { SepayWebhookDto } from '../payments/dto/sepay-webhook.dto';
 
 @Injectable()
-export class InstructorSubscriptionsService implements OnModuleInit {
+export class InstructorSubscriptionsService
+  implements OnModuleInit, OnModuleDestroy
+{
   private readonly logger = new Logger(InstructorSubscriptionsService.name);
   private static readonly PAYMENT_EXPIRE_MS = 15 * 60 * 1000;
+  private autoRenewTimer: NodeJS.Timeout | null = null;
 
   constructor(
     @InjectRepository(InstructorPlan)
@@ -74,6 +78,43 @@ export class InstructorSubscriptionsService implements OnModuleInit {
 
   async onModuleInit() {
     await this.ensureDefaultPlans();
+    this.autoRenewTimer = setInterval(() => {
+      void this.processDueAutoRenewSubscriptions();
+    }, 60_000);
+  }
+
+  onModuleDestroy() {
+    if (this.autoRenewTimer) {
+      clearInterval(this.autoRenewTimer);
+      this.autoRenewTimer = null;
+    }
+  }
+
+  private async processDueAutoRenewSubscriptions(): Promise<void> {
+    const dueSubscriptions = await this.subscriptionRepo.find({
+      where: {
+        status: InstructorSubscriptionStatus.ACTIVE,
+        autoRenew: true,
+      },
+      relations: ['plan'],
+      order: { endDate: 'ASC' },
+    });
+
+    for (const subscription of dueSubscriptions) {
+      if (!this.isSubscriptionExpired(subscription)) {
+        continue;
+      }
+
+      try {
+        await this.reconcileActiveSubscription(subscription.teacherId, subscription);
+      } catch (error) {
+        this.logger.warn(
+          `[AUTO_RENEW] teacher=${subscription.teacherId} subscription=${subscription.id} failed: ${
+            error instanceof Error ? error.message : 'unknown_error'
+          }`,
+        );
+      }
+    }
   }
 
   private async ensureDefaultPlans() {
@@ -268,6 +309,98 @@ export class InstructorSubscriptionsService implements OnModuleInit {
     return next;
   }
 
+  private isSubscriptionExpired(subscription: InstructorSubscription): boolean {
+    if (!subscription?.endDate) return false;
+    const endDate = new Date(subscription.endDate);
+    if (Number.isNaN(endDate.getTime())) return false;
+    return endDate.getTime() <= Date.now();
+  }
+
+  private async processAutoRenewWithWallet(
+    teacherId: string,
+    subscription: InstructorSubscription,
+  ): Promise<InstructorSubscription> {
+    const plan = subscription.plan;
+    const amount = this.normalizeAmount(Number(plan?.price || 0));
+
+    if (!plan || amount <= 0) {
+      return subscription;
+    }
+
+    const tx = this.generateTx();
+    const now = new Date();
+
+    await this.walletService.debitBalance(
+      teacherId,
+      amount,
+      'instructor_subscription_auto_renew',
+      {
+        description: `Tu dong gia han goi giang vien ${plan.name}`,
+        metadata: {
+          subscriptionId: subscription.id,
+          planId: plan.id,
+          autoRenew: true,
+          source: 'subscription_expiration',
+        },
+      },
+    );
+
+    await this.paymentRepo.save(
+      this.paymentRepo.create({
+        transactionId: tx,
+        teacherId,
+        planId: plan.id,
+        amount,
+        currency: 'VND',
+        status: InstructorSubscriptionPaymentStatus.PAID,
+        paymentMethod: 'wallet',
+        paidAt: now,
+        metadata: {
+          autoRenew: true,
+          subscriptionId: subscription.id,
+          reason: 'auto_renew_on_expiration',
+        },
+      }),
+    );
+
+    subscription.status = InstructorSubscriptionStatus.ACTIVE;
+    subscription.startDate = now;
+    subscription.endDate = this.addMonths(now, plan.durationMonths || 1);
+    subscription.paymentMethod = 'wallet';
+    subscription.cancelReason = null;
+    return this.subscriptionRepo.save(subscription);
+  }
+
+  private async reconcileActiveSubscription(
+    teacherId: string,
+    subscription: InstructorSubscription,
+  ): Promise<InstructorSubscription> {
+    if (!this.isSubscriptionExpired(subscription)) {
+      return subscription;
+    }
+
+    const canAutoRenew =
+      subscription.autoRenew === true &&
+      Number(subscription.plan?.price || 0) > 0;
+
+    if (canAutoRenew) {
+      try {
+        return await this.processAutoRenewWithWallet(teacherId, subscription);
+      } catch {
+        subscription.status = InstructorSubscriptionStatus.EXPIRED;
+        subscription.cancelReason =
+          'auto_renew_failed_insufficient_wallet_or_error';
+        await this.subscriptionRepo.save(subscription);
+        return subscription;
+      }
+    }
+
+    subscription.status = InstructorSubscriptionStatus.EXPIRED;
+    subscription.cancelReason = subscription.cancelReason || 'subscription_expired';
+    await this.subscriptionRepo.save(subscription);
+    return subscription;
+  }
+
   private async getOrCreateFreePlan() {
     let freePlan = await this.planRepo.findOne({ where: { name: 'Free' } });
     if (!freePlan) {
@@ -298,6 +431,17 @@ export class InstructorSubscriptionsService implements OnModuleInit {
       relations: ['plan'],
       order: { createdAt: 'DESC' },
     });
+
+    if (subscription) {
+      subscription = await this.reconcileActiveSubscription(teacherId, subscription);
+      if (subscription.status !== InstructorSubscriptionStatus.ACTIVE) {
+        subscription = await this.subscriptionRepo.findOne({
+          where: { teacherId, status: InstructorSubscriptionStatus.ACTIVE },
+          relations: ['plan'],
+          order: { createdAt: 'DESC' },
+        });
+      }
+    }
 
     if (!subscription) {
       const freePlan = await this.getOrCreateFreePlan();
@@ -385,6 +529,19 @@ export class InstructorSubscriptionsService implements OnModuleInit {
         storageUsageSource: 'estimate_by_course_usage_ratio',
       },
       billingHistory,
+    };
+  }
+
+  async updateTeacherAutoRenew(teacherId: string, enabled: boolean) {
+    const payload = await this.getTeacherSubscription(teacherId);
+    const subscription = payload.subscription as InstructorSubscription;
+
+    subscription.autoRenew = enabled;
+    const saved = await this.subscriptionRepo.save(subscription);
+
+    return {
+      success: true,
+      subscription: saved,
     };
   }
 
