@@ -32,7 +32,9 @@ export default () => ({
   google: {
     clientId: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: `${process.env.APP_HOST || 'http://localhost:5001'}/auth/google/callback`,
+    callbackURL:
+      process.env.GOOGLE_CALLBACK_URL ||
+      `${(process.env.APP_HOST || 'http://localhost:5001').replace(/\/+$/, '')}/auth/google/callback`,
   },
 
   // Email

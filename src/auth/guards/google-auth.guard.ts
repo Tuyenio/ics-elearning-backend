@@ -17,7 +17,26 @@ export class GoogleAuthGuard extends AuthGuard('google') {
     return resolveFrontendUrl(rawUrl);
   }
 
+  private isGoogleConfigured(): boolean {
+    const clientId = this.configService.get<string>('google.clientId')?.trim();
+    const clientSecret = this.configService
+      .get<string>('google.clientSecret')
+      ?.trim();
+
+    return Boolean(clientId && clientSecret);
+  }
+
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    if (!this.isGoogleConfigured()) {
+      const response = context.switchToHttp().getResponse();
+      const frontendUrl = this.getFrontendUrl();
+      const errorMessage =
+        'Google OAuth chưa được cấu hình trên server. Vui lòng liên hệ quản trị viên.';
+      const errorUrl = `${frontendUrl}/login?error=google_oauth_not_configured&message=${encodeURIComponent(errorMessage)}`;
+      response.redirect(errorUrl);
+      return true;
+    }
+
     try {
       const result = (await super.canActivate(context)) as boolean;
       return result;
