@@ -377,6 +377,102 @@ export class InstructorSubscriptionsService implements OnModuleInit {
     return payment.expiresAt.getTime() <= Date.now();
   }
 
+  private async syncExpiredInstructorPayments(): Promise<void> {
+    await this.paymentRepo
+      .createQueryBuilder()
+      .update(InstructorSubscriptionPayment)
+      .set({ status: InstructorSubscriptionPaymentStatus.EXPIRED })
+      .where('status = :pendingStatus', {
+        pendingStatus: InstructorSubscriptionPaymentStatus.PENDING,
+      })
+      .andWhere('expiresAt IS NOT NULL')
+      .andWhere('expiresAt <= :now', { now: new Date() })
+      .execute();
+  }
+
+  private async reconcilePendingQrByTeacher(teacherId?: string): Promise<void> {
+    const query = this.paymentRepo
+      .createQueryBuilder('payment')
+      .where('payment.status = :pendingStatus', {
+        pendingStatus: InstructorSubscriptionPaymentStatus.PENDING,
+      })
+      .andWhere('payment.paymentMethod = :paymentMethod', {
+        paymentMethod: 'sepay_qr',
+      })
+      .orderBy('payment.teacherId', 'ASC')
+      .addOrderBy('payment.createdAt', 'DESC');
+
+    if (teacherId) {
+      query.andWhere('payment.teacherId = :teacherId', { teacherId });
+    }
+
+    const pendingQrPayments = await query.getMany();
+    if (pendingQrPayments.length <= 1) {
+      return;
+    }
+
+    const latestByTeacher = new Map<string, InstructorSubscriptionPayment>();
+    const replacedAt = new Date().toISOString();
+    const toFail: InstructorSubscriptionPayment[] = [];
+
+    for (const payment of pendingQrPayments) {
+      const latest = latestByTeacher.get(payment.teacherId);
+      if (!latest) {
+        latestByTeacher.set(payment.teacherId, payment);
+        continue;
+      }
+
+      payment.status = InstructorSubscriptionPaymentStatus.FAILED;
+      payment.metadata = {
+        ...(payment.metadata || {}),
+        failureReason: 'replaced_by_new_checkout',
+        replacedByTransactionId: latest.transactionId,
+        replacedAt,
+      };
+      toFail.push(payment);
+    }
+
+    if (toFail.length > 0) {
+      await this.paymentRepo.save(toFail);
+    }
+  }
+
+  private async markPreviousPendingQrAsFailed(
+    teacherId: string,
+    replacementTransactionId: string,
+  ): Promise<void> {
+    const pendingPayments = await this.paymentRepo.find({
+      where: {
+        teacherId,
+        status: InstructorSubscriptionPaymentStatus.PENDING,
+        paymentMethod: 'sepay_qr',
+      },
+      order: { createdAt: 'DESC' },
+    });
+
+    const oldPendingPayments = pendingPayments.filter(
+      (payment) => payment.transactionId !== replacementTransactionId,
+    );
+
+    if (oldPendingPayments.length === 0) {
+      return;
+    }
+
+    const replacedAt = new Date().toISOString();
+
+    for (const oldPayment of oldPendingPayments) {
+      oldPayment.status = InstructorSubscriptionPaymentStatus.FAILED;
+      oldPayment.metadata = {
+        ...(oldPayment.metadata || {}),
+        failureReason: 'replaced_by_new_checkout',
+        replacedByTransactionId: replacementTransactionId,
+        replacedAt,
+      };
+    }
+
+    await this.paymentRepo.save(oldPendingPayments);
+  }
+
   private resolveTransferCode(content?: string): string | null {
     if (!content) {
       return null;
@@ -599,6 +695,12 @@ export class InstructorSubscriptionsService implements OnModuleInit {
     const planCode = this.toPlanCode(plan);
     const amount = this.normalizeAmount(Number(plan.price || 0));
 
+    if (paymentChannel === 'sepay_qr') {
+      await this.syncExpiredInstructorPayments();
+      await this.reconcilePendingQrByTeacher(teacherId);
+      await this.markPreviousPendingQrAsFailed(teacherId, tx);
+    }
+
     const payment = await this.paymentRepo.save(
       this.paymentRepo.create({
         transactionId: tx,
@@ -623,6 +725,10 @@ export class InstructorSubscriptionsService implements OnModuleInit {
         },
       }),
     );
+
+    if (paymentChannel === 'sepay_qr') {
+      await this.markPreviousPendingQrAsFailed(teacherId, payment.transactionId);
+    }
 
     if (paymentChannel === 'wallet') {
       try {
@@ -731,6 +837,9 @@ export class InstructorSubscriptionsService implements OnModuleInit {
   }
 
   async getCheckoutStatus(teacherId: string, transactionId: string) {
+    await this.syncExpiredInstructorPayments();
+    await this.reconcilePendingQrByTeacher(teacherId);
+
     const payment = await this.paymentRepo.findOne({
       where: { teacherId, transactionId },
       relations: ['plan', 'subscription'],
@@ -1060,6 +1169,9 @@ export class InstructorSubscriptionsService implements OnModuleInit {
   }
 
   async getAdminPayments() {
+    await this.syncExpiredInstructorPayments();
+    await this.reconcilePendingQrByTeacher();
+
     return this.paymentRepo.find({
       relations: ['teacher', 'plan'],
       order: { createdAt: 'DESC' },
