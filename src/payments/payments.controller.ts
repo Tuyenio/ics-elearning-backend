@@ -278,6 +278,21 @@ export class PaymentsController {
     return this.paymentsService.getSepayPaymentStatus(transactionCode, user.id);
   }
 
+  @Post('sepay/cancel/:transactionCode')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.STUDENT, UserRole.TEACHER)
+  cancelSepayPayment(
+    @Param('transactionCode') transactionCode: string,
+    @GetUser() user: User,
+    @Body() body?: { reason?: string },
+  ) {
+    return this.paymentsService.cancelSepayPayment(
+      transactionCode,
+      user.id,
+      body?.reason || 'cancelled_by_user',
+    );
+  }
+
   @Post('sepay/webhook')
   @HttpCode(HttpStatus.OK)
   async handleSepayWebhook(@Body() body: Record<string, unknown>) {

@@ -10,6 +10,7 @@ import { InstructorSubscription } from './entities/instructor-subscription.entit
 import { InstructorSubscriptionPayment } from './entities/instructor-subscription-payment.entity';
 import { WalletModule } from '../wallet/wallet.module';
 import { AdminAuditLog } from '../admin/entities/admin-audit-log.entity';
+import { Enrollment } from '../enrollments/entities/enrollment.entity';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { AdminAuditLog } from '../admin/entities/admin-audit-log.entity';
       InstructorSubscriptionPayment,
       InstructorPaymentMethod,
       Course,
+      Enrollment,
       User,
       AdminAuditLog,
     ]),
