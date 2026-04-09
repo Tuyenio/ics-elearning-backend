@@ -1324,8 +1324,55 @@ export class InstructorSubscriptionsService
       order: { createdAt: 'DESC' },
     });
 
+    const historyCountByTeacher = subs.reduce<Record<string, number>>(
+      (acc, sub) => {
+        const key = String(sub.teacherId || '');
+        if (!key) return acc;
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      },
+      {},
+    );
+
+    // Return one subscription per teacher for access-management UI.
+    // Priority: active subscription, otherwise the most recent one.
+    const byTeacher = new Map<string, InstructorSubscription>();
+    for (const sub of subs) {
+      const key = String(sub.teacherId || '');
+      if (!key) continue;
+
+      const existing = byTeacher.get(key);
+      if (!existing) {
+        byTeacher.set(key, sub);
+        continue;
+      }
+
+      const existingIsActive =
+        existing.status === InstructorSubscriptionStatus.ACTIVE;
+      const currentIsActive = sub.status === InstructorSubscriptionStatus.ACTIVE;
+
+      if (!existingIsActive && currentIsActive) {
+        byTeacher.set(key, sub);
+        continue;
+      }
+
+      if (existingIsActive === currentIsActive) {
+        const existingAt = new Date(existing.createdAt || 0).getTime();
+        const currentAt = new Date(sub.createdAt || 0).getTime();
+        if (currentAt > existingAt) {
+          byTeacher.set(key, sub);
+        }
+      }
+    }
+
+    const normalizedSubs = Array.from(byTeacher.values()).sort((a, b) => {
+      const at = new Date(a.createdAt || 0).getTime();
+      const bt = new Date(b.createdAt || 0).getTime();
+      return bt - at;
+    });
+
     return Promise.all(
-      subs.map(async (sub) => {
+      normalizedSubs.map(async (sub) => {
         const coursesCreated = await this.courseRepo.count({
           where: { teacherId: sub.teacherId },
         });
@@ -1333,6 +1380,7 @@ export class InstructorSubscriptionsService
           ...sub,
           teacher: sub.teacher,
           plan: sub.plan,
+          historyCount: historyCountByTeacher[String(sub.teacherId || '')] || 1,
           usage: {
             coursesCreated,
             courseLimit: sub.plan?.courseLimit ?? 2,
@@ -1340,6 +1388,44 @@ export class InstructorSubscriptionsService
         };
       }),
     );
+  }
+
+  async removeAdminSubscription(id: string, actor?: User) {
+    const subscription = await this.subscriptionRepo.findOne({
+      where: { id },
+      relations: ['teacher', 'plan'],
+    });
+
+    if (!subscription) {
+      throw new NotFoundException('Khong tim thay subscription');
+    }
+
+    // Move teacher back to Free plan and close old active records.
+    await this.cancelSubscription(
+      subscription.teacherId,
+      `Admin removed subscription ${subscription.id}`,
+    );
+
+    await this.auditLogRepo.save(
+      this.auditLogRepo.create({
+        action: 'instructor_subscription.admin_remove',
+        entityType: 'instructor_subscription',
+        entityId: subscription.id,
+        actorId: actor?.id ?? null,
+        actorEmail: actor?.email ?? null,
+        metadata: {
+          teacherId: subscription.teacherId,
+          planId: subscription.planId,
+          previousStatus: subscription.status,
+          reason: 'removed_by_admin',
+        },
+      }),
+    );
+
+    return {
+      success: true,
+      message: 'Da xoa goi dang su dung va chuyen ve Free',
+    };
   }
 
   async updateAdminSubscription(

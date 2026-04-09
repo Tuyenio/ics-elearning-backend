@@ -172,6 +172,13 @@ export class InstructorSubscriptionsController {
     return this.service.updateAdminSubscription(id, body, user);
   }
 
+  @Delete('admin/subscriptions/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  removeAdminSubscription(@Param('id') id: string, @GetUser() user: User) {
+    return this.service.removeAdminSubscription(id, user);
+  }
+
   @Get('admin/payments')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
