@@ -1,4 +1,4 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, ParseUUIDPipe, UseGuards } from '@nestjs/common';
 import { ProgressService } from './progress.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -30,7 +30,7 @@ export class ProgressController {
 
   @Get('course/:courseId')
   getCourseProgress(
-    @Param('courseId') courseId: string,
+    @Param('courseId', new ParseUUIDPipe()) courseId: string,
     @GetUser() user: User,
   ) {
     return this.progressService.getCourseProgress(user.id, courseId);

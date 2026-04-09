@@ -18,6 +18,9 @@ import {
 
 @Injectable()
 export class ProgressService {
+  private static readonly UUID_PATTERN =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
   constructor(
     @InjectRepository(Enrollment)
     private readonly enrollmentRepo: Repository<Enrollment>,
@@ -28,6 +31,10 @@ export class ProgressService {
     @InjectRepository(Lesson)
     private readonly lessonRepo: Repository<Lesson>,
   ) {}
+
+  private isValidUuid(value: string | null | undefined): value is string {
+    return typeof value === 'string' && ProgressService.UUID_PATTERN.test(value);
+  }
 
   private resolveProgressSeconds(progress: LessonProgress): number {
     const lessonDuration = Number(progress.lesson?.duration || 0);
@@ -223,6 +230,10 @@ export class ProgressService {
     studentId: string,
     courseId: string,
   ): Promise<CourseProgress | null> {
+    if (!this.isValidUuid(courseId)) {
+      return null;
+    }
+
     const enrollment = await this.enrollmentRepo.findOne({
       where: { studentId, courseId },
       relations: ['course', 'course.teacher'],
@@ -309,7 +320,7 @@ export class ProgressService {
     });
 
     const progressPromises = enrollments
-      .filter((e) => e?.course)
+      .filter((e) => e?.course && this.isValidUuid(e.courseId))
       .map((e) => this.getCourseProgress(studentId, e.courseId));
 
     const results = await Promise.all(progressPromises);
