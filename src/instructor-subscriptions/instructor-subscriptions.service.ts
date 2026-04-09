@@ -928,6 +928,35 @@ export class InstructorSubscriptionsService implements OnModuleInit {
     };
   }
 
+  async cancelCheckout(teacherId: string, transactionId: string) {
+    const payment = await this.paymentRepo.findOne({
+      where: { teacherId, transactionId },
+    });
+
+    if (!payment) {
+      throw new NotFoundException('Không tìm thấy giao dịch');
+    }
+
+    if (payment.status !== InstructorSubscriptionPaymentStatus.PENDING) {
+      throw new BadRequestException('Chỉ có thể hủy giao dịch ở trạng thái Chờ xử lý');
+    }
+
+    // Mark payment as failed
+    payment.status = InstructorSubscriptionPaymentStatus.FAILED;
+    payment.metadata = {
+      ...(payment.metadata || {}),
+      failureReason: 'user_cancelled',
+      cancelledAt: new Date().toISOString(),
+    };
+    await this.paymentRepo.save(payment);
+
+    return {
+      success: true,
+      message: 'Giao dịch đã được hủy',
+      payment,
+    };
+  }
+
   async handleSepayWebhook(webhookData: SepayWebhookDto): Promise<{
     success: boolean;
     message: string;
