@@ -45,6 +45,17 @@ type CourseWithRatingDistribution = Course & {
   publishedReviewCount: number;
 };
 
+type TopTeacherProfile = {
+  id: string;
+  name: string;
+  avatar: string | null;
+  specialty: string;
+  students: number;
+  rating: number;
+  revenue: number;
+  courses: number;
+};
+
 @Injectable()
 export class CoursesService {
   constructor(
@@ -286,6 +297,101 @@ export class CoursesService {
     this.applyLatestPublishedPerLineageFilter(queryBuilder, 'course');
 
     return queryBuilder.getMany();
+  }
+
+  async findTopTeachers(limit = 9): Promise<TopTeacherProfile[]> {
+    const safeLimit = Number.isFinite(limit)
+      ? Math.max(1, Math.min(30, Math.floor(limit)))
+      : 9;
+
+    const queryBuilder = this.courseRepository
+      .createQueryBuilder('course')
+      .leftJoinAndSelect('course.teacher', 'teacher')
+      .leftJoinAndSelect('course.category', 'category')
+      .where('course.status = :status', { status: CourseStatus.PUBLISHED });
+
+    this.applyLatestPublishedPerLineageFilter(queryBuilder, 'course');
+
+    const publishedCourses = await queryBuilder.getMany();
+    const byTeacher = new Map<string, {
+      id: string;
+      name: string;
+      avatar: string | null;
+      students: number;
+      ratingTotal: number;
+      ratingCount: number;
+      revenue: number;
+      courses: number;
+      specialties: Map<string, number>;
+    }>();
+
+    for (const course of publishedCourses) {
+      const teacherId = course.teacherId;
+      if (!teacherId || !course.teacher) continue;
+
+      if (!byTeacher.has(teacherId)) {
+        byTeacher.set(teacherId, {
+          id: teacherId,
+          name: course.teacher.name || 'Giảng viên',
+          avatar: course.teacher.avatar || null,
+          students: 0,
+          ratingTotal: 0,
+          ratingCount: 0,
+          revenue: 0,
+          courses: 0,
+          specialties: new Map<string, number>(),
+        });
+      }
+
+      const teacherMetrics = byTeacher.get(teacherId)!;
+      const courseStudents = Number(course.enrollmentCount || 0);
+      const courseRating = Number(course.rating || 0);
+      const basePrice = Number(course.discountPrice || 0) > 0
+        ? Number(course.discountPrice || 0)
+        : Number(course.price || 0);
+      const specialty = course.category?.name || 'Đa lĩnh vực';
+
+      teacherMetrics.students += Math.max(0, courseStudents);
+      teacherMetrics.courses += 1;
+      teacherMetrics.revenue += Math.max(0, courseStudents) * Math.max(0, basePrice);
+
+      if (courseRating > 0) {
+        teacherMetrics.ratingTotal += courseRating;
+        teacherMetrics.ratingCount += 1;
+      }
+
+      teacherMetrics.specialties.set(
+        specialty,
+        (teacherMetrics.specialties.get(specialty) || 0) + 1,
+      );
+    }
+
+    return Array.from(byTeacher.values())
+      .map((teacher) => {
+        const sortedSpecialties = Array.from(teacher.specialties.entries()).sort(
+          (a, b) => b[1] - a[1],
+        );
+        const topSpecialty = sortedSpecialties[0]?.[0] || 'Đa lĩnh vực';
+        const avgRating =
+          teacher.ratingCount > 0 ? teacher.ratingTotal / teacher.ratingCount : 0;
+
+        return {
+          id: teacher.id,
+          name: teacher.name,
+          avatar: teacher.avatar,
+          specialty: topSpecialty,
+          students: teacher.students,
+          rating: Number(avgRating.toFixed(1)),
+          revenue: Math.round(teacher.revenue),
+          courses: teacher.courses,
+        };
+      })
+      .sort((a, b) => {
+        if (b.students !== a.students) return b.students - a.students;
+        if (b.rating !== a.rating) return b.rating - a.rating;
+        return b.courses - a.courses;
+      })
+      .slice(0, safeLimit);
   }
 
   async findByTeacher(teacherId: string): Promise<Course[]> {
