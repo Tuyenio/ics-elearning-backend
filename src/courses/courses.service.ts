@@ -641,12 +641,20 @@ export class CoursesService {
 
         const savedRevision = await revisionRepository.save(revision);
 
-        await this.cloneAssessmentAndCertificateSetup(
-          manager,
-          course.id,
-          savedRevision.id,
-          course.teacherId,
-        );
+        try {
+          await this.cloneAssessmentAndCertificateSetup(
+            manager,
+            course.id,
+            savedRevision.id,
+            course.teacherId,
+          );
+        } catch (error) {
+          // Do not block revision creation when legacy assessment/template data is malformed.
+          console.warn(
+            '[CoursesService] Unable to clone assessment/certificate setup for revision:',
+            error,
+          );
+        }
 
         return savedRevision;
       });
@@ -1149,93 +1157,160 @@ export class CoursesService {
     const templateIdMap = new Map<string, string>();
 
     if (sourceTemplates.length > 0) {
-      const clonedTemplates = sourceTemplates.map((template) =>
-        templateRepository.create({
-          title: template.title,
-          description: template.description,
-          courseId: targetCourseId,
-          teacherId,
-          validityPeriod: template.validityPeriod,
-          backgroundColor: template.backgroundColor,
-          borderColor: template.borderColor,
-          borderStyle: template.borderStyle,
-          textColor: template.textColor,
-          logoUrl: template.logoUrl,
-          signatureUrl: template.signatureUrl,
-          templateImageUrl: template.templateImageUrl,
-          templateStyle: template.templateStyle,
-          badgeStyle: template.badgeStyle,
-          status: template.status || TemplateStatus.DRAFT,
-          rejectionReason: template.rejectionReason,
-          issuedCount: 0,
-        }),
-      );
+      try {
+        const clonedTemplates = sourceTemplates.map((template) =>
+          templateRepository.create({
+            title: template.title,
+            description: template.description,
+            courseId: targetCourseId,
+            teacherId,
+            validityPeriod: template.validityPeriod,
+            backgroundColor: template.backgroundColor,
+            borderColor: template.borderColor,
+            borderStyle: template.borderStyle,
+            textColor: template.textColor,
+            logoUrl: template.logoUrl,
+            signatureUrl: template.signatureUrl,
+            templateImageUrl: template.templateImageUrl,
+            templateStyle: template.templateStyle,
+            badgeStyle: template.badgeStyle,
+            status: this.normalizeTemplateStatus(template.status),
+            rejectionReason: template.rejectionReason,
+            issuedCount: 0,
+          }),
+        );
 
-      const savedTemplates = await templateRepository.save(clonedTemplates);
+        const savedTemplates = await templateRepository.save(clonedTemplates);
 
-      sourceTemplates.forEach((sourceTemplate, index) => {
-        templateIdMap.set(sourceTemplate.id, savedTemplates[index].id);
-      });
+        sourceTemplates.forEach((sourceTemplate, index) => {
+          templateIdMap.set(sourceTemplate.id, savedTemplates[index].id);
+        });
+      } catch (error) {
+        console.warn(
+          '[CoursesService] Skip template cloning for revision due to invalid legacy data:',
+          error,
+        );
+      }
     }
 
     if (sourceExams.length > 0) {
-      const clonedExams = sourceExams.map((exam) => {
-        const mappedTemplateId = exam.certificateTemplateId
-          ? templateIdMap.get(exam.certificateTemplateId)
-          : undefined;
+      try {
+        const clonedExams = sourceExams.map((exam) => {
+          const mappedTemplateId = exam.certificateTemplateId
+            ? (templateIdMap.get(exam.certificateTemplateId) ?? null)
+            : null;
 
-        return examRepository.create({
-          title: exam.title,
-          description: exam.description,
-          type: exam.type,
-          status: exam.status,
-          questions: exam.questions,
-          timeLimit: exam.timeLimit,
-          passingScore: exam.passingScore,
-          maxAttempts: exam.maxAttempts,
-          shuffleQuestions: exam.shuffleQuestions,
-          shuffleAnswers: exam.shuffleAnswers,
-          showCorrectAnswers: exam.showCorrectAnswers,
-          availableFrom: exam.availableFrom,
-          availableUntil: exam.availableUntil,
-          certificateTemplateId: mappedTemplateId,
-          rejectionReason: exam.rejectionReason,
-          courseId: targetCourseId,
-          teacherId,
+          return examRepository.create({
+            title: exam.title,
+            description: exam.description,
+            type: this.normalizeExamType(exam.type),
+            status: this.normalizeExamStatus(exam.status),
+            questions: Array.isArray(exam.questions) ? exam.questions : [],
+            timeLimit: exam.timeLimit,
+            passingScore: exam.passingScore,
+            maxAttempts: exam.maxAttempts,
+            shuffleQuestions: exam.shuffleQuestions,
+            shuffleAnswers: exam.shuffleAnswers,
+            showCorrectAnswers: exam.showCorrectAnswers,
+            availableFrom: exam.availableFrom,
+            availableUntil: exam.availableUntil,
+            certificateTemplateId: mappedTemplateId,
+            rejectionReason: exam.rejectionReason,
+            courseId: targetCourseId,
+            teacherId,
+          });
         });
-      });
 
-      await examRepository.save(clonedExams);
+        await examRepository.save(clonedExams);
+      } catch (error) {
+        console.warn(
+          '[CoursesService] Skip exam cloning for revision due to invalid legacy data:',
+          error,
+        );
+      }
     }
 
     if (sourceExtractedExams.length > 0) {
-      const clonedExtractedExams = sourceExtractedExams.map((exam) =>
-        extractedExamRepository.create({
-          title: exam.title,
-          description: exam.description,
-          type: exam.type,
-          status: exam.status,
-          questions: exam.questions,
-          timeLimit: exam.timeLimit,
-          passingScore: exam.passingScore,
-          maxAttempts: exam.maxAttempts,
-          shuffleQuestions: exam.shuffleQuestions,
-          shuffleAnswers: exam.shuffleAnswers,
-          showCorrectAnswers: exam.showCorrectAnswers,
-          availableFrom: exam.availableFrom,
-          availableUntil: exam.availableUntil,
-          certificateTemplateId: exam.certificateTemplateId
-            ? (templateIdMap.get(exam.certificateTemplateId) ?? null)
-            : null,
-          variantCount: exam.variantCount,
-          variants: exam.variants,
-          sourceExamId: exam.sourceExamId || exam.id,
-          courseId: targetCourseId,
-          teacherId,
-        }),
-      );
+      try {
+        const clonedExtractedExams = sourceExtractedExams.map((exam) =>
+          extractedExamRepository.create({
+            title: exam.title,
+            description: exam.description,
+            type: this.normalizeExtractedExamType(exam.type),
+            status: this.normalizeExtractedExamStatus(exam.status),
+            questions: Array.isArray(exam.questions) ? exam.questions : [],
+            timeLimit: exam.timeLimit,
+            passingScore: exam.passingScore,
+            maxAttempts: exam.maxAttempts,
+            shuffleQuestions: exam.shuffleQuestions,
+            shuffleAnswers: exam.shuffleAnswers,
+            showCorrectAnswers: exam.showCorrectAnswers,
+            availableFrom: exam.availableFrom,
+            availableUntil: exam.availableUntil,
+            certificateTemplateId: this.toNullableUuid(
+              exam.certificateTemplateId
+                ? (templateIdMap.get(exam.certificateTemplateId) ?? exam.certificateTemplateId)
+                : null,
+            ),
+            variantCount: exam.variantCount,
+            variants: Array.isArray(exam.variants) ? exam.variants : null,
+            sourceExamId: this.toNullableUuid(exam.sourceExamId || exam.id),
+            courseId: targetCourseId,
+            teacherId,
+          }),
+        );
 
-      await extractedExamRepository.save(clonedExtractedExams);
+        await extractedExamRepository.save(clonedExtractedExams);
+      } catch (error) {
+        console.warn(
+          '[CoursesService] Skip extracted exam cloning for revision due to invalid legacy data:',
+          error,
+        );
+      }
     }
+  }
+
+  private normalizeTemplateStatus(status: unknown): TemplateStatus {
+    if (status === TemplateStatus.PENDING) return TemplateStatus.PENDING;
+    if (status === TemplateStatus.APPROVED) return TemplateStatus.APPROVED;
+    if (status === TemplateStatus.REJECTED) return TemplateStatus.REJECTED;
+    return TemplateStatus.DRAFT;
+  }
+
+  private normalizeExamType(type: unknown): ExamType {
+    return type === ExamType.OFFICIAL ? ExamType.OFFICIAL : ExamType.PRACTICE;
+  }
+
+  private normalizeExamStatus(status: unknown): ExamStatus {
+    if (status === ExamStatus.PENDING) return ExamStatus.PENDING;
+    if (status === ExamStatus.APPROVED) return ExamStatus.APPROVED;
+    if (status === ExamStatus.REJECTED) return ExamStatus.REJECTED;
+    return ExamStatus.DRAFT;
+  }
+
+  private normalizeExtractedExamType(type: unknown): ExtractedExamType {
+    return type === ExtractedExamType.OFFICIAL
+      ? ExtractedExamType.OFFICIAL
+      : ExtractedExamType.PRACTICE;
+  }
+
+  private normalizeExtractedExamStatus(status: unknown): ExtractedExamStatus {
+    if (status === ExtractedExamStatus.PENDING)
+      return ExtractedExamStatus.PENDING;
+    if (status === ExtractedExamStatus.APPROVED)
+      return ExtractedExamStatus.APPROVED;
+    if (status === ExtractedExamStatus.REJECTED)
+      return ExtractedExamStatus.REJECTED;
+    return ExtractedExamStatus.DRAFT;
+  }
+
+  private toNullableUuid(value: unknown): string | null {
+    const normalized = String(value ?? '').trim();
+    if (!normalized) return null;
+
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    return uuidRegex.test(normalized) ? normalized : null;
   }
 }
