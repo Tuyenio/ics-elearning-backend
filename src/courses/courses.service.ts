@@ -4,7 +4,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, Repository, SelectQueryBuilder } from 'typeorm';
+import { EntityManager, Repository, SelectQueryBuilder, In } from 'typeorm';
 import { Course, CourseStatus } from './entities/course.entity';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
@@ -471,9 +471,19 @@ export class CoursesService {
       throw new ForbiddenException('Bạn chỉ có thể cập nhật khóa học của bạn');
     }
 
+    const activeOrCompletedEnrollmentCount = await this.enrollmentRepository.count(
+      {
+        where: {
+          courseId: course.id,
+          status: In([EnrollmentStatus.ACTIVE, EnrollmentStatus.COMPLETED]),
+        },
+      },
+    );
+
     const shouldCreateRevision =
       user.role === UserRole.TEACHER &&
-      course.status === CourseStatus.PUBLISHED;
+      (course.status === CourseStatus.PUBLISHED ||
+        activeOrCompletedEnrollmentCount > 0);
 
     if (shouldCreateRevision) {
       const revisionSlugBase =
