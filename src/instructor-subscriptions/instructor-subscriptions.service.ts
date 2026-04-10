@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Course } from '../courses/entities/course.entity';
+import { Course, CourseStatus } from '../courses/entities/course.entity';
 import { User, UserRole } from '../users/entities/user.entity';
 import { Enrollment, EnrollmentStatus } from '../enrollments/entities/enrollment.entity';
 import { UpsertPlanDto } from './dto/upsert-plan.dto';
@@ -459,9 +459,13 @@ export class InstructorSubscriptionsService
       subscription.plan = freePlan;
     }
 
-    const coursesCreated = await this.courseRepo.count({
-      where: { teacherId },
-    });
+    const coursesCreated = await this.courseRepo
+      .createQueryBuilder('course')
+      .where('course.teacherId = :teacherId', { teacherId })
+      .andWhere('course.status != :draftStatus', {
+        draftStatus: CourseStatus.DRAFT,
+      })
+      .getCount();
     const courseLimit = subscription.plan?.courseLimit || 2;
     const remainingCourses = Math.max(0, courseLimit - coursesCreated);
     const studentsUsedRaw = await this.enrollmentRepo
@@ -1373,9 +1377,13 @@ export class InstructorSubscriptionsService
 
     return Promise.all(
       normalizedSubs.map(async (sub) => {
-        const coursesCreated = await this.courseRepo.count({
-          where: { teacherId: sub.teacherId },
-        });
+        const coursesCreated = await this.courseRepo
+          .createQueryBuilder('course')
+          .where('course.teacherId = :teacherId', { teacherId: sub.teacherId })
+          .andWhere('course.status != :draftStatus', {
+            draftStatus: CourseStatus.DRAFT,
+          })
+          .getCount();
         return {
           ...sub,
           teacher: sub.teacher,

@@ -58,6 +58,8 @@ type TopTeacherProfile = {
 
 @Injectable()
 export class CoursesService {
+  private static readonly COURSE_LIMIT_ERROR_CODE = 'COURSE_LIMIT_REACHED';
+
   constructor(
     @InjectRepository(Course)
     private readonly courseRepository: Repository<Course>,
@@ -102,10 +104,12 @@ export class CoursesService {
     createCourseDto: CreateCourseDto,
     teacher: User,
   ): Promise<Course> {
-    if (teacher.role === UserRole.TEACHER) {
-      await this.instructorSubscriptionsService.enforceTeacherCourseLimit(
-        teacher.id,
-      );
+    if (
+      teacher.role === UserRole.TEACHER &&
+      createCourseDto.status &&
+      createCourseDto.status !== CourseStatus.DRAFT
+    ) {
+      await this.enforceTeacherSubmissionLimit(teacher.id);
     }
 
     const baseSlug =
@@ -240,11 +244,11 @@ export class CoursesService {
 
     if (options?.status && options.status !== 'all') {
       qb.andWhere('course.status = :status', { status: options.status });
-    } else {
-      qb.andWhere('course.status != :draftStatus', {
-        draftStatus: CourseStatus.DRAFT,
-      });
     }
+
+    qb.andWhere('course.status != :draftStatus', {
+      draftStatus: CourseStatus.DRAFT,
+    });
 
     if (options?.search) {
       qb.andWhere(
@@ -592,6 +596,8 @@ export class CoursesService {
         activeOrCompletedEnrollmentCount > 0);
 
     if (shouldCreateRevision) {
+      await this.enforceTeacherSubmissionLimit(course.teacherId);
+
       const revisionSlugBase =
         updateCourseDto.slug || `${course.slug}-v${Date.now().toString(36)}`;
       const revisionSlug = await this.generateUniqueSlug(revisionSlugBase);
@@ -844,9 +850,50 @@ export class CoursesService {
       throw new ForbiddenException('Bạn chỉ có thể gửi khóa học của bạn');
     }
 
+    if (user.role === UserRole.TEACHER && course.status === CourseStatus.DRAFT) {
+      await this.enforceTeacherSubmissionLimit(user.id);
+    }
+
     course.status = CourseStatus.PENDING;
     course.rejectionReason = '';
     return this.courseRepository.save(course);
+  }
+
+  private async enforceTeacherSubmissionLimit(teacherId: string): Promise<void> {
+    try {
+      await this.instructorSubscriptionsService.enforceTeacherCourseLimit(
+        teacherId,
+      );
+    } catch (error) {
+      if (error instanceof ForbiddenException) {
+        const response = error.getResponse();
+        const fallbackMessage =
+          'Ban da dat gioi han khoa hoc cua goi hien tai. Vui long nang cap de gui duyet hoac xuat ban them.';
+
+        let message = fallbackMessage;
+        if (typeof response === 'string' && response.trim()) {
+          message = response;
+        } else if (response && typeof response === 'object') {
+          const record = response as Record<string, unknown>;
+          const responseMessage = record.message;
+          if (typeof responseMessage === 'string' && responseMessage.trim()) {
+            message = responseMessage;
+          } else if (
+            Array.isArray(responseMessage) &&
+            typeof responseMessage[0] === 'string'
+          ) {
+            message = responseMessage[0] as string;
+          }
+        }
+
+        throw new ForbiddenException({
+          code: CoursesService.COURSE_LIMIT_ERROR_CODE,
+          message,
+        });
+      }
+
+      throw error;
+    }
   }
 
   async getAvailableFilters(): Promise<CourseFilters> {
