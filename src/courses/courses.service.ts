@@ -1197,8 +1197,8 @@ export class CoursesService {
       try {
         const clonedExams = sourceExams.map((exam) => {
           const mappedTemplateId = exam.certificateTemplateId
-            ? (templateIdMap.get(exam.certificateTemplateId) ?? null)
-            : null;
+            ? templateIdMap.get(exam.certificateTemplateId)
+            : undefined;
 
           return examRepository.create({
             title: exam.title,
