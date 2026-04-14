@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -83,6 +84,9 @@ export class NotesService {
     const trimmedTitle = typeof createNoteDto.title === 'string'
       ? createNoteDto.title.trim()
       : '';
+    const trimmedContent = typeof createNoteDto.content === 'string'
+      ? createNoteDto.content.trim()
+      : '';
     const contentTitle = typeof createNoteDto.content === 'string'
       ? createNoteDto.content.split('\n')[0]?.trim()
       : '';
@@ -90,6 +94,14 @@ export class NotesService {
     const normalizedTags = Array.isArray(createNoteDto.tags)
       ? createNoteDto.tags.map((tag) => String(tag).trim()).filter(Boolean)
       : null;
+    const hasItems = Array.isArray(createNoteDto.items)
+      && createNoteDto.items.length > 0;
+    const hasSchedule = Array.isArray(createNoteDto.schedule)
+      && createNoteDto.schedule.length > 0;
+
+    if (!trimmedTitle && !trimmedContent && !hasItems && !hasSchedule) {
+      throw new BadRequestException('Note content is required');
+    }
 
     const note = new Note();
     Object.assign(note, {
