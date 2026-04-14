@@ -36,6 +36,13 @@ export class CouponsController {
     return this.couponsService.findAll(user);
   }
 
+  @Get('scope-options')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.TEACHER)
+  getScopeOptions(@GetUser() user: User) {
+    return this.couponsService.getScopeOptions(user);
+  }
+
   @Post('validate')
   @UseGuards(JwtAuthGuard)
   validateCoupon(@Body() validateCouponDto: ValidateCouponDto) {

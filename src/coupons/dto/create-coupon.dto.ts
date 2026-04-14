@@ -7,7 +7,7 @@ import {
   Min,
   IsUUID,
 } from 'class-validator';
-import { CouponType } from '../entities/coupon.entity';
+import { CouponApplyScope, CouponType } from '../entities/coupon.entity';
 
 export class CreateCouponDto {
   @IsString()
@@ -38,6 +38,18 @@ export class CreateCouponDto {
   @IsOptional()
   @IsUUID('all')
   courseId?: string;
+
+  @IsOptional()
+  @IsEnum(CouponApplyScope)
+  applyScope?: CouponApplyScope;
+
+  @IsOptional()
+  @IsUUID('all')
+  teacherId?: string;
+
+  @IsOptional()
+  @IsUUID('all')
+  categoryId?: string;
 
   @IsOptional()
   @IsDateString()

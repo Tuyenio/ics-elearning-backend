@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Course } from '../../courses/entities/course.entity';
+import { Category } from '../../categories/entities/category.entity';
 
 export enum CouponType {
   PERCENTAGE = 'percentage',
@@ -20,6 +21,13 @@ export enum CouponStatus {
   ACTIVE = 'active',
   INACTIVE = 'inactive',
   EXPIRED = 'expired',
+}
+
+export enum CouponApplyScope {
+  ALL = 'all',
+  COURSE = 'course',
+  TEACHER = 'teacher',
+  CATEGORY = 'category',
 }
 
 @Entity('coupons', { schema: 'learning' })
@@ -65,6 +73,23 @@ export class Coupon {
   courseId: string;
 
   @Index()
+  @Column({
+    name: 'apply_scope',
+    type: 'varchar',
+    length: 20,
+    default: CouponApplyScope.ALL,
+  })
+  applyScope: CouponApplyScope;
+
+  @Index()
+  @Column({ name: 'teacher_id', nullable: true })
+  teacherId: string;
+
+  @Index()
+  @Column({ name: 'category_id', nullable: true })
+  categoryId: string;
+
+  @Index()
   @Column({ name: 'created_by' })
   createdBy: string;
 
@@ -90,6 +115,14 @@ export class Coupon {
   @ManyToOne(() => Course, { nullable: true, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'course_id' })
   course: Course;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'teacher_id' })
+  teacher: User;
+
+  @ManyToOne(() => Category, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'category_id' })
+  category: Category;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'created_by' })
