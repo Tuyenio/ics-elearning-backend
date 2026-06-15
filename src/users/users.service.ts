@@ -113,8 +113,14 @@ export class UsersService {
       queryBuilder.andWhere('user.status = :status', { status });
     }
 
-    // Sorting
-    queryBuilder.orderBy(`user.${sortBy}`, sortOrder);
+    // Sorting — whitelist to prevent SQL injection via column name injection
+    const ALLOWED_SORT_FIELDS = ['createdAt', 'updatedAt', 'name', 'email', 'role', 'status'] as const;
+    type AllowedSortField = typeof ALLOWED_SORT_FIELDS[number];
+    const safeSortBy: AllowedSortField = (ALLOWED_SORT_FIELDS as readonly string[]).includes(sortBy)
+      ? (sortBy as AllowedSortField)
+      : 'createdAt';
+    const safeSortOrder: 'ASC' | 'DESC' = sortOrder === 'ASC' ? 'ASC' : 'DESC';
+    queryBuilder.orderBy(`user.${safeSortBy}`, safeSortOrder);
 
     // Relation counts for admin users table
     queryBuilder.loadRelationCountAndMap('user.coursesCount', 'user.courses');

@@ -15,6 +15,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -81,9 +82,9 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   updateProfile(
     @GetUser() user: AuthenticatedRequestUser,
-    @Body() updateUserDto: UpdateUserDto,
+    @Body() updateProfileDto: UpdateProfileDto,
   ) {
-    return this.usersService.update(user.id, updateUserDto);
+    return this.usersService.update(user.id, updateProfileDto);
   }
 
   @Patch(':id')

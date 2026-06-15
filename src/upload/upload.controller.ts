@@ -8,7 +8,6 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { extname } from 'path';
 import { UploadService } from './upload.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -34,16 +33,17 @@ export class UploadController {
         destination: UploadService.getUploadPath('image'),
         filename: (req, file, cb) => {
           const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
-          cb(null, `file-${unique}${extname(file.originalname)}`);
+          // Extension is derived from server-verified MIME type, never from originalname
+          cb(null, `file-${unique}${UploadService.safeExtension(file.mimetype)}`);
         },
       }),
+      fileFilter: UploadService.getFileFilter('image'),
+      limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
     }),
   )
   uploadImage(@UploadedFile() file: Express.Multer.File) {
-    this.uploadService.validateFile(file, 'image');
-
+    if (!file) throw new BadRequestException('Không có file được tải lên');
     const url = this.uploadService.generateFileUrl(file.filename, 'image');
-
     return {
       message: 'Đã tải lên hình ảnh thành công',
       url,
@@ -61,16 +61,16 @@ export class UploadController {
         destination: UploadService.getUploadPath('video'),
         filename: (req, file, cb) => {
           const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
-          cb(null, `file-${unique}${extname(file.originalname)}`);
+          cb(null, `file-${unique}${UploadService.safeExtension(file.mimetype)}`);
         },
       }),
+      fileFilter: UploadService.getFileFilter('video'),
+      limits: { fileSize: 500 * 1024 * 1024 }, // 500MB
     }),
   )
   uploadVideo(@UploadedFile() file: Express.Multer.File) {
-    this.uploadService.validateFile(file, 'video');
-
+    if (!file) throw new BadRequestException('Không có file được tải lên');
     const url = this.uploadService.generateFileUrl(file.filename, 'video');
-
     return {
       message: 'Đã tải lên video thành công',
       url,
@@ -88,16 +88,16 @@ export class UploadController {
         destination: UploadService.getUploadPath('document'),
         filename: (req, file, cb) => {
           const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
-          cb(null, `file-${unique}${extname(file.originalname)}`);
+          cb(null, `file-${unique}${UploadService.safeExtension(file.mimetype)}`);
         },
       }),
+      fileFilter: UploadService.getFileFilter('document'),
+      limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
     }),
   )
   uploadDocument(@UploadedFile() file: Express.Multer.File) {
-    this.uploadService.validateFile(file, 'document');
-
+    if (!file) throw new BadRequestException('Không có file được tải lên');
     const url = this.uploadService.generateFileUrl(file.filename, 'document');
-
     return {
       message: 'Đã tải lên tài liệu thành công',
       url,
@@ -115,21 +115,11 @@ export class UploadController {
         destination: UploadService.getUploadPath('avatar'),
         filename: (req, file, cb) => {
           const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
-          cb(null, `file-${unique}${extname(file.originalname)}`);
+          cb(null, `file-${unique}${UploadService.safeExtension(file.mimetype)}`);
         },
       }),
-      limits: {
-        fileSize: 5 * 1024 * 1024, // 5MB
-      },
-      fileFilter: (req, file, callback) => {
-        if (!file.mimetype.match(/\/(jpg|jpeg|png|webp)$/)) {
-          return callback(
-            new BadRequestException('Only image files are allowed!'),
-            false,
-          );
-        }
-        callback(null, true);
-      },
+      fileFilter: UploadService.getFileFilter('image'),
+      limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
     }),
   )
   async uploadAvatar(
@@ -140,10 +130,7 @@ export class UploadController {
       throw new BadRequestException('Không có file được tải lên');
     }
 
-    this.uploadService.validateFile(file, 'image');
-
     const url = this.uploadService.generateFileUrl(file.filename, 'avatar');
-
     await this.usersService.updateUserAvatar(user.id, url);
 
     return {

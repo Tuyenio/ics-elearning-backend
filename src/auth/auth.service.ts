@@ -250,7 +250,7 @@ export class AuthService {
     }
 
     // Hash new password
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
 
     // Update password
     await this.usersService.updatePassword(userId, hashedPassword);

@@ -7,14 +7,35 @@ import session from 'express-session';
 import { json, urlencoded } from 'express';
 import passport from 'passport';
 import { join } from 'path';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
+function requireEnv(key: string): string {
+  const value = process.env[key];
+  if (!value) {
+    throw new Error(`Required environment variable "${key}" is not set. Add it to your .env file.`);
+  }
+  return value;
+}
+
 async function bootstrap() {
+  // Fail fast if required secrets are missing
+  requireEnv('JWT_SECRET');
+  requireEnv('SESSION_SECRET');
+
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const configService = app.get(ConfigService);
+
+  // Security headers (must be first middleware)
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' }, // allow /uploads images cross-origin
+      contentSecurityPolicy: false, // managed separately if needed
+    }),
+  );
 
   // Serve static files from uploads directory
   app.useStaticAssets(join(process.cwd(), 'uploads'), {
@@ -99,14 +120,14 @@ async function bootstrap() {
     maxAge: 86400, // 24 hours
   });
 
-  // Session middleware for Passport OAuth
+  // Session middleware for Passport OAuth (secret from env, validated at startup)
   app.use(
     session({
-      secret: 'your-secret-key-change-in-production',
+      secret: requireEnv('SESSION_SECRET'),
       resave: false,
       saveUninitialized: false,
       cookie: {
-        secure: nodeEnv === 'production', // Use secure in production
+        secure: nodeEnv === 'production',
         httpOnly: true,
         sameSite: 'lax',
         maxAge: 24 * 60 * 60 * 1000, // 24 hours

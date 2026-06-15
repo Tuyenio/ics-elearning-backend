@@ -82,9 +82,8 @@ export class NotificationsGateway
         return;
       }
 
-      const payload = this.jwtService.verify<AuthPayload>(token, {
-        secret: process.env.JWT_SECRET || 'your-secret-key',
-      });
+      // Use the JwtModule-configured secret (from JWT_SECRET env var via auth.module)
+      const payload = this.jwtService.verify<AuthPayload>(token);
 
       const userId = payload.sub;
       this.setSocketUserId(client, userId);

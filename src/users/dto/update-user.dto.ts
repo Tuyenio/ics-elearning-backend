@@ -59,16 +59,5 @@ export class UpdateUserDto extends PartialType(CreateUserDto) {
   @IsOptional()
   @IsDate()
   emailVerifiedAt?: Date;
-
-  @IsOptional()
-  @IsString()
-  emailVerificationToken?: string;
-
-  @IsOptional()
-  @IsString()
-  passwordResetToken?: string;
-
-  @IsOptional()
-  @IsDate()
-  passwordResetTokenExpires?: Date;
+  // emailVerificationToken, passwordResetToken, passwordResetTokenExpires are server-generated — never accepted from input
 }
